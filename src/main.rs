@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use colored::*;
+use dirs;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -57,7 +58,7 @@ fn publish() -> Result<()> {
     );
 
     // 2. Determine the path in the store (~/.kley/packages/name)
-    let home_dir = home::home_dir().context("Failed to find home directory")?;
+    let home_dir = dirs::home_dir().context("Failed to find home directory")?;
     let store_path = home_dir.join(".kley").join("packages").join(&pkg.name);
 
     if store_path.exists() {
@@ -91,7 +92,7 @@ fn publish() -> Result<()> {
 
 /// Add logic
 fn add(package_name: &str) -> Result<()> {
-    let home_dir = home::home_dir().context("Failed to find home directory")?;
+    let home_dir = dirs::home_dir().context("Failed to find home directory")?;
     let source_path = home_dir.join(".kley").join("packages").join(package_name);
 
     if !source_path.exists() {
