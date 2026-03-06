@@ -1,10 +1,10 @@
-# Kley Project Specification
+# kley Project Specification
 
 ## 1. Project Title
-Kley - A Fast and Reliable Local Package Manager for npm (JS/TS)
+kley - A Fast and Reliable Local Package Manager for npm (JS/TS)
 
 ## 2. Description
-Kley is a command-line interface (CLI) tool written in Rust designed to streamline local development and testing of npm packages. It provides a robust and performant alternative to traditional methods like `npm link` or existing tools like `yalc`, by managing a local package store and facilitating easy integration into host projects.
+kley is a command-line interface (CLI) tool written in Rust designed to streamline local development and testing of npm packages. It provides a robust and performant alternative to traditional methods like `npm link` or existing tools like `yalc`, by managing a local package store and facilitating easy integration into host projects.
 
 ## 3. Motivation
 Developing and testing local npm packages, especially within monorepositories or when building libraries, often presents challenges with symbolic links (`npm link`, `yarn link`). These challenges include:
@@ -32,6 +32,34 @@ Kley aims to address these issues by offering a mechanism to "publish" packages 
     - Copies the contents of the stored package into a dedicated directory within the host project (e.g., `.kley/<package-name>`).
     - Instructs the user on how to manually update their host project's `package.json` to reference the newly added package using a `file:` dependency (e.g., `"my-local-lib": "file:.kley/my-local-lib"`).
     - Provides clear console feedback on the addition status.
+
+### 4.3. Workflow Diagrams
+
+#### `kley publish`
+
+```mermaid
+flowchart TD
+    A[Start] --> B{Read package.json};
+    B --> C{Found?};
+    C -- No --> D[Error: package.json not found];
+    C -- Yes --> E[Parse for name & version];
+    E --> F[Define store path ~/.kley/packages/name];
+    F --> G[Copy project files to store path];
+    G --> H[End];
+```
+
+#### `kley add`
+
+```mermaid
+flowchart TD
+    A[Start] --> B[Get <package-name>];
+    B --> C{Package exists in store?};
+    C -- No --> D[Error: Package not found];
+    C -- Yes --> E[Define destination ./.kley/package-name];
+    E --> F[Copy files from store to destination];
+    F --> G[Print instructions to update package.json];
+    G --> H[End];
+```
 
 ## 5. Technical Stack
 - **Language**: Rust
