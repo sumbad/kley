@@ -32,9 +32,6 @@ config:
 
 kanban
     Backlog
-        "Use ignore crate for filtering"<br/><br/>@{ assigned: I, priority: 'High', ticket: '002-ignore-crate' }
-        "Automate package.json modification"<br/><br/>@{ assigned: I, priority: 'High', ticket: '003-auto-pkg-json' }
-        "Create and manage kley.lock"<br/><br/>@{ assigned: I, priority: 'High' }
         "Implement push command"<br/><br/>@{ assigned: II, priority: 'Very High', ticket: '001-push-command' }
         "Implement remove command"<br/><br/>@{ assigned: III, priority: 'High' }
         "Implement list command"<br/><br/>@{ assigned: III, priority: 'Very Low' }
@@ -44,10 +41,14 @@ kanban
         "Add comprehensive tests"<br/><br/>@{ assigned: V, priority: 'Very High' }
 
     Todo
+        "Use ignore crate for filtering"<br/><br/>@{ assigned: I, priority: 'High', ticket: '002-ignore-crate' }
+        "Create and manage kley.lock"<br/><br/>@{ assigned: I, priority: 'High' }
 
     [In progress]
 
     Done
+        "Automate package.json modification"<br/><br/>@{ assigned: I, priority: 'High', ticket: '003-auto-pkg-json' }
+        "Add unit tests for package.json logic"<br/><br/>@{ assigned: V, priority: 'Medium' }
         "Improve Documentation with Mermaid"<br/><br/>@{ assigned: V, priority: 'Low' }
         "Dependency audit home to dirs"<br/><br/>@{ assigned: I, priority: 'Low' }
 ```
