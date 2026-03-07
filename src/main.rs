@@ -125,7 +125,13 @@ fn add(package_name: &str, is_dev: bool) -> Result<()> {
     );
 
     // --- Automate package.json modification ---
-    let pkg_json_path = Path::new("package.json");
+    update_package_json(Path::new("package.json"), package_name, is_dev)?;
+
+    Ok(())
+}
+
+/// Modifies package.json to add or update a dependency.
+fn update_package_json(pkg_json_path: &Path, package_name: &str, is_dev: bool) -> Result<()> {
     if !pkg_json_path.exists() {
         println!(
             "{}",
@@ -196,4 +202,126 @@ fn detect_indent(json_str: &str) -> String {
         }
     }
     "  ".to_string() // Default to 2 spaces
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn test_add_new_dependency() -> Result<()> {
+        let initial_content = r#"{
+  "name": "test-project",
+  "version": "1.0.0",
+  "dependencies": {}
+}"#;
+        let mut file = NamedTempFile::new()?;
+        write!(file, "{}", initial_content)?;
+
+        update_package_json(file.path(), "my-local-lib", false)?;
+
+        let updated_content = fs::read_to_string(file.path())?;
+        let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
+
+        assert_eq!(
+            updated_json["dependencies"]["my-local-lib"],
+            "file:.kley/my-local-lib"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_add_new_dev_dependency() -> Result<()> {
+        let initial_content = r#"{
+  "name": "test-project",
+  "version": "1.0.0",
+  "devDependencies": {}
+}"#;
+        let mut file = NamedTempFile::new()?;
+        write!(file, "{}", initial_content)?;
+
+        update_package_json(file.path(), "my-local-lib", true)?;
+
+        let updated_content = fs::read_to_string(file.path())?;
+        let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
+
+        assert_eq!(
+            updated_json["devDependencies"]["my-local-lib"],
+            "file:.kley/my-local-lib"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_update_existing_dependency() -> Result<()> {
+        let initial_content = r#"{
+  "name": "test-project",
+  "version": "1.0.0",
+  "dependencies": {
+    "my-local-lib": "1.0.0"
+  }
+}"#;
+        let mut file = NamedTempFile::new()?;
+        write!(file, "{}", initial_content)?;
+
+        update_package_json(file.path(), "my-local-lib", false)?;
+
+        let updated_content = fs::read_to_string(file.path())?;
+        let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
+
+        assert_eq!(
+            updated_json["dependencies"]["my-local-lib"],
+            "file:.kley/my-local-lib"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_create_dependencies_section() -> Result<()> {
+        let initial_content = r#"{
+  "name": "test-project",
+  "version": "1.0.0"
+}"#;
+        let mut file = NamedTempFile::new()?;
+        write!(file, "{}", initial_content)?;
+
+        update_package_json(file.path(), "my-local-lib", false)?;
+
+        let updated_content = fs::read_to_string(file.path())?;
+        let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
+
+        assert_eq!(
+            updated_json["dependencies"]["my-local-lib"],
+            "file:.kley/my-local-lib"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_create_dev_dependencies_section() -> Result<()> {
+        let initial_content = r#"{
+  "name": "test-project",
+  "version": "1.0.0"
+}"#;
+        let mut file = NamedTempFile::new()?;
+        write!(file, "{}", initial_content)?;
+
+        update_package_json(file.path(), "my-local-lib", true)?;
+
+        let updated_content = fs::read_to_string(file.path())?;
+        let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
+
+        assert_eq!(
+            updated_json["devDependencies"]["my-local-lib"],
+            "file:.kley/my-local-lib"
+        );
+
+        Ok(())
+    }
 }
