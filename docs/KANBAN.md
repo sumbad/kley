@@ -47,6 +47,7 @@ kanban
     [In progress]
 
     Done
+        "Refactor main.rs to command modules"<br/><br/>@{ assigned: V, priority: 'Medium', ticket: '005-refactor-main' }
         "Automate package.json modification"<br/><br/>@{ assigned: I, priority: 'High', ticket: '003-auto-pkg-json' }
         "Add unit tests for package.json logic"<br/><br/>@{ assigned: V, priority: 'Medium' }
         "Improve Documentation with Mermaid"<br/><br/>@{ assigned: V, priority: 'Low' }
