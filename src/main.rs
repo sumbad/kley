@@ -1,5 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+// Добавляем импорты
+use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 mod commands;
 
@@ -24,6 +26,14 @@ enum Commands {
 }
 
 fn main() -> Result<()> {
+    let subscriber = FmtSubscriber::builder()
+        // Set default level to INFO (info!, warn!, error!)
+        .with_max_level(tracing::Level::INFO)
+        .with_env_filter(EnvFilter::from_default_env())
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
     let cli = Cli::parse();
 
     match &cli.command {
