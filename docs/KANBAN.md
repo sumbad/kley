@@ -41,12 +41,12 @@ kanban
         "Add comprehensive tests"<br/><br/>@{ assigned: V, priority: 'Very High' }
 
     Todo
-        "Use ignore crate for filtering"<br/><br/>@{ assigned: I, priority: 'High', ticket: '002-ignore-crate' }
         "Create and manage kley.lock"<br/><br/>@{ assigned: I, priority: 'High' }
 
     [In progress]
 
     Done
+        "Use ignore crate for filtering"<br/><br/>@{ assigned: I, priority: 'High', ticket: '002-ignore-crate' }
         "Refactor main.rs to command modules"<br/><br/>@{ assigned: V, priority: 'Medium', ticket: '005-refactor-main' }
         "Automate package.json modification"<br/><br/>@{ assigned: I, priority: 'High', ticket: '003-auto-pkg-json' }
         "Add unit tests for package.json logic"<br/><br/>@{ assigned: V, priority: 'Medium' }
