@@ -1,3 +1,4 @@
+use crate::lockfile::{Lockfile, PackageInfo, PackageJson};
 use anyhow::{Context, Result};
 use colored::*;
 use serde::Serialize;
@@ -17,8 +18,8 @@ pub fn add(package_name: &str, is_dev: bool) -> Result<()> {
         );
     }
 
-    // Determine the local storage folder (.kley/package-name)
-    let dest_path = Path::new(".kley").join(package_name);
+    let project_dir = std::env::current_dir()?;
+    let dest_path = project_dir.join(".kley").join(package_name);
 
     if dest_path.exists() {
         fs::remove_dir_all(&dest_path)?;
@@ -37,7 +38,10 @@ pub fn add(package_name: &str, is_dev: bool) -> Result<()> {
     );
 
     // --- Automate package.json modification ---
-    update_package_json(Path::new("package.json"), package_name, is_dev)?;
+    update_package_json(&project_dir.join("package.json"), package_name, is_dev)?;
+
+    // --- Create or update kley.lock ---
+    update_kley_lock(package_name, &source_path, &project_dir)?;
 
     Ok(())
 }
@@ -99,6 +103,52 @@ fn update_package_json(pkg_json_path: &Path, package_name: &str, is_dev: bool) -
     fs::write(pkg_json_path, buf)?;
 
     println!("{}", "✅ package.json has been updated!".green());
+
+    Ok(())
+}
+
+/// Creates or updates kley.lock file.
+fn update_kley_lock(package_name: &str, source_path: &Path, project_dir: &Path) -> Result<()> {
+    let lock_path = project_dir.join("kley.lock");
+
+    // 1. Read source package.json to get version
+    let source_pkg_json_path = source_path.join("package.json");
+    let content = fs::read_to_string(&source_pkg_json_path).context(format!(
+        "Failed to read package.json from {:?}",
+        source_path
+    ))?;
+    let pkg_json: PackageJson =
+        serde_json::from_str(&content).context("Failed to parse source package.json")?;
+
+    // 2. Read existing kley.lock or create a new one
+    let mut lockfile: Lockfile = if lock_path.exists() {
+        let content = fs::read_to_string(&lock_path)?;
+        if content.trim().is_empty() {
+            Lockfile::default()
+        } else {
+            serde_json::from_str(&content).context("Failed to parse kley.lock")?
+        }
+    } else {
+        Lockfile::default()
+    };
+
+    // 3. Insert or update package info
+    let package_info = PackageInfo {
+        version: pkg_json.version,
+    };
+    lockfile
+        .packages
+        .insert(package_name.to_string(), package_info);
+
+    // 4. Write back to kley.lock
+    let mut buf = Vec::new();
+    let formatter = serde_json::ser::PrettyFormatter::with_indent(b"  ");
+    let mut ser = serde_json::Serializer::with_formatter(&mut buf, formatter);
+    lockfile.serialize(&mut ser)?;
+
+    fs::write(lock_path, buf)?;
+
+    println!("{}", "🔒 kley.lock has been updated!".green());
 
     Ok(())
 }
@@ -232,6 +282,72 @@ mod tests {
         assert_eq!(
             updated_json["devDependencies"]["my-local-lib"],
             "file:.kley/my-local-lib"
+        );
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod kley_lock_tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_create_new_kley_lock() -> Result<()> {
+        let dir = tempdir()?;
+        let project_dir = dir.path();
+
+        // Create a dummy package.json in a dummy source path
+        let source_path = project_dir.join("source-lib");
+        fs::create_dir_all(&source_path)?;
+        let pkg_json_path = source_path.join("package.json");
+        let mut file = fs::File::create(pkg_json_path)?;
+        write!(file, r#"{{"version": "1.2.3"}}"#)?;
+
+        update_kley_lock("my-test-lib", &source_path, project_dir)?;
+
+        let lock_content = fs::read_to_string(project_dir.join("kley.lock"))?;
+        let lockfile: Lockfile = serde_json::from_str(&lock_content)?;
+
+        assert_eq!(
+            lockfile.packages.get("my-test-lib").unwrap().version,
+            "1.2.3"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_update_existing_kley_lock() -> Result<()> {
+        let dir = tempdir()?;
+        let project_dir = dir.path();
+
+        // Create a dummy source package
+        let source_path = project_dir.join("my-lib");
+        fs::create_dir_all(&source_path)?;
+        let pkg_json_path = source_path.join("package.json");
+        let mut file = fs::File::create(pkg_json_path)?;
+        write!(file, r#"{{"version": "2.0.0"}}"#)?;
+
+        // Create an existing kley.lock in the project dir
+        let lock_path = project_dir.join("kley.lock");
+        fs::write(
+            &lock_path,
+            r#"{"packages":{"another-lib":{"version":"0.5.0"}}}"#,
+        )?;
+
+        update_kley_lock("my-lib", &source_path, project_dir)?;
+
+        let lock_content = fs::read_to_string(lock_path)?;
+        let lockfile: Lockfile = serde_json::from_str(&lock_content)?;
+
+        assert_eq!(lockfile.packages.len(), 2);
+        assert_eq!(lockfile.packages.get("my-lib").unwrap().version, "2.0.0");
+        assert_eq!(
+            lockfile.packages.get("another-lib").unwrap().version,
+            "0.5.0"
         );
 
         Ok(())

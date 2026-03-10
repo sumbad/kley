@@ -4,6 +4,7 @@ use clap::{Parser, Subcommand};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 mod commands;
+pub mod lockfile;
 
 #[derive(Parser)]
 #[command(name = "kley")]
