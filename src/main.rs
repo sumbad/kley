@@ -26,7 +26,11 @@ enum Commands {
         dev: bool,
     },
     /// Remove a package from the current project
-    Remove { name: String },
+    Remove {
+        name: Option<String>,
+        #[arg(long)]
+        all: bool,
+    },
 }
 
 fn main() -> Result<()> {
@@ -43,7 +47,7 @@ fn main() -> Result<()> {
     match &cli.command {
         Commands::Publish => commands::publish::publish()?,
         Commands::Add { name, dev } => commands::add::add(name, *dev)?,
-        Commands::Remove { name } => commands::remove::remove(name)?,
+        Commands::Remove { name, all } => commands::remove::remove(name, *all)?,
     }
 
     Ok(())
