@@ -3,11 +3,11 @@
 This board tracks the progress of development tasks for the kley project.
 
 **Epics:**
-- **I:** Core Publishing & Linking
-- **II:** Update Propagation
-- **III:** Project Management
-- **IV:** DX/UX Improvements
-- **V:** Code Quality & Testing
+- **I:** Core Publishing & Adding
+- **II:** Publish Automation & Linking Speed
+- **III:** Yarn/Pnpm Workspaces Support
+- **IV:** Monorepos & Sub-projects
+- **V:** DX/UX Improvements
 
 **Complexity Estimate (color):**
 - `Very High`: Complex task, may require significant refactoring or research.
@@ -33,14 +33,14 @@ config:
 kanban
     Backlog
         "Implement push command"<br/><br/>@{ assigned: II, priority: 'Very High', ticket: '001-push-command' }
-        "Implement remove command"<br/><br/>@{ assigned: III, priority: 'High' }
-        "Implement list command"<br/><br/>@{ assigned: III, priority: 'Very Low' }
-        "Implement locations command"<br/><br/>@{ assigned: III, priority: 'Low' }
-        "Add progress indicators"<br/><br/>@{ assigned: IV, priority: 'Low' }
-        "Implement watch command"<br/><br/>@{ assigned: IV, priority: 'Very High', ticket: '004-watch-command' }
-        "Add comprehensive tests"<br/><br/>@{ assigned: V, priority: 'Very High' }
+        "Implement watch command"<br/><br/>@{ assigned: II, priority: 'Very High', ticket: '004-watch-command' }
+        "Implement list command"<br/><br/>@{ assigned: V, priority: 'Very Low' }
+        "Implement locations command"<br/><br/>@{ assigned: V, priority: 'Low' }
+        "Add progress indicators"<br/><br/>@{ assigned: V, priority: 'Low' }
+        "Add comprehensive tests"<br/><br/>@{ priority: 'Very High' }
 
     Todo
+        "Implement remove command"<br/><br/>@{ assigned: I, priority: 'High', ticket: '007-remove-command' }
 
     [In progress]
 

@@ -1,3 +1,3 @@
-# Epic II: Update Propagation
+# Epic II: Publish Automation & Linking Speed
 
-*This is the 'magic' of yalc - pushing changes without re-adding.*
+*Commands that speed up the iterative development loop, like `push` and `watch`.*

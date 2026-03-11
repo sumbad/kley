@@ -1,3 +1,3 @@
-# Epic V: Code Quality & Testing
+# Epic V: DX/UX Improvements
 
-*Ensuring the project is reliable and maintainable.*
+*Making the tool easier and more pleasant to use with better feedback and more options.*
