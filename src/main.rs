@@ -5,6 +5,7 @@ use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 mod commands;
 pub mod lockfile;
+mod utils;
 
 #[derive(Parser)]
 #[command(name = "kley")]
@@ -24,6 +25,8 @@ enum Commands {
         #[arg(long)]
         dev: bool,
     },
+    /// Remove a package from the current project
+    Remove { name: String },
 }
 
 fn main() -> Result<()> {
@@ -40,6 +43,7 @@ fn main() -> Result<()> {
     match &cli.command {
         Commands::Publish => commands::publish::publish()?,
         Commands::Add { name, dev } => commands::add::add(name, *dev)?,
+        Commands::Remove { name } => commands::remove::remove(name)?,
     }
 
     Ok(())
