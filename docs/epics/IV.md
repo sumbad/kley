@@ -1,3 +1,3 @@
-# Epic IV: DX/UX Improvements
+# Epic IV: Monorepos & Sub-projects
 
-*Making the tool nice to use.*
+*Advanced features for managing complex multi-package repositories.*

@@ -1,3 +1,3 @@
-# Epic III: Project Management
+# Epic III: Yarn/Pnpm Workspaces Support
 
-*Commands for cleanup and visibility.*
+*Ensuring compatibility with monorepo setups using Yarn or Pnpm Workspaces.*
