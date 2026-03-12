@@ -47,7 +47,10 @@ fn main() -> Result<()> {
     match &cli.command {
         Commands::Publish => commands::publish::publish()?,
         Commands::Add { name, dev } => commands::add::add(name, *dev)?,
-        Commands::Remove { name, all } => commands::remove::remove(name, *all)?,
+        Commands::Remove { name, all } => {
+            let project_dir = std::env::current_dir()?;
+            commands::remove::remove(name, *all, &project_dir)?
+        }
     }
 
     Ok(())
