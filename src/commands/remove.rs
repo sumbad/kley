@@ -8,7 +8,7 @@ use std::path::Path;
 
 use crate::utils::detect_indent;
 
-pub fn remove(package_name: &Option<String>, is_all: bool) -> Result<()> {
+pub fn remove(package_name: &Option<String>, is_all: bool, project_dir: &Path) -> Result<()> {
     if package_name.is_none() && !is_all {
         println!(
             "⚠️ Set a package name to command for removing it or use --all flag to delete all local dependencies"
@@ -16,7 +16,6 @@ pub fn remove(package_name: &Option<String>, is_all: bool) -> Result<()> {
         return Ok(());
     }
 
-    let project_dir = std::env::current_dir()?;
     let mut project_kley_path = project_dir.join(".kley");
 
     if is_all {
@@ -35,7 +34,7 @@ pub fn remove(package_name: &Option<String>, is_all: bool) -> Result<()> {
         update_package_json(&project_dir.join("package.json"), pkg_name)?;
 
         // --- Update kley.lock ---
-        update_kley_lock(pkg_name, &project_dir)?;
+        update_kley_lock(pkg_name, project_dir)?;
     }
 
     if project_kley_path.exists() {
@@ -148,9 +147,11 @@ fn remove_all_from_package_json(pkg_json_path: &Path) -> Result<()> {
             if let Some(deps_obj) = obj.get_mut(*key).and_then(|d| d.as_object_mut()) {
                 let to_remove: Vec<String> = deps_obj
                     .iter()
-                    .filter(|(_, v)| v.to_string().starts_with("file:.kley/"))
+                    .filter(|(_, v)| v.as_str().unwrap_or("").starts_with("file:.kley/"))
                     .map(|(k, _)| k.clone())
                     .collect();
+
+                tracing::debug!("deps_obj: {:#?} \n to_remove: {:?}", deps_obj, to_remove);
 
                 for dep in to_remove {
                     if let Some(val) = deps_obj.remove(&dep) {
@@ -171,4 +172,156 @@ fn remove_all_from_package_json(pkg_json_path: &Path) -> Result<()> {
     println!("{}", "✅ package.json has been updated!".green());
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use tempfile::tempdir;
+
+    /// Helper to create a dummy project structure inside a temporary directory.
+    fn setup_test_project(dir: &Path) -> Result<()> {
+        fs::create_dir_all(dir.join(".git"))?; // Trick the `ignore` crate into thinking this is a git repo
+        fs::write(
+            dir.join("package.json"),
+            r#"{
+  "author": "",
+  "dependencies": {
+    "test-lib": "file:.kley/test-lib"
+  },
+  "description": "",
+  "keywords": [],
+  "license": "ISC",
+  "main": "index.js",
+  "name": "test-app",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "type": "commonjs",
+  "version": "1.0.0"
+}"#,
+        )?;
+        fs::create_dir_all(dir.join(".kley/test-lib"))?;
+        fs::write(
+            dir.join(".kley/test-lib/package.json"),
+            r#"{
+  "author": "",
+  "dependencies": {
+    "test-lib": "file:.kley/test-lib"
+  },
+  "description": "",
+  "keywords": [],
+  "license": "ISC",
+  "main": "index.js",
+  "name": "test-lib",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "type": "commonjs",
+  "version": "1.0.0"
+}%"#,
+        )?;
+        fs::write(dir.join("secret.log"), "sensitive data")?;
+        // This file should also be ignored by default git rules
+        fs::create_dir_all(dir.join("node_modules/some_dep"))?;
+        fs::write(
+            dir.join("kley.lock"),
+            r#"{
+  "packages": {
+    "test-lib": {
+      "version": "1.0.0"
+    }
+  }
+}"#,
+        )?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_remove_single_package() -> Result<()> {
+        let proj_dir = tempdir()?;
+        let proj_path = proj_dir.path();
+        setup_test_project(proj_path)?;
+
+        remove(&Some(String::from("test-lib")), false, proj_path)?;
+
+        assert!(
+            !proj_path.join(".kley/test-lib").exists(),
+            "The removed package should be deleted from .kley local dir"
+        );
+
+        let updated_content = fs::read_to_string(proj_path.join("package.json"))?;
+        let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
+
+        assert_eq!(
+            updated_json["dependencies"],
+            json!({}),
+            "The removed package should be deleted from packages.json"
+        );
+
+        let updated_lock_content = fs::read_to_string(proj_path.join("kley.lock"))?;
+        let updated_lock_json: serde_json::Value = serde_json::from_str(&updated_lock_content)?;
+
+        assert_eq!(
+            updated_lock_json["packages"],
+            json!({}),
+            "The removed package should be deleted from kley.lock"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_remove_all_packages() -> Result<()> {
+        let proj_dir = tempdir()?;
+        let proj_path = proj_dir.path();
+        setup_test_project(proj_path)?;
+
+        remove(&None, true, proj_path)?;
+
+        assert!(
+            !proj_path.join(".kley").exists(),
+            ".kley local dir should be deleted"
+        );
+
+        assert!(
+            !proj_path.join("kley.lock").exists(),
+            "kley.lock local dir should be deleted"
+        );
+
+        let updated_content = fs::read_to_string(proj_path.join("package.json"))?;
+        let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
+
+        assert_eq!(
+            updated_json["dependencies"],
+            json!({}),
+            "The removed packages should be deleted from packages.json"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_remove_is_idempotent() -> Result<()> {
+        let proj_dir = tempdir()?;
+        let proj_path = proj_dir.path();
+        setup_test_project(proj_path)?;
+
+        remove(&Some(String::from("test-lib")), false, proj_path)?;
+        remove(&Some(String::from("test-lib")), false, proj_path)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_remove_missing_file() -> Result<()> {
+        let proj_dir = tempdir()?;
+        let proj_path = proj_dir.path();
+        setup_test_project(proj_path)?;
+
+        remove(&Some(String::from("test-uknown-lib")), false, proj_path)?;
+
+        Ok(())
+    }
 }
