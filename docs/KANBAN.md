@@ -32,19 +32,19 @@ config:
 
 kanban
     Backlog
-        "Implement push command"<br/><br/>@{ assigned: II, priority: 'Very High', ticket: '001-push-command' }
-        "Implement watch command"<br/><br/>@{ assigned: II, priority: 'Very High', ticket: '004-watch-command' }
         "Implement list command"<br/><br/>@{ assigned: V, priority: 'Very Low' }
         "Implement locations command"<br/><br/>@{ assigned: V, priority: 'Low' }
         "Add progress indicators"<br/><br/>@{ assigned: V, priority: 'Low' }
         "Add comprehensive tests"<br/><br/>@{ priority: 'Very High' }
 
+    [Todo]
+        "Implement push command"<br/><br/>@{ assigned: II, priority: 'Very High', ticket: '001-push-command' }
+        "Implement watch command"<br/><br/>@{ assigned: II, priority: 'Very High', ticket: '004-watch-command' }
+
     [In progress]
 
     Done
         "Implement remove command"<br/><br/>@{ assigned: I, priority: 'High', ticket: '007-remove-command' }
-
-    Done
         "Create and manage kley.lock"<br/><br/>@{ assigned: I, priority: 'High', ticket: '006-kley-lock' }
         "Use ignore crate for filtering"<br/><br/>@{ assigned: I, priority: 'High', ticket: '002-ignore-crate' }
         "Refactor main.rs to command modules"<br/><br/>@{ assigned: V, priority: 'Medium', ticket: '005-refactor-main' }
