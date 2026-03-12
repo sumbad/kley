@@ -1,96 +1,70 @@
-# Kley 🚀
+# kley 🩹
 
-[![Rust](https://github.com/sumbad/kley/actions/workflows/rust.yml/badge.svg)](https://github.com/sumbad/kley/actions/workflows/rust.yml)
+[![Release](https://github.com/sumbad/kley/actions/workflows/release.yml/badge.svg)](https://github.com/sumbad/kley/releases)
 
-**Fast and reliable local package manager for npm (JS/TS), written in Rust.**
+**A simple local package manager for npm (JS/TS)**
 
-[Русская версия (Russian Version)](README_RU.md)
+> Like **`npm link`**, but with a more convenient workflow. Like **`yalc`**, but without the dependency on Node.js.
 
-Kley is a command-line tool that simplifies local development of npm packages. It provides a robust alternative to `npm link` by managing a local package store, allowing you to "publish" packages to a central cache on your machine and "add" them to your projects via direct file copying. This avoids the common pitfalls of symbolic links.
+English | [Русский](./README_RU.md)
+
+**kley** is a command-line tool that simplifies local development of npm packages. It provides a robust alternative to `npm link` by managing a local package store, allowing you to "publish" packages to a central cache on your machine and "add" them to your projects via direct file copying. This avoids the common pitfalls of symbolic links.
 
 ## Key Features
 
-- **Blazing Fast**: Built with Rust for maximum performance.
+- **Node.js Independent**: Publish and install packages even if the library and the host project use different Node.js versions.
+- **Fast, Efficient, and Safe**: Written in Rust for memory safety, security, and maximum performance.
 - **Reliable**: Avoids symlink issues by copying files directly.
-- **Simple API**: Just two commands to get started: `publish` and `add`.
+- **Simple API**: Three core commands to get started: `publish`, `add`, and `remove`.
 - **Cross-Platform**: Works on macOS, Linux, and Windows.
 
 ## Installation
 
-_Coming soon... (Pre-compiled binaries will be available in Releases)_
+### Quick Install
 
-For now, you can build from source:
+You can install `kley` with a single command using the installer script:
+
 ```bash
-git clone https://github.com/sumbad/kley.git
-cd kley
-cargo build --release
-# The binary will be in ./target/release/kley
+# Linux / macOS
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/sumbad/kley/releases/latest/download/kley-installer.sh | sh
+```
+```bash
+# Windows
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/sumbad/kley/releases/latest/download/kley-installer.ps1 | iex"
 ```
 
-## How It Works
+### Manual Installation
+
+Alternatively, you can install `kley` by downloading a pre-compiled binary from the [**Releases page**](https://github.com/sumbad/kley/releases).
+
+1.  Download the appropriate archive for your system (e.g., `kley-x86_64-apple-darwin.tar.gz`).
+2.  Unpack the archive.
+3.  Move the `kley` binary to a directory in your system's `PATH` (e.g., `/usr/local/bin` on macOS/Linux).
+
+## Usage
 
 ### 1. `kley publish`
-
-Run this command in the directory of the package you want to share locally. Kley will:
-1.  Read your `package.json`.
-2.  Copy all necessary files into a central store located at `~/.kley/packages/<your-package-name>`.
-3.  Overwrite any previous version of the same package in the store.
-
-Example:
-```bash
-# In your library project (/path/to/my-lib)
-kley publish
-```
+Run this command in the directory of the package you want to share locally. Kley copies all necessary files to a central store at `~/.kley/packages/<your-package-name>`.
 
 ### 2. `kley add <package-name>`
+Run this command in the project where you want to use your local package. Kley copies the package into a local `./.kley/` directory, then automatically updates your `package.json` and `kley.lock`.
 
-Run this command in the project where you want to use your local package. Kley will:
-1.  Find the package in the central store.
-2.  Copy the package files into a `./.kley/<your-package-name>` directory within your project.
-3.  Automatically modify your `package.json` to use the local dependency.
-4.  Create a `kley.lock` file to track the dependency.
-
-Example:
-```bash
-# In your main application (/path/to/my-app)
-kley add my-lib
-```
-Now you can `npm install` and `import` your library as usual!
+- Use the `--dev` flag to add the package to `devDependencies`.
 
 ### 3. `kley remove <package-name>`
+Run this command to cleanly remove a kley-managed dependency from your project. It will update `package.json` and `kley.lock`, and delete the package files from the `./.kley/` directory.
 
-Run this command in the project where you want to remove a local dependency. Kley will:
-1.  Remove the dependency from your `package.json`.
-2.  Remove the package entry from `kley.lock`.
-3.  Delete the package directory from `./.kley/`.
-
-Example:
-```bash
-# In your main application (/path/to/my-app)
-kley remove my-lib
-```
-
-## Build/Test Commands
-
-### Build
-```bash
-cargo build --release
-```
-
-### Test
-```bash
-cargo test
-```
-
-### Lint & Format
-```bash
-cargo fmt
-cargo clippy -- -D warnings
-```
+- Use the `--all` flag to remove all kley-managed packages from the project.
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## About
+
+This project is inspired by great tools like [yalc](https://github.com/wclr/yalc). The main advantage of `kley` is that it is a single, self-contained binary with **no dependency on Node.js**. This means you can manage packages regardless of your current Node.js version or any issues with `npm` itself.
+
+> **Note:** This project is in active development and currently supports only the basic commands. More features are coming soon!
 
 ## License
 
