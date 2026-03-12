@@ -39,10 +39,10 @@ kanban
         "Add progress indicators"<br/><br/>@{ assigned: V, priority: 'Low' }
         "Add comprehensive tests"<br/><br/>@{ priority: 'Very High' }
 
-    Todo
-        "Implement remove command"<br/><br/>@{ assigned: I, priority: 'High', ticket: '007-remove-command' }
-
     [In progress]
+
+    Done
+        "Implement remove command"<br/><br/>@{ assigned: I, priority: 'High', ticket: '007-remove-command' }
 
     Done
         "Create and manage kley.lock"<br/><br/>@{ assigned: I, priority: 'High', ticket: '006-kley-lock' }

@@ -47,19 +47,28 @@ kley publish
 Run this command in the project where you want to use your local package. Kley will:
 1.  Find the package in the central store.
 2.  Copy the package files into a `./.kley/<your-package-name>` directory within your project.
-3.  Provide you with instructions to add the local dependency to your `package.json`.
+3.  Automatically modify your `package.json` to use the local dependency.
+4.  Create a `kley.lock` file to track the dependency.
 
 Example:
 ```bash
 # In your main application (/path/to/my-app)
 kley add my-lib
-
-# Then, add the following to your my-app/package.json:
-# "dependencies": {
-#   "my-lib": "file:.kley/my-lib"
-# }
 ```
 Now you can `npm install` and `import` your library as usual!
+
+### 3. `kley remove <package-name>`
+
+Run this command in the project where you want to remove a local dependency. Kley will:
+1.  Remove the dependency from your `package.json`.
+2.  Remove the package entry from `kley.lock`.
+3.  Delete the package directory from `./.kley/`.
+
+Example:
+```bash
+# In your main application (/path/to/my-app)
+kley remove my-lib
+```
 
 ## Build/Test Commands
 
