@@ -38,10 +38,13 @@ kanban
         "Add comprehensive tests"<br/><br/>@{ priority: 'Very High' }
 
     [Todo]
+        "Add base integration tests"<br/><br/>@{ assigned: II, priority: 'Low' }
+        "Publish to crates.io and npm"<br/><br/>@{ assigned: II, priority: 'Low' }
         "Implement push command"<br/><br/>@{ assigned: II, priority: 'Very High', ticket: '001-push-command' }
         "Implement watch command"<br/><br/>@{ assigned: II, priority: 'Very High', ticket: '004-watch-command' }
 
     [In progress]
+        "Fix the publish command to simulate npm logic"<br/><br/>@{ assigned: II, priority: 'Low' }
 
     Done
         "Implement remove command"<br/><br/>@{ assigned: I, priority: 'High', ticket: '007-remove-command' }
