@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use colored::*;
-use ignore::overrides::OverrideBuilder;
 use ignore::WalkBuilder;
+use ignore::overrides::OverrideBuilder;
 use serde::Deserialize;
 use std::fs;
 use std::path::Path;
@@ -11,6 +11,7 @@ use tracing;
 struct PackageJson {
     name: String,
     version: String,
+    files: Option<Vec<String>>,
 }
 
 /// Publish logic
@@ -25,7 +26,7 @@ pub fn publish() -> Result<()> {
     let pkg: PackageJson =
         serde_json::from_str(&pkg_content).context("Failed to parse package.json")?;
 
-    tracing::info!(
+    println!(
         "🚀 Publishing {}@{}...",
         pkg.name.cyan(),
         pkg.version.magenta()
@@ -40,13 +41,32 @@ pub fn publish() -> Result<()> {
     }
     fs::create_dir_all(&store_path)?;
 
+    tracing::debug!("Created dir {:?}", &store_path);
+
     // Apply npm built-in rules via OverrideBuilder
     let mut override_builder = OverrideBuilder::new(Path::new("."));
+    // Exclude:
+    override_builder.add("!.git/")?;
     override_builder.add("!node_modules/")?;
     override_builder.add("!*.swp")?;
     override_builder.add("!._*")?;
     override_builder.add("!.DS_Store")?;
     override_builder.add("!npm-debug.log*")?;
+    override_builder.add("!package-lock.json")?;
+    override_builder.add("!yarn.lock")?;
+    override_builder.add("!pnpm-lock.yaml")?;
+    override_builder.add("!.npmrc")?;
+
+    // Whitelist
+    // NOTE: If an override contains one or more positive patterns, then it will ignore any file path that does not match at least one of those positive patterns
+    if let Some(files) = &pkg.files {
+        for file in files {
+            // add files
+            override_builder.add(file)?;
+            // and folders
+            override_builder.add(&format!("{}/**", file))?;
+        }
+    }
 
     let walk_with_ignores = WalkBuilder::new(".")
         .hidden(false)
@@ -64,6 +84,11 @@ pub fn publish() -> Result<()> {
             continue;
         }
 
+        // Skip only dirs without files
+        if path.is_dir() {
+            continue; 
+        }
+
         tracing::debug!(path = %path.to_string_lossy(), "Packing entry");
 
         let relative_path = path.strip_prefix(".")?;
@@ -79,7 +104,25 @@ pub fn publish() -> Result<()> {
         }
     }
 
-    tracing::info!("{}", "✅ Package successfully published to store!".green());
+    let mandatory_files = [
+        "package.json",
+        "README.md",
+        "README",
+        "readme.md",
+        "LICENSE",
+        "LICENSE.md",
+        "CHANGELOG.md",
+    ];
+
+    for mf in mandatory_files {
+        let mf_path = Path::new(mf);
+        if mf_path.is_file() {
+            let target = store_path.join(mf);
+            fs::copy(mf_path, target).ok();
+        }
+    }
+
+    println!("{}", "✅ Package successfully published to store!".green());
     Ok(())
 }
 
