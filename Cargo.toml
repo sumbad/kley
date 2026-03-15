@@ -1,6 +1,6 @@
 [package]
 name = "kley"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["sumbad"]
 description = "Fast and reliable local package manager for npm (JS/TS)"
@@ -22,6 +22,8 @@ tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 walkdir = "2.5.0"
 
 [dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.1.0"
 tempfile = "3.10.1"
 
 # The profile that 'dist' will build with
