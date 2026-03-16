@@ -47,6 +47,7 @@ kanban
         "Fix the publish command to simulate npm logic"<br/><br/>@{ assigned: II, priority: 'Low' }
 
     Done
+        "Preserve package.json order on add"<br/><br/>@{ assigned: V, priority: 'Medium', ticket: '008-preserve-pkg-order' }
         "Implement remove command"<br/><br/>@{ assigned: I, priority: 'High', ticket: '007-remove-command' }
         "Create and manage kley.lock"<br/><br/>@{ assigned: I, priority: 'High', ticket: '006-kley-lock' }
         "Use ignore crate for filtering"<br/><br/>@{ assigned: I, priority: 'High', ticket: '002-ignore-crate' }

@@ -16,7 +16,7 @@ ignore = "0.4.25"
 indicatif = "0.18.4"
 notify = "8.2.0"
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
+serde_json = { version = "1.0.149", features = ["preserve_order"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 walkdir = "2.5.0"
