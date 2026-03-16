@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.2] - 2026-03-16
+
+### Fixed
+- **`add` Command**: The `kley add` command no longer reorders properties in `package.json`, preventing unnecessary diffs.
+
+---
+
 ## [0.1.1] - 2026-03-15
 
 ### Fixed
