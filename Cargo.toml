@@ -5,6 +5,7 @@ edition = "2024"
 authors = ["sumbad"]
 description = "Fast and reliable local package manager for npm (JS/TS)"
 repository = "https://github.com/sumbad/kley"
+license = "MIT"
 
 [dependencies]
 anyhow = "1.0.102"
