@@ -1,0 +1,23 @@
+# This file is a reusable workflow that runs the crates.io publish script.
+name: Publish to crates.io
+on:
+  workflow_call:
+    inputs:
+      plan:
+        required: true
+        type: string
+    secrets:
+      CRATES_TOKEN:
+        required: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Publish to crates.io
+        env:
+          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
+        run: ./scripts/publish-crates.sh
