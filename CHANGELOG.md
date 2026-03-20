@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.3] - 2026-03-20
+
+### Added
+- Publish to npm like `kley-cli`.
+- Publish to crates.io like `kley`.
+- Create unified release process for crates.io and npm.
+
+---
+
 ## [0.1.2] - 2026-03-16
 
 ### Fixed
