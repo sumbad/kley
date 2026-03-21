@@ -32,6 +32,8 @@ config:
 
 kanban
     Backlog
+        "Implement watch command"<br/><br/>@{ assigned: V, priority: 'Very High', ticket: '004-watch-command' }
+        "Add --global flag to link command"<br/><br/>@{ assigned: V, priority: 'Low', ticket: '010-link-global-flag' }
         "Implement list command"<br/><br/>@{ assigned: V, priority: 'Very Low' }
         "Implement locations command"<br/><br/>@{ assigned: V, priority: 'Low' }
         "Add progress indicators"<br/><br/>@{ assigned: V, priority: 'Low' }
@@ -39,9 +41,9 @@ kanban
 
     [Todo]
         "Implement push command"<br/><br/>@{ assigned: II, priority: 'Very High', ticket: '001-push-command' }
-        "Implement watch command"<br/><br/>@{ assigned: II, priority: 'Very High', ticket: '004-watch-command' }
 
     [In progress]
+        "Implement `link` command"<br/><br/>@{ assigned: II, priority: 'High', ticket: '009-link-command' }
 
     Done
         "Add base integration tests"<br/><br/>@{ assigned: II, priority: 'Low' }
