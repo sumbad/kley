@@ -20,7 +20,7 @@ English | [Русский](./README_RU.md)
 
 ## Installation
 
-### Quick Install
+### Quick Install (recommended)
 
 You can install `kley` with a single command using the installer script:
 
@@ -40,6 +40,21 @@ Alternatively, you can install `kley` by downloading a pre-compiled binary from 
 1.  Download the appropriate archive for your system (e.g., `kley-x86_64-apple-darwin.tar.gz`).
 2.  Unpack the archive.
 3.  Move the `kley` binary to a directory in your system's `PATH` (e.g., `/usr/local/bin` on macOS/Linux).
+
+
+### Install via Cargo (crates.io)
+If you have Rust and Cargo installed, you can install `kley` directly from crates.io:
+
+```bash
+cargo install kley
+```
+
+### Install via npm (kley-cli)
+You can install `kley-cli` globally. Use it only if you have the same Node.js versions for your library and host a project, otherwise you should install it to all Node.js versions:
+
+```bash
+npm install -g kley-cli
+```
 
 ## Usage
 
