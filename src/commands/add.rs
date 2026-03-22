@@ -6,44 +6,19 @@ use serde_json;
 use std::fs;
 use std::path::Path;
 
-use crate::utils::detect_indent;
+use crate::utils::{detect_indent, work_dirs, copy_from_store};
 
 /// Add logic
 pub fn add(package_name: &str, is_dev: bool) -> Result<()> {
-    let home_dir = dirs::home_dir().context("Failed to find home directory")?;
-    let source_path = home_dir.join(".kley").join("packages").join(package_name);
+    let dirs = work_dirs(package_name)?;
 
-    if !source_path.exists() {
-        anyhow::bail!(
-            "Package '{}' not found in store. Run 'kley publish' in the package folder first.",
-            package_name
-        );
-    }
-
-    let project_dir = std::env::current_dir()?;
-    let dest_path = project_dir.join(".kley").join(package_name);
-
-    if dest_path.exists() {
-        fs::remove_dir_all(&dest_path)?;
-    }
-    fs::create_dir_all(&dest_path)?;
-
-    // Copy from store to local project
-    let mut options = fs_extra::dir::CopyOptions::new();
-    options.content_only = true;
-    fs_extra::dir::copy(&source_path, &dest_path, &options)?;
-
-    println!(
-        "📎 Package {} added to .kley/{}",
-        package_name.cyan(),
-        package_name.cyan()
-    );
+    copy_from_store(package_name, &dirs)?;
 
     // --- Automate package.json modification ---
-    update_package_json(&project_dir.join("package.json"), package_name, is_dev)?;
+    update_package_json(&dirs.project_dir.join("package.json"), package_name, is_dev)?;
 
     // --- Create or update kley.lock ---
-    update_kley_lock(package_name, &source_path, &project_dir)?;
+    update_kley_lock(package_name, &dirs.store_kley_dir, &dirs.project_dir)?;
 
     Ok(())
 }

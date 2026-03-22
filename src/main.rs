@@ -1,6 +1,5 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-// Добавляем импорты
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 mod commands;
@@ -25,6 +24,10 @@ enum Commands {
         #[arg(long)]
         dev: bool,
     },
+    /// Link a package from the local store to the current project
+    Link {
+        name: String,
+    },
     /// Remove a package from the current project
     Remove {
         name: Option<String>,
@@ -47,6 +50,7 @@ fn main() -> Result<()> {
     match &cli.command {
         Commands::Publish => commands::publish::publish()?,
         Commands::Add { name, dev } => commands::add::add(name, *dev)?,
+        Commands::Link { name } => commands::link::link(name)?,
         Commands::Remove { name, all } => {
             let project_dir = std::env::current_dir()?;
             commands::remove::remove(name, *all, &project_dir)?
