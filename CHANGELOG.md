@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-03-22
+
+### Added
+- **`link` Command**: Implemented the `kley link <package-name>` command to create a direct symbolic link from a project's `kley` store to the project's `node_modules` directory. This provides a lightweight alternative to `add` without modifying `package.json`.
+
+---
+
 ## [0.1.3] - 2026-03-20
 
 ### Added
