@@ -15,7 +15,7 @@ English | [Русский](./README_RU.md)
 - **Node.js Independent**: Publish and install packages even if the library and the host project use different Node.js versions.
 - **Fast, Efficient, and Safe**: Written in Rust for memory safety, security, and maximum performance.
 - **Reliable**: Avoids symlink issues by copying files directly.
-- **Simple API**: Three core commands to get started: `publish`, `add`, and `remove`.
+- **Simple API**: Four core commands to get started: `publish`, `add`, `link`, and `remove`.
 - **Cross-Platform**: Works on macOS, Linux, and Windows.
 
 ## Installation
@@ -66,7 +66,10 @@ Run this command in the project where you want to use your local package. Kley c
 
 - Use the `--dev` flag to add the package to `devDependencies`.
 
-### 3. `kley remove <package-name>`
+### 3. `kley link <package-name>`
+This command provides a lightweight alternative to `add`. It first copies the package to a local `.kley` directory and then creates a symbolic link from `./.kley/<your-package-name>` to your project's `node_modules` directory. This is faster than a full `add` and does **not** modify your `package.json`.
+
+### 4. `kley remove <package-name>`
 Run this command to cleanly remove a kley-managed dependency from your project. It will update `package.json` and `kley.lock`, and delete the package files from the `./.kley/` directory.
 
 - Use the `--all` flag to remove all kley-managed packages from the project.
