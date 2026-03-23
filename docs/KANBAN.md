@@ -43,9 +43,9 @@ kanban
         "Implement push command"<br/><br/>@{ assigned: II, priority: 'Very High', ticket: '001-push-command' }
 
     [In progress]
-        "Implement `link` command"<br/><br/>@{ assigned: II, priority: 'High', ticket: '009-link-command' }
 
     Done
+        "Implement `link` command"<br/><br/>@{ assigned: II, priority: 'High', ticket: '009-link-command' }
         "Add base integration tests"<br/><br/>@{ assigned: II, priority: 'Low' }
         "Fix the publish command to simulate npm logic"<br/><br/>@{ assigned: II, priority: 'Low' }
         "Publish to crates.io and npm"<br/><br/>@{ assigned: II, priority: 'Low' }
