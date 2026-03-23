@@ -9,7 +9,7 @@ The `clean` command is a general maintenance utility for the `kley` environment.
 ## 2. Acceptance Criteria
 1.  A new command `kley clean` is implemented.
 2.  The command can be run from any directory.
-3.  It reads the global installation registry (e.g., `~/.kley/installations.json`).
+3.  It reads the global installation registry (e.g., `~/.kley/registry.json`).
 4.  For each package, it iterates through the list of project paths where it is supposedly installed.
 5.  For each project path, it checks if the directory still exists on the filesystem.
 6.  If a project path no longer exists, the command removes that path from the installation list for that package.

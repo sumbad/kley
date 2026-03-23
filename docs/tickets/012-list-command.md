@@ -10,7 +10,7 @@ The `list` command provides visibility into the local `kley` store. It allows us
 1.  A new command `kley list [package-name]` is implemented.
 2.  **Default Behavior (`kley list`):**
     *   If no package name is given, the command scans the `~/.kley/packages` directory.
-    *   It reads the global installation registry (e.g., `~/.kley/installations.json`).
+    *   It reads the global installation registry (e.g., `~/.kley/registry.json`).
     *   It displays a list of all published packages, their versions, and a sub-list of project paths where each package is installed.
 3.  **Filtered Behavior (`kley list <package-name>`):**
     *   If a package name is provided, it displays the version and installation locations for only that specific package.
@@ -18,7 +18,7 @@ The `list` command provides visibility into the local `kley` store. It allows us
 4.  The output must be formatted for clear readability.
 
 ## 3. Prerequisites
-- This command's full functionality depends on a global installation tracking mechanism (e.g., `~/.kley/installations.json`). The `add` and `link` commands must be responsible for populating this registry upon successful execution.
+- This command's full functionality depends on a global installation tracking mechanism (e.g., `~/.kley/registry.json`). The `add` and `link` commands must be responsible for populating this registry upon successful execution.
 
 ## 4. Example Output
 
@@ -46,7 +46,7 @@ Found 2 packages in the store:
 3.  Implement helper functions to:
     *   Read package directories from `~/.kley/packages`.
     *   Parse the `package.json` in each to get the version.
-    *   Read and parse the `~/.kley/installations.json` file.
+    *   Read and parse the `~/.kley/registry.json` file.
 4.  Implement the main `list` function to handle both the default and filtered cases.
 5.  Use a library like `colored` to format the output for better readability.
 6.  Wire up the command in `main.rs`.
