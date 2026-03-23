@@ -32,6 +32,8 @@ config:
 
 kanban
     Backlog
+        "Implement `unpublish` command"<br/><br/>@{ assigned: II, priority: 'Medium', ticket: '013-unpublish-command' }
+        "Implement `clean` command"<br/><br/>@{ assigned: V, priority: 'Low', ticket: '014-clean-command' }
         "Implement `update` command"<br/><br/>@{ assigned: II, priority: 'Medium', ticket: '011-update-command' }
         "Implement watch command"<br/><br/>@{ assigned: V, priority: 'Very High', ticket: '004-watch-command' }
         "Add --global flag to link command"<br/><br/>@{ assigned: V, priority: 'Low', ticket: '010-link-global-flag' }
