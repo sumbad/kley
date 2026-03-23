@@ -13,67 +13,93 @@ Developing and testing local npm packages, especially within monorepositories or
 - Complex setups for hot-reloading or watching changes.
 - Slower performance compared to direct file copying.
 
-Kley aims to address these issues by offering a mechanism to "publish" packages to a central local store and then "add" them to host projects via direct file copying, thereby avoiding symlink-related problems and potentially offering better performance due to its Rust implementation.
+Kley aims to address these issues by offering a mechanism to "publish" packages to a central local store and then "add" or "link" them to host projects, avoiding symlink-related problems and offering superior performance due to its Rust implementation.
 
 ## 4. Key Features
 
-### 4.1. `kley publish`
-- **Purpose**: To compile and store a local npm package in Kley's central package repository on the user's machine.
+### 4.1. Core Workflow Commands
+
+**`kley publish [--push]`**
+- **Purpose**: To publish a package to the central `kley` store and optionally "push" it to all consumer projects.
 - **Functionality**:
-    - Reads the `package.json` file in the current working directory to identify the package's name and version.
-    - Copies the entire package directory (excluding specified ignored files/directories like `node_modules`, `.git`, `target`, `.kley`) into `~/.kley/packages/<package-name>`.
-    - Overwrites existing packages in the store with the same name.
-    - Provides clear console feedback on the publication status.
+    - Reads `package.json` and respects `.npmignore`/`.kleyignore` files for accurate packaging.
+    - Copies package contents to `~/.kley/packages/<package-name>`.
+    - Updates the global `~/.kley/registry.json` with the package's new version and metadata.
+    - If `--push` is used, it automatically triggers an `update` in every project that uses this package.
 
-### 4.2. `kley add <package-name>`
-- **Purpose**: To integrate a locally "published" package into a host project.
+**`kley add <package-name>`**
+- **Purpose**: To add a `kley`-managed package to a project.
 - **Functionality**:
-    - Locates the specified package in the local Kley store (`~/.kley/packages/<package-name>`).
-    - Copies the contents of the stored package into a dedicated directory within the host project (e.g., `.kley/<package-name>`).
-    - Instructs the user on how to manually update their host project's `package.json` to reference the newly added package using a `file:` dependency (e.g., `"my-local-lib": "file:.kley/my-local-lib"`).
-    - Provides clear console feedback on the addition status.
+    - Copies the package from the store into the project's `./.kley/` directory.
+    - Automatically modifies the project's `package.json` to add a `file:` dependency.
+    - Creates/updates a local `kley.lock` file.
+    - Registers the installation in the global `registry.json`.
 
-### 4.3. Workflow Diagrams
+**`kley link <package-name>`**
+- **Purpose**: A lightweight alternative to `add` that uses a symlink instead of modifying `package.json`.
+- **Functionality**: Creates a symlink from the store to the project's `node_modules` directory and registers the installation.
 
-#### `kley publish`
+**`kley remove <package-name>`**
+- **Purpose**: To cleanly remove a `kley`-managed package from a project.
+- **Functionality**: Reverses the `add` operation by removing the dependency from `package.json`, `kley.lock`, the `./.kley` directory, and de-registering it from the global `registry.json`.
 
+### 4.2. Automation & Maintenance Commands
+
+**`kley update [package-name]`**
+- **Purpose**: To refresh one or all packages in a project to their latest published versions.
+- **Functionality**: Re-copies the latest package contents from the store and updates `kley.lock`. Does not modify `package.json`.
+
+**`kley unpublish [--push]`**
+- **Purpose**: To remove a package from the `kley` store.
+- **Functionality**:
+    - Default: Removes the package from the store and the global registry.
+    - With `--push`: Also executes the `remove` logic in every consumer project for a full cleanup.
+
+**`kley list [package-name]`**
+- **Purpose**: To view the contents of the `kley` store and see where packages are used.
+- **Functionality**: Reads `registry.json` to display a list of all published packages, their versions, and where they are installed.
+
+**`kley clean`**
+- **Purpose**: A maintenance command to clean up stale registry entries.
+- **Functionality**: Checks all installation paths in `registry.json` and removes any that no longer exist on the filesystem.
+
+## 5. Workflow Diagram: The "Push" Flow
 ```mermaid
-flowchart TD
-    A[Start] --> B{Read package.json};
-    B --> C{Found?};
-    C -- No --> D[Error: package.json not found];
-    C -- Yes --> E[Parse for name & version];
-    E --> F[Define store path ~/.kley/packages/name];
-    F --> G[Copy project files to store path];
-    G --> H[End];
+sequenceDiagram
+    actor Dev
+    participant P as Project my-lib
+    participant K as kley CLI
+    participant R as Registry (~/.kley/registry.json)
+    participant A as App project-a
+
+    Dev->>P: Makes changes to 'my-lib'
+    Dev->>K: kley publish --push
+    
+    K->>P: Publishes 'my-lib' to store
+    K->>R: Updates registry with new version
+    K->>R: Reads registry to find consumers
+    R-->>K: Returns path for 'project-a'
+
+    K->>A: Updates 'my-lib' by copying new files
+
+    K-->>Dev: Log success
 ```
 
-#### `kley add`
-
-```mermaid
-flowchart TD
-    A[Start] --> B[Get <package-name>];
-    B --> C{Package exists in store?};
-    C -- No --> D[Error: Package not found];
-    C -- Yes --> E[Define destination ./.kley/package-name];
-    E --> F[Copy files from store to destination];
-    F --> G[Print instructions to update package.json];
-    G --> H[End];
-```
-
-## 5. Technical Stack
+## 6. Technical Stack
 - **Language**: Rust
-- **CLI Argument Parsing**: `clap` crate
-- **Error Handling**: `anyhow` crate
-- **File System Operations**: Standard Rust `std::fs` and `fs_extra` crate
-- **JSON Serialization/Deserialization**: `serde` and `serde_json` crates
-- **Terminal Output Styling**: `colored` crate
-- **Home Directory Resolution**: `home` crate
+- **CLI Argument Parsing**: `clap`
+- **File System Operations**: `std::fs`, `fs_extra`
+- **File Content Filtering**: `ignore`
+- **JSON Handling**: `serde`, `serde_json`
+- **Error Handling**: `anyhow`
+- **Terminal Output Styling**: `colored`
+- **Home Directory Resolution**: `dirs`
 
-## 6. Future Considerations / Roadmap (High-level)
-- Integration of the `ignore` crate for more robust and configurable file exclusion during `publish`.
-- Potential for automatic `package.json` modification during the `add` command.
-- Implementation of an `uninstall` command to remove locally added packages.
-- Implementation of a `list` command to display all packages currently in the Kley store.
-- Comprehensive unit and integration testing.
-- Cross-platform compatibility improvements.
+## 7. Future Considerations / Roadmap
+With the core workflow now fully designed, future development will focus on:
+- **`watch` command**: A long-running process to automatically run `publish --push` when files change.
+- **Monorepo Support (Yarn/Pnpm Workspaces)**: Deeper integration with monorepo tooling.
+- **Performance**: Further optimizations, including parallel updates.
+- **User Experience**: Progress indicators, better error reporting, and interactive commands.
+- **Cross-platform compatibility improvements.**
+
