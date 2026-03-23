@@ -1,12 +1,12 @@
-# kley 🩹
+# 📦 kley
 
 [![Release](https://github.com/sumbad/kley/actions/workflows/release.yml/badge.svg)](https://github.com/sumbad/kley/releases)
+
+English | [Русский](./README_RU.md)
 
 **A simple local package manager for npm (JS/TS)**
 
 > Like **`npm link`**, but with a more convenient workflow. Like **`yalc`**, but without the dependency on Node.js.
-
-English | [Русский](./README_RU.md)
 
 **kley** is a command-line tool that simplifies local development of npm packages. It provides a robust alternative to `npm link` by managing a local package store, allowing you to "publish" packages to a central cache on your machine and "add" them to your projects via direct file copying. This avoids the common pitfalls of symbolic links.
 

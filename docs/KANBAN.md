@@ -32,6 +32,7 @@ config:
 
 kanban
     Backlog
+        "Implement `update` command"<br/><br/>@{ assigned: II, priority: 'Medium', ticket: '011-update-command' }
         "Implement watch command"<br/><br/>@{ assigned: V, priority: 'Very High', ticket: '004-watch-command' }
         "Add --global flag to link command"<br/><br/>@{ assigned: V, priority: 'Low', ticket: '010-link-global-flag' }
         "Implement list command"<br/><br/>@{ assigned: V, priority: 'Very Low' }
