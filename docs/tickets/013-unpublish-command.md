@@ -10,11 +10,11 @@ The `unpublish` command removes a package from the local `kley` store. It has tw
 
 ### `kley unpublish` (Default "Soft" Unpublish)
 1.  The command must be run from a directory containing a `package.json` file.
-2.  It checks the global registry (`~/.kley/installations.json`) to see if the package is in use.
+2.  It checks the global registry (`~/.kley/registry.json`) to see if the package is in use.
 3.  If the package is in use, it displays a non-blocking warning and requires confirmation:
     > **Warning:** 'my-lib' is used by 2 projects. This action will remove the package from the store, breaking these projects upon the next install. To clean up all projects, use `kley unpublish --push`. Proceed? (y/N)
 4.  Upon confirmation, it deletes the package from the store (`~/.kley/packages/<package-name>`).
-5.  It also removes all installation entries for the package from the global registry (`~/.kley/installations.json`) to maintain data consistency.
+5.  It also removes all installation entries for the package from the global registry (`~/.kley/registry.json`) to maintain data consistency.
 
 ### `kley unpublish --push` ("Hard" Unpublish)
 1.  A `--push` flag is added to the `unpublish` command.
