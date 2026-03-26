@@ -7,6 +7,8 @@ use std::fs;
 use std::path::Path;
 use tracing;
 
+use crate::registry::*;
+
 #[derive(Deserialize, Debug)]
 struct PackageJson {
     name: String,
@@ -32,9 +34,10 @@ pub fn publish() -> Result<()> {
         pkg.version.magenta()
     );
 
+    let mut registry = Registry::new()?;
+
     // 2. Determine the path in the store (~/.kley/packages/name)
-    let home_dir = dirs::home_dir().context("Failed to find home directory")?;
-    let store_path = home_dir.join(".kley").join("packages").join(&pkg.name);
+    let store_path = registry.dir_path.join("packages").join(&pkg.name);
 
     if store_path.exists() {
         fs::remove_dir_all(&store_path)?;
@@ -86,7 +89,7 @@ pub fn publish() -> Result<()> {
 
         // Skip only dirs without files
         if path.is_dir() {
-            continue; 
+            continue;
         }
 
         tracing::debug!(path = %path.to_string_lossy(), "Packing entry");
@@ -121,6 +124,8 @@ pub fn publish() -> Result<()> {
             fs::copy(mf_path, target).ok();
         }
     }
+
+    registry.update_package_version(&pkg.name, &pkg.version)?;
 
     println!("{}", "✅ Package successfully published to store!".green());
     Ok(())

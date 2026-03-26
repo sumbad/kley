@@ -1,0 +1,172 @@
+use anyhow::{Context, Ok, Result};
+use chrono::{DateTime, Utc};
+use colored::Colorize;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+pub static REGISTRY_DIR_NAME: &str = ".kley";
+pub static REGISTRY_FILE_NAME: &str = "registry.json";
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+struct RegistryData {
+    #[serde(default)]
+    packages: BTreeMap<String, PackageMetadata>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+struct PackageMetadata {
+    version: String,
+    last_updated: String,
+    installations: Vec<PathBuf>,
+}
+
+pub struct Registry {
+    data: RegistryData,
+    pub dir_path: PathBuf,
+    pub file_path: PathBuf,
+}
+
+impl Registry {
+    pub fn new() -> Result<Registry> {
+        let home_dir = dirs::home_dir().context("Failed to find home directory")?;
+
+        let registry_dir = home_dir.join(REGISTRY_DIR_NAME);
+        let registry_file = registry_dir.join(REGISTRY_FILE_NAME);
+
+        if !registry_dir.exists() || !registry_file.exists() {
+            return Ok(Registry {
+                data: RegistryData::default(),
+                dir_path: registry_dir,
+                file_path: registry_file,
+            });
+        }
+
+        let registry_data_content = fs::read_to_string(&registry_file)?;
+        let registry_data: RegistryData = serde_json::from_str(&registry_data_content)
+            .context(format!("Failed to parse {}", REGISTRY_FILE_NAME))?;
+
+        Ok(Registry {
+            data: registry_data,
+            dir_path: registry_dir,
+            file_path: registry_file,
+        })
+    }
+
+    pub fn get_pkg_dir(&self, package_name: &str) -> PathBuf {
+        self.dir_path.join("packages").join(package_name)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        !self.dir_path.exists() || !self.file_path.exists()
+    }
+
+    pub fn update_package_version(&mut self, package_name: &str, version: &str) -> Result<()> {
+        // Get the current time in UTC
+        let now_utc: DateTime<Utc> = Utc::now();
+        let last_updated = now_utc.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+
+        self.data
+            .packages
+            .entry(package_name.to_string())
+            .and_modify(|it| {
+                it.version = version.to_string();
+                it.last_updated = last_updated.to_string()
+            })
+            .or_insert_with(|| PackageMetadata {
+                version: version.to_string(),
+                last_updated: last_updated.clone(),
+                installations: vec![],
+            });
+
+        self.save()?;
+
+        Ok(())
+    }
+
+    pub fn add_package_installation(
+        &mut self,
+        package_name: &str,
+        project_path: &Path,
+    ) -> Result<()> {
+        // Get the current time in UTC
+        let now_utc: DateTime<Utc> = Utc::now();
+        let last_updated = now_utc.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+
+        if let Some(meta_data) = self.data.packages.get_mut(package_name) {
+            meta_data.last_updated = last_updated;
+            meta_data.installations.push(project_path.to_path_buf());
+
+            self.save()?;
+        } else {
+            tracing::warn!("Package {} not found in the registry", package_name);
+        }
+
+        Ok(())
+    }
+
+    pub fn remove_package_installation(
+        &mut self,
+        package_name: &str,
+        project_path: &Path,
+    ) -> Result<()> {
+        // Get the current time in UTC
+        let now_utc: DateTime<Utc> = Utc::now();
+        let last_updated = now_utc.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+
+        if let Some(meta_data) = self.data.packages.get_mut(package_name) {
+            meta_data.last_updated = last_updated;
+            meta_data.installations.retain(|it| it != project_path);
+
+            self.save()?;
+        } else {
+            tracing::warn!("Package {} not found in the registry", package_name);
+        }
+        Ok(())
+    }
+
+    pub fn remove_all_installations(&mut self, project_path: &Path) -> Result<()> {
+        // Get the current time in UTC
+        let now_utc: DateTime<Utc> = Utc::now();
+        let last_updated = now_utc.format("%Y-%m-%dT%H:%M:%SZ");
+
+        let mut was_updated = false;
+        for pkg in self.data.packages.iter_mut() {
+            if pkg.1.installations.contains(&project_path.to_path_buf()) {
+                pkg.1.installations.retain(|it| it != project_path);
+                pkg.1.last_updated = last_updated.to_string();
+
+                was_updated = true;
+            }
+        }
+
+        if was_updated {
+            self.save()?;
+        } else {
+            tracing::debug!(
+                "No installations in the {} project was found inside the registry",
+                project_path.to_string_lossy()
+            )
+        }
+        Ok(())
+    }
+
+    fn save(&mut self) -> Result<()> {
+        if let Some(parent) = self.file_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+
+        let mut buf = Vec::new();
+        let formatter = serde_json::ser::PrettyFormatter::with_indent(b"  ");
+        let mut ser = serde_json::Serializer::with_formatter(&mut buf, formatter);
+        self.data.serialize(&mut ser)?;
+
+        fs::write(&self.file_path, buf)?;
+
+        println!("{}", "Updated registry has been saved!".green());
+
+        Ok(())
+    }
+}

@@ -4,6 +4,7 @@ use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 mod commands;
 pub mod lockfile;
+pub mod registry;
 mod utils;
 
 #[derive(Parser)]
@@ -25,9 +26,7 @@ enum Commands {
         dev: bool,
     },
     /// Link a package from the local store to the current project
-    Link {
-        name: String,
-    },
+    Link { name: String },
     /// Remove a package from the current project
     Remove {
         name: Option<String>,
