@@ -64,20 +64,16 @@ impl Registry {
     }
 
     pub fn update_package_version(&mut self, package_name: &str, version: &str) -> Result<()> {
-        // Get the current time in UTC
-        let now_utc: DateTime<Utc> = Utc::now();
-        let last_updated = now_utc.format("%Y-%m-%dT%H:%M:%SZ").to_string();
-
         self.data
             .packages
             .entry(package_name.to_string())
             .and_modify(|it| {
                 it.version = version.to_string();
-                it.last_updated = last_updated.to_string()
+                it.last_updated = current_formatted_time();
             })
             .or_insert_with(|| PackageMetadata {
                 version: version.to_string(),
-                last_updated: last_updated.clone(),
+                last_updated: current_formatted_time(),
                 installations: vec![],
             });
 
@@ -91,12 +87,8 @@ impl Registry {
         package_name: &str,
         project_path: &Path,
     ) -> Result<()> {
-        // Get the current time in UTC
-        let now_utc: DateTime<Utc> = Utc::now();
-        let last_updated = now_utc.format("%Y-%m-%dT%H:%M:%SZ").to_string();
-
         if let Some(meta_data) = self.data.packages.get_mut(package_name) {
-            meta_data.last_updated = last_updated;
+            meta_data.last_updated = current_formatted_time();
             meta_data.installations.push(project_path.to_path_buf());
 
             self.save()?;
@@ -112,12 +104,8 @@ impl Registry {
         package_name: &str,
         project_path: &Path,
     ) -> Result<()> {
-        // Get the current time in UTC
-        let now_utc: DateTime<Utc> = Utc::now();
-        let last_updated = now_utc.format("%Y-%m-%dT%H:%M:%SZ").to_string();
-
         if let Some(meta_data) = self.data.packages.get_mut(package_name) {
-            meta_data.last_updated = last_updated;
+            meta_data.last_updated = current_formatted_time();
             meta_data.installations.retain(|it| it != project_path);
 
             self.save()?;
@@ -128,15 +116,11 @@ impl Registry {
     }
 
     pub fn remove_all_installations(&mut self, project_path: &Path) -> Result<()> {
-        // Get the current time in UTC
-        let now_utc: DateTime<Utc> = Utc::now();
-        let last_updated = now_utc.format("%Y-%m-%dT%H:%M:%SZ");
-
         let mut was_updated = false;
         for pkg in self.data.packages.iter_mut() {
             if pkg.1.installations.contains(&project_path.to_path_buf()) {
                 pkg.1.installations.retain(|it| it != project_path);
-                pkg.1.last_updated = last_updated.to_string();
+                pkg.1.last_updated = current_formatted_time();
 
                 was_updated = true;
             }
@@ -169,4 +153,11 @@ impl Registry {
 
         Ok(())
     }
+}
+
+/// Get the current time in UTC
+fn current_formatted_time() -> String {
+    let now_utc: DateTime<Utc> = Utc::now();
+
+    now_utc.format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
