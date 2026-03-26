@@ -1,4 +1,3 @@
-use crate::lockfile::Lockfile;
 use anyhow::{Context, Result};
 use colored::*;
 use serde::Serialize;
@@ -6,6 +5,8 @@ use serde_json;
 use std::fs;
 use std::path::Path;
 
+use crate::lockfile::Lockfile;
+use crate::registry::Registry;
 use crate::utils::detect_indent;
 
 pub fn remove(package_name: &Option<String>, is_all: bool, project_dir: &Path) -> Result<()> {
@@ -15,6 +16,8 @@ pub fn remove(package_name: &Option<String>, is_all: bool, project_dir: &Path) -
         );
         return Ok(());
     }
+
+    let mut registry = Registry::new()?;
 
     let mut project_kley_path = project_dir.join(".kley");
 
@@ -27,6 +30,8 @@ pub fn remove(package_name: &Option<String>, is_all: bool, project_dir: &Path) -
 
         // Remove all local packages from package.json
         remove_all_from_package_json(&project_dir.join("package.json"))?;
+
+        registry.remove_all_installations(project_dir)?;
     } else if let Some(pkg_name) = package_name {
         project_kley_path = project_kley_path.join(pkg_name);
 
@@ -35,6 +40,8 @@ pub fn remove(package_name: &Option<String>, is_all: bool, project_dir: &Path) -
 
         // --- Update kley.lock ---
         update_kley_lock(pkg_name, project_dir)?;
+
+        registry.remove_package_installation(pkg_name, project_dir)?;
     }
 
     if project_kley_path.exists() {
