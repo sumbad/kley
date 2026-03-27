@@ -17,7 +17,7 @@ struct PackageJson {
 }
 
 /// Publish logic
-pub fn publish() -> Result<()> {
+pub fn publish(registry: &mut Registry) -> Result<()> {
     // 1. Read package.json
     let pkg_path = Path::new("package.json");
     if !pkg_path.exists() {
@@ -33,8 +33,6 @@ pub fn publish() -> Result<()> {
         pkg.name.cyan(),
         pkg.version.magenta()
     );
-
-    let mut registry = Registry::new()?;
 
     // 2. Determine the path in the store (~/.kley/packages/name)
     let store_path = registry.dir_path.join("packages").join(&pkg.name);
@@ -159,14 +157,18 @@ mod tests {
     #[test]
     fn test_publish_filtering_logic() -> Result<()> {
         let original_dir = std::env::current_dir()?;
-        let home_dir = dirs::home_dir().context("Failed to find home directory")?;
+        let tmp_home_dir = tempdir()?;
+        let home_dir = tmp_home_dir.path();
         let store_path = home_dir.join(".kley/packages/test-pkg");
+
+        let mut registry = Registry::new(home_dir.to_path_buf())?;
 
         // --- SCENARIO 1: .npmignore exists ---
         {
             let proj_dir = tempdir()?;
             let proj_path = proj_dir.path();
             setup_test_project(proj_path)?;
+
             fs::write(
                 proj_path.join(".gitignore"),
                 "dist\nsecret.log\nnode_modules",
@@ -174,7 +176,7 @@ mod tests {
             fs::write(proj_path.join(".npmignore"), "secret.log")?;
 
             std::env::set_current_dir(proj_path)?;
-            publish()?;
+            publish(&mut registry)?;
 
             // Assert: build artifact IS included, secret IS NOT, node_modules IS NOT
             assert!(
@@ -205,7 +207,7 @@ mod tests {
             )?;
 
             std::env::set_current_dir(proj_path)?;
-            publish()?;
+            publish(&mut registry)?;
 
             // Assert: build artifact IS NOT included, secret IS NOT, node_modules IS NOT
             assert!(

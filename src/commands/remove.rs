@@ -9,15 +9,18 @@ use crate::lockfile::Lockfile;
 use crate::registry::Registry;
 use crate::utils::detect_indent;
 
-pub fn remove(package_name: &Option<String>, is_all: bool, project_dir: &Path) -> Result<()> {
+pub fn remove(
+    registry: &mut Registry,
+    package_name: &Option<String>,
+    is_all: bool,
+    project_dir: &Path,
+) -> Result<()> {
     if package_name.is_none() && !is_all {
         println!(
             "⚠️ Set a package name to command for removing it or use --all flag to delete all local dependencies"
         );
         return Ok(());
     }
-
-    let mut registry = Registry::new()?;
 
     let mut project_kley_path = project_dir.join(".kley");
 
@@ -247,11 +250,15 @@ mod tests {
 
     #[test]
     fn test_remove_single_package() -> Result<()> {
+        let tmp_home_dir = tempdir()?;
+        let home_dir = tmp_home_dir.path();
+        let mut registry = Registry::new(home_dir.to_path_buf())?;
+
         let proj_dir = tempdir()?;
         let proj_path = proj_dir.path();
         setup_test_project(proj_path)?;
 
-        remove(&Some(String::from("test-lib")), false, proj_path)?;
+        remove(&mut registry, &Some(String::from("test-lib")), false, proj_path)?;
 
         assert!(
             !proj_path.join(".kley/test-lib").exists(),
@@ -281,11 +288,15 @@ mod tests {
 
     #[test]
     fn test_remove_all_packages() -> Result<()> {
+        let tmp_home_dir = tempdir()?;
+        let home_dir = tmp_home_dir.path();
+        let mut registry = Registry::new(home_dir.to_path_buf())?;
+
         let proj_dir = tempdir()?;
         let proj_path = proj_dir.path();
         setup_test_project(proj_path)?;
 
-        remove(&None, true, proj_path)?;
+        remove(&mut registry, &None, true, proj_path)?;
 
         assert!(
             !proj_path.join(".kley").exists(),
@@ -311,23 +322,31 @@ mod tests {
 
     #[test]
     fn test_remove_is_idempotent() -> Result<()> {
+        let tmp_home_dir = tempdir()?;
+        let home_dir = tmp_home_dir.path();
+        let mut registry = Registry::new(home_dir.to_path_buf())?;
+
         let proj_dir = tempdir()?;
         let proj_path = proj_dir.path();
         setup_test_project(proj_path)?;
 
-        remove(&Some(String::from("test-lib")), false, proj_path)?;
-        remove(&Some(String::from("test-lib")), false, proj_path)?;
+        remove(&mut registry, &Some(String::from("test-lib")), false, proj_path)?;
+        remove(&mut registry, &Some(String::from("test-lib")), false, proj_path)?;
 
         Ok(())
     }
 
     #[test]
     fn test_remove_missing_file() -> Result<()> {
+        let tmp_home_dir = tempdir()?;
+        let home_dir = tmp_home_dir.path();
+        let mut registry = Registry::new(home_dir.to_path_buf())?;
+
         let proj_dir = tempdir()?;
         let proj_path = proj_dir.path();
         setup_test_project(proj_path)?;
 
-        remove(&Some(String::from("test-uknown-lib")), false, proj_path)?;
+        remove(&mut registry, &Some(String::from("test-uknown-lib")), false, proj_path)?;
 
         Ok(())
     }
