@@ -30,9 +30,7 @@ pub struct Registry {
 }
 
 impl Registry {
-    pub fn new() -> Result<Registry> {
-        let home_dir = dirs::home_dir().context("Failed to find home directory")?;
-
+    pub fn new(home_dir: PathBuf) -> Result<Registry> {
         let registry_dir = home_dir.join(REGISTRY_DIR_NAME);
         let registry_file = registry_dir.join(REGISTRY_FILE_NAME);
 

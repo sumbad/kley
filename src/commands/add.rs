@@ -10,9 +10,7 @@ use crate::registry::Registry;
 use crate::utils::{copy_from_store, detect_indent, work_dirs};
 
 /// Add logic
-pub fn add(package_name: &str, is_dev: bool) -> Result<()> {
-    let mut registry = Registry::new()?;
-
+pub fn add(registry: &mut Registry, package_name: &str, is_dev: bool) -> Result<()> {
     let dirs = work_dirs(package_name, &registry)?;
 
     copy_from_store(package_name, &dirs)?;
