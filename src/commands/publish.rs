@@ -7,6 +7,8 @@ use std::fs;
 use std::path::Path;
 use tracing;
 
+use crate::registry::*;
+
 #[derive(Deserialize, Debug)]
 struct PackageJson {
     name: String,
@@ -15,7 +17,7 @@ struct PackageJson {
 }
 
 /// Publish logic
-pub fn publish() -> Result<()> {
+pub fn publish(registry: &mut Registry) -> Result<()> {
     // 1. Read package.json
     let pkg_path = Path::new("package.json");
     if !pkg_path.exists() {
@@ -33,8 +35,7 @@ pub fn publish() -> Result<()> {
     );
 
     // 2. Determine the path in the store (~/.kley/packages/name)
-    let home_dir = dirs::home_dir().context("Failed to find home directory")?;
-    let store_path = home_dir.join(".kley").join("packages").join(&pkg.name);
+    let store_path = registry.dir_path.join("packages").join(&pkg.name);
 
     if store_path.exists() {
         fs::remove_dir_all(&store_path)?;
@@ -86,7 +87,7 @@ pub fn publish() -> Result<()> {
 
         // Skip only dirs without files
         if path.is_dir() {
-            continue; 
+            continue;
         }
 
         tracing::debug!(path = %path.to_string_lossy(), "Packing entry");
@@ -122,6 +123,8 @@ pub fn publish() -> Result<()> {
         }
     }
 
+    registry.update_package_version(&pkg.name, &pkg.version)?;
+
     println!("{}", "✅ Package successfully published to store!".green());
     Ok(())
 }
@@ -154,14 +157,18 @@ mod tests {
     #[test]
     fn test_publish_filtering_logic() -> Result<()> {
         let original_dir = std::env::current_dir()?;
-        let home_dir = dirs::home_dir().context("Failed to find home directory")?;
+        let tmp_home_dir = tempdir()?;
+        let home_dir = tmp_home_dir.path();
         let store_path = home_dir.join(".kley/packages/test-pkg");
+
+        let mut registry = Registry::new(home_dir.to_path_buf())?;
 
         // --- SCENARIO 1: .npmignore exists ---
         {
             let proj_dir = tempdir()?;
             let proj_path = proj_dir.path();
             setup_test_project(proj_path)?;
+
             fs::write(
                 proj_path.join(".gitignore"),
                 "dist\nsecret.log\nnode_modules",
@@ -169,7 +176,7 @@ mod tests {
             fs::write(proj_path.join(".npmignore"), "secret.log")?;
 
             std::env::set_current_dir(proj_path)?;
-            publish()?;
+            publish(&mut registry)?;
 
             // Assert: build artifact IS included, secret IS NOT, node_modules IS NOT
             assert!(
@@ -200,7 +207,7 @@ mod tests {
             )?;
 
             std::env::set_current_dir(proj_path)?;
-            publish()?;
+            publish(&mut registry)?;
 
             // Assert: build artifact IS NOT included, secret IS NOT, node_modules IS NOT
             assert!(

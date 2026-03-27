@@ -3,10 +3,13 @@ use std::fs;
 
 use anyhow::Result;
 
-use crate::utils::{copy_from_store, work_dirs};
+use crate::{
+    registry::Registry,
+    utils::{copy_from_store, work_dirs},
+};
 
-pub fn link(package_name: &str) -> Result<()> {
-    let dirs = work_dirs(package_name)?;
+pub fn link(registry: &mut Registry, package_name: &str) -> Result<()> {
+    let dirs = work_dirs(package_name, &registry)?;
 
     copy_from_store(package_name, &dirs)?;
 
