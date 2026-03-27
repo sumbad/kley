@@ -46,9 +46,9 @@ kanban
         "Implement `update` command"<br/><br/>@{ assigned: II, priority: 'Medium', ticket: '011-update-command' }
 
     [In progress]
-        "Implement Global Package Registry `registry.json`"<br/><br/>@{ assigned: II, priority: 'High', ticket: '015-installation-registry' }
 
     Done
+        "Implement Global Package Registry `registry.json`"<br/><br/>@{ assigned: II, priority: 'High', ticket: '015-installation-registry' }
         "Implement `link` command"<br/><br/>@{ assigned: II, priority: 'High', ticket: '009-link-command' }
         "Add base integration tests"<br/><br/>@{ assigned: II, priority: 'Low' }
         "Fix the publish command to simulate npm logic"<br/><br/>@{ assigned: II, priority: 'Low' }
