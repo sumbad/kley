@@ -86,10 +86,14 @@ impl Registry {
         project_path: &Path,
     ) -> Result<()> {
         if let Some(meta_data) = self.data.packages.get_mut(package_name) {
-            meta_data.last_updated = current_formatted_time();
-            meta_data.installations.push(project_path.to_path_buf());
+            let path_buf = project_path.to_path_buf();
 
-            self.save()?;
+            if !meta_data.installations.contains(&path_buf) {
+                meta_data.last_updated = current_formatted_time();
+                meta_data.installations.push(path_buf);
+
+                self.save()?;
+            }
         } else {
             tracing::warn!("Package {} not found in the registry", package_name);
         }

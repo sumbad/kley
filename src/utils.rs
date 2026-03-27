@@ -4,7 +4,7 @@ use std::{fs, path::PathBuf};
 
 use crate::registry::Registry;
 
-pub static PROJECT_REGESTRY_DIR_NAME: &str = ".kley";
+pub static PROJECT_REGISTRY_DIR_NAME: &str = ".kley";
 
 pub struct WorkDirs {
     pub project_dir: PathBuf,
@@ -16,7 +16,7 @@ pub fn work_dirs(package_name: &str, registry: &Registry) -> Result<WorkDirs> {
     let project_dir = std::env::current_dir()?;
     let registry_dir = registry.dir_path.join("packages").join(package_name);
     let project_kley_dir = project_dir
-        .join(PROJECT_REGESTRY_DIR_NAME)
+        .join(PROJECT_REGISTRY_DIR_NAME)
         .join(package_name);
 
     Ok(WorkDirs {
