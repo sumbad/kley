@@ -1,4 +1,3 @@
-use crate::lockfile::Lockfile;
 use anyhow::{Context, Result};
 use colored::*;
 use serde::Serialize;
@@ -6,9 +5,16 @@ use serde_json;
 use std::fs;
 use std::path::Path;
 
+use crate::lockfile::Lockfile;
+use crate::registry::Registry;
 use crate::utils::detect_indent;
 
-pub fn remove(package_name: &Option<String>, is_all: bool, project_dir: &Path) -> Result<()> {
+pub fn remove(
+    registry: &mut Registry,
+    package_name: &Option<String>,
+    is_all: bool,
+    project_dir: &Path,
+) -> Result<()> {
     if package_name.is_none() && !is_all {
         println!(
             "⚠️ Set a package name to command for removing it or use --all flag to delete all local dependencies"
@@ -27,6 +33,8 @@ pub fn remove(package_name: &Option<String>, is_all: bool, project_dir: &Path) -
 
         // Remove all local packages from package.json
         remove_all_from_package_json(&project_dir.join("package.json"))?;
+
+        registry.remove_all_installations(project_dir)?;
     } else if let Some(pkg_name) = package_name {
         project_kley_path = project_kley_path.join(pkg_name);
 
@@ -35,6 +43,8 @@ pub fn remove(package_name: &Option<String>, is_all: bool, project_dir: &Path) -
 
         // --- Update kley.lock ---
         update_kley_lock(pkg_name, project_dir)?;
+
+        registry.remove_package_installation(pkg_name, project_dir)?;
     }
 
     if project_kley_path.exists() {
@@ -240,11 +250,15 @@ mod tests {
 
     #[test]
     fn test_remove_single_package() -> Result<()> {
+        let tmp_home_dir = tempdir()?;
+        let home_dir = tmp_home_dir.path();
+        let mut registry = Registry::new(home_dir.to_path_buf())?;
+
         let proj_dir = tempdir()?;
         let proj_path = proj_dir.path();
         setup_test_project(proj_path)?;
 
-        remove(&Some(String::from("test-lib")), false, proj_path)?;
+        remove(&mut registry, &Some(String::from("test-lib")), false, proj_path)?;
 
         assert!(
             !proj_path.join(".kley/test-lib").exists(),
@@ -274,11 +288,15 @@ mod tests {
 
     #[test]
     fn test_remove_all_packages() -> Result<()> {
+        let tmp_home_dir = tempdir()?;
+        let home_dir = tmp_home_dir.path();
+        let mut registry = Registry::new(home_dir.to_path_buf())?;
+
         let proj_dir = tempdir()?;
         let proj_path = proj_dir.path();
         setup_test_project(proj_path)?;
 
-        remove(&None, true, proj_path)?;
+        remove(&mut registry, &None, true, proj_path)?;
 
         assert!(
             !proj_path.join(".kley").exists(),
@@ -304,23 +322,31 @@ mod tests {
 
     #[test]
     fn test_remove_is_idempotent() -> Result<()> {
+        let tmp_home_dir = tempdir()?;
+        let home_dir = tmp_home_dir.path();
+        let mut registry = Registry::new(home_dir.to_path_buf())?;
+
         let proj_dir = tempdir()?;
         let proj_path = proj_dir.path();
         setup_test_project(proj_path)?;
 
-        remove(&Some(String::from("test-lib")), false, proj_path)?;
-        remove(&Some(String::from("test-lib")), false, proj_path)?;
+        remove(&mut registry, &Some(String::from("test-lib")), false, proj_path)?;
+        remove(&mut registry, &Some(String::from("test-lib")), false, proj_path)?;
 
         Ok(())
     }
 
     #[test]
     fn test_remove_missing_file() -> Result<()> {
+        let tmp_home_dir = tempdir()?;
+        let home_dir = tmp_home_dir.path();
+        let mut registry = Registry::new(home_dir.to_path_buf())?;
+
         let proj_dir = tempdir()?;
         let proj_path = proj_dir.path();
         setup_test_project(proj_path)?;
 
-        remove(&Some(String::from("test-uknown-lib")), false, proj_path)?;
+        remove(&mut registry, &Some(String::from("test-uknown-lib")), false, proj_path)?;
 
         Ok(())
     }

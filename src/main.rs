@@ -1,9 +1,12 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
+use crate::registry::Registry;
+
 mod commands;
 pub mod lockfile;
+pub mod registry;
 mod utils;
 
 #[derive(Parser)]
@@ -25,9 +28,7 @@ enum Commands {
         dev: bool,
     },
     /// Link a package from the local store to the current project
-    Link {
-        name: String,
-    },
+    Link { name: String },
     /// Remove a package from the current project
     Remove {
         name: Option<String>,
@@ -45,15 +46,18 @@ fn main() -> Result<()> {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
+    let home_dir = dirs::home_dir().context("Failed to find home directory")?;
+
     let cli = Cli::parse();
+    let project_dir = std::env::current_dir()?;
+    let mut registry = Registry::new(home_dir)?;
 
     match &cli.command {
-        Commands::Publish => commands::publish::publish()?,
-        Commands::Add { name, dev } => commands::add::add(name, *dev)?,
-        Commands::Link { name } => commands::link::link(name)?,
+        Commands::Publish => commands::publish::publish(&mut registry)?,
+        Commands::Add { name, dev } => commands::add::add(&mut registry, name, *dev)?,
+        Commands::Link { name } => commands::link::link(&mut registry, name)?,
         Commands::Remove { name, all } => {
-            let project_dir = std::env::current_dir()?;
-            commands::remove::remove(name, *all, &project_dir)?
+            commands::remove::remove(&mut registry, name, *all, &project_dir)?
         }
     }
 

@@ -1,4 +1,3 @@
-use crate::lockfile::{Lockfile, PackageInfo, PackageJson};
 use anyhow::{Context, Result};
 use colored::*;
 use serde::Serialize;
@@ -6,11 +5,13 @@ use serde_json;
 use std::fs;
 use std::path::Path;
 
-use crate::utils::{detect_indent, work_dirs, copy_from_store};
+use crate::lockfile::{Lockfile, PackageInfo, PackageJson};
+use crate::registry::Registry;
+use crate::utils::{copy_from_store, detect_indent, work_dirs};
 
 /// Add logic
-pub fn add(package_name: &str, is_dev: bool) -> Result<()> {
-    let dirs = work_dirs(package_name)?;
+pub fn add(registry: &mut Registry, package_name: &str, is_dev: bool) -> Result<()> {
+    let dirs = work_dirs(package_name, &registry)?;
 
     copy_from_store(package_name, &dirs)?;
 
@@ -18,7 +19,9 @@ pub fn add(package_name: &str, is_dev: bool) -> Result<()> {
     update_package_json(&dirs.project_dir.join("package.json"), package_name, is_dev)?;
 
     // --- Create or update kley.lock ---
-    update_kley_lock(package_name, &dirs.store_kley_dir, &dirs.project_dir)?;
+    update_kley_lock(package_name, &dirs.registry_dir, &dirs.project_dir)?;
+
+    registry.add_package_installation(package_name, &dirs.project_dir)?;
 
     Ok(())
 }

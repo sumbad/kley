@@ -34,13 +34,13 @@ The `registry.json` file will contain a single `packages` object. Each key in th
 ## 3. Core Logic
 - A dedicated module (e.g., `src/registry.rs`) will abstract all read/write operations to `registry.json`.
 - This module must handle file creation, empty/malformed JSON, and provide safe functions for modification.
-- Key functions should include:
-    - `registry::update_package_metadata(package_name: &str, version: &str)`
-    - `registry::add_installation(package_name: &str, project_path: &Path)`
-    - `registry::remove_installation(package_name: &str, project_path: &Path)`
-    - `registry::remove_package(package_name: &str)`
-    - `registry::get_package(package_name: &str) -> Option<PackageMetadata>`
-    - `registry::get_all_packages() -> BTreeMap<String, PackageMetadata>`
+- Key functions implemented in this phase include:
+    - `Registry::new()`: To load or initialize the registry.
+    - `Registry::save()`: To persist changes to disk.
+    - `update_package_version()`: Called by `publish` to update a package's metadata.
+    - `add_package_installation()`: Called by `add` and `link` to register a new installation.
+    - `remove_package_installation()`: Called by `remove` to deregister an installation.
+    - `remove_all_installations()`: Called by `remove --all`.
 
 ## 4. Modifications to Commands
 
