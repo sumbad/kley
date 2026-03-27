@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.3.0] - 2026-02-27
 
 ### Added
 - **Global Package Registry**: Implemented a new global registry (`~/.kley/registry.json`) to track metadata and installation locations for all published packages. This is a foundational feature for upcoming automation commands.
