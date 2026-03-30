@@ -36,8 +36,8 @@ Kley aims to address these issues by offering a mechanism to "publish" packages 
     - Registers the installation in the global `registry.json`.
 
 **`kley link <package-name>`**
-- **Purpose**: A lightweight alternative to `add` that uses a symlink instead of modifying `package.json`.
-- **Functionality**: Creates a symlink from the store to the project's `node_modules` directory and registers the installation.
+- **Purpose**: A flexible workflow for local development that avoids modifying `package.json`.
+- **Functionality**: Copies package files to a local `./.kley` cache, then symlinks `node_modules` to that cache. This installation **is tracked** in the global registry, allowing `publish --push` to work. The symlink **will be overwritten** by `npm install`, but can be quickly restored by running `kley link` again.
 
 **`kley remove <package-name>`**
 - **Purpose**: To cleanly remove a `kley`-managed package from a project.

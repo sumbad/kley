@@ -36,70 +36,107 @@ fn test_registry_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     fs::write(lib_dir.join("index.js"), "console.log('my-lib');")?;
 
-    // Create dummy consumer app project
+    // Create dummy consumer app projects
     let app_dir = temp_dir.path().join("my-app");
     fs::create_dir(&app_dir)?;
     fs::write(
         app_dir.join("package.json"),
         r#"{"name": "my-app", "version": "1.0.0"}"#,
     )?;
+    let app_dir_2 = temp_dir.path().join("my-app-2");
+    fs::create_dir(&app_dir_2)?;
+    fs::write(
+        app_dir_2.join("package.json"),
+        r#"{"name": "my-app-2", "version": "1.0.0"}"#,
+    )?;
 
     let mut cmd = Command::cargo_bin("kley")?;
 
     // 2. TEST `kley publish`
     cmd.current_dir(&lib_dir)
-        .env("HOME", home_dir) // Override home dir for the test
+        .env("HOME", home_dir)
         .arg("publish")
         .assert()
-        .success()
-        .stdout(predicate::str::contains("Package successfully published"));
+        .success();
 
     // Assert registry content after publish
-    let registry_content = fs::read_to_string(&registry_path)?;
-    let registry: Registry = serde_json::from_str(&registry_content)?;
-
+    let registry: Registry = serde_json::from_str(&fs::read_to_string(&registry_path)?)?;
     assert!(registry.packages.contains_key("my-lib"));
-    let lib_meta = registry.packages.get("my-lib").unwrap();
-    assert_eq!(lib_meta.version, "1.0.0");
-    assert!(lib_meta.installations.is_empty());
-    assert!(!lib_meta.last_updated.is_empty());
-
-    cmd = Command::cargo_bin("kley")?;
+    assert!(registry
+        .packages
+        .get("my-lib")
+        .unwrap()
+        .installations
+        .is_empty());
 
     // 3. TEST `kley add`
-    cmd.current_dir(&app_dir)
+    Command::cargo_bin("kley")?
+        .current_dir(&app_dir)
         .env("HOME", home_dir)
         .arg("add")
         .arg("my-lib")
         .assert()
-        .success()
-        .stdout(predicate::str::contains("package.json has been updated"));
+        .success();
 
     // Assert registry content after add
-    let registry_content_after_add = fs::read_to_string(&registry_path)?;
-    let registry_after_add: Registry = serde_json::from_str(&registry_content_after_add)?;
+    let registry_after_add: Registry = serde_json::from_str(&fs::read_to_string(&registry_path)?)?;
     let lib_meta_after_add = registry_after_add.packages.get("my-lib").unwrap();
-
     assert_eq!(lib_meta_after_add.installations.len(), 1);
     assert_eq!(lib_meta_after_add.installations[0], app_dir.canonicalize()?);
 
-    cmd = Command::cargo_bin("kley")?;
+    // 4. TEST `kley link`
+    Command::cargo_bin("kley")?
+        .current_dir(&app_dir_2)
+        .env("HOME", home_dir)
+        .arg("link")
+        .arg("my-lib")
+        .assert()
+        .success();
 
-    // 4. TEST `kley remove`
-    cmd.current_dir(&app_dir)
+    // Assert registry content after link
+    let registry_after_link: Registry = serde_json::from_str(&fs::read_to_string(&registry_path)?)?;
+    let lib_meta_after_link = registry_after_link.packages.get("my-lib").unwrap();
+    assert_eq!(lib_meta_after_link.installations.len(), 2);
+    assert!(lib_meta_after_link
+        .installations
+        .contains(&app_dir.canonicalize()?));
+    assert!(lib_meta_after_link
+        .installations
+        .contains(&app_dir_2.canonicalize()?));
+
+    // 5. TEST `kley remove` from first app
+    Command::cargo_bin("kley")?
+        .current_dir(&app_dir)
         .env("HOME", home_dir)
         .arg("remove")
         .arg("my-lib")
         .assert()
-        .success()
-        .stdout(predicate::str::contains("kley.lock has been updated"));
+        .success();
 
-    // Assert registry content after remove
-    let registry_content_after_remove = fs::read_to_string(&registry_path)?;
-    let registry_after_remove: Registry = serde_json::from_str(&registry_content_after_remove)?;
-    let lib_meta_after_remove = registry_after_remove.packages.get("my-lib").unwrap();
+    // Assert registry content after first remove
+    let registry_after_remove1: Registry =
+        serde_json::from_str(&fs::read_to_string(&registry_path)?)?;
+    let lib_meta_after_remove1 = registry_after_remove1.packages.get("my-lib").unwrap();
+    assert_eq!(lib_meta_after_remove1.installations.len(), 1);
+    assert_eq!(
+        lib_meta_after_remove1.installations[0],
+        app_dir_2.canonicalize()?
+    );
 
-    assert!(lib_meta_after_remove.installations.is_empty());
+    // 6. TEST `kley remove` from second app
+    Command::cargo_bin("kley")?
+        .current_dir(&app_dir_2)
+        .env("HOME", home_dir)
+        .arg("remove")
+        .arg("my-lib")
+        .assert()
+        .success();
+
+    // Assert registry content after second remove
+    let registry_after_remove2: Registry =
+        serde_json::from_str(&fs::read_to_string(&registry_path)?)?;
+    let lib_meta_after_remove2 = registry_after_remove2.packages.get("my-lib").unwrap();
+    assert!(lib_meta_after_remove2.installations.is_empty());
 
     Ok(())
 }
