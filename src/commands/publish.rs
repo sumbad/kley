@@ -7,6 +7,7 @@ use std::fs;
 use std::path::Path;
 use tracing;
 
+use crate::commands::update::run_update;
 use crate::registry::*;
 
 #[derive(Deserialize, Debug)]
@@ -17,7 +18,7 @@ struct PackageJson {
 }
 
 /// Publish logic
-pub fn publish(registry: &mut Registry) -> Result<()> {
+pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
     // 1. Read package.json
     let pkg_path = Path::new("package.json");
     if !pkg_path.exists() {
@@ -35,7 +36,7 @@ pub fn publish(registry: &mut Registry) -> Result<()> {
     );
 
     // 2. Determine the path in the store (~/.kley/packages/name)
-    let store_path = registry.dir_path.join("packages").join(&pkg.name);
+    let store_path = registry.get_pkg_dir(&pkg.name);
 
     if store_path.exists() {
         fs::remove_dir_all(&store_path)?;
@@ -126,6 +127,30 @@ pub fn publish(registry: &mut Registry) -> Result<()> {
     registry.update_package_version(&pkg.name, &pkg.version)?;
 
     println!("{}", "✅ Package successfully published to store!".green());
+
+    if push {
+        let instalations = registry.get_installations(&pkg.name).to_vec();
+        let instalation_len = instalations.len();
+
+        if instalation_len > 0 {
+            let plural_text = if instalation_len == 1 {
+                "project"
+            } else {
+                "projects"
+            };
+
+            println!(
+                "Pushing {} to {} {plural_text}",
+                pkg.name.cyan(),
+                instalation_len
+            );
+
+            for project_dir in instalations {
+                run_update(registry, &pkg.name, &project_dir)?;
+            }
+        }
+    }
+
     Ok(())
 }
 
@@ -176,7 +201,7 @@ mod tests {
             fs::write(proj_path.join(".npmignore"), "secret.log")?;
 
             std::env::set_current_dir(proj_path)?;
-            publish(&mut registry)?;
+            publish(&mut registry, false)?;
 
             // Assert: build artifact IS included, secret IS NOT, node_modules IS NOT
             assert!(
@@ -207,7 +232,7 @@ mod tests {
             )?;
 
             std::env::set_current_dir(proj_path)?;
-            publish(&mut registry)?;
+            publish(&mut registry, false)?;
 
             // Assert: build artifact IS NOT included, secret IS NOT, node_modules IS NOT
             assert!(

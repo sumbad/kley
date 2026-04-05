@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **`--push` flag for `publish`**: The `publish` command now accepts a `--push` flag to automatically update all consumer projects with the new version.
+
+### Changed
+- **Internal**: Refactored the package update logic into a reusable `update` module to support `publish --push` and the future `update` command.
+
+---
+
 ## [0.3.0] - 2026-02-27
 
 ### Added

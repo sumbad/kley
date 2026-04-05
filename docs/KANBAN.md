@@ -32,6 +32,7 @@ config:
 
 kanban
     Backlog
+        "Enhance `kley.lock` with version pinning"<br/><br/>@{ assigned: V, priority: 'High', ticket: '016-enhance-kley-lock' }
         "Implement `clean` command"<br/><br/>@{ assigned: V, priority: 'Low', ticket: '014-clean-command' }
         "Implement watch command"<br/><br/>@{ assigned: V, priority: 'Very High', ticket: '004-watch-command' }
         "Add --global flag to link command"<br/><br/>@{ assigned: V, priority: 'Low', ticket: '010-link-global-flag' }
@@ -41,11 +42,11 @@ kanban
         "Add comprehensive tests"<br/><br/>@{ priority: 'Very High' }
 
     [Todo]
-        "Add `--push` flag to `publish` command"<br/><br/>@{ assigned: II, priority: 'Very High', ticket: '001-push-command' }
         "Implement `unpublish` command"<br/><br/>@{ assigned: II, priority: 'Medium', ticket: '013-unpublish-command' }
         "Implement `update` command"<br/><br/>@{ assigned: II, priority: 'Medium', ticket: '011-update-command' }
 
     [In progress]
+        "Add `--push` flag to `publish` command"<br/><br/>@{ assigned: II, priority: 'Very High', ticket: '001-push-command' }
 
     Done
         "Implement Global Package Registry `registry.json`"<br/><br/>@{ assigned: II, priority: 'High', ticket: '015-installation-registry' }
