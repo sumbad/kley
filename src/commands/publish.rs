@@ -129,14 +129,14 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
     println!("{}", "✅ Package successfully published to store!".green());
 
     if push {
-        let instalations = registry.get_installations(&pkg.name);
+        let instalations = registry.get_installations(&pkg.name).to_vec();
         let instalation_len = instalations.len();
 
         if instalation_len > 0 {
-            let plural_text = match instalation_len {
-                1 => "project",
-                n if n > 1 => "projects",
-                _ => "",
+            let plural_text = if instalation_len == 1 {
+                "project"
+            } else {
+                "projects"
             };
 
             println!(

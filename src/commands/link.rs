@@ -7,7 +7,7 @@ use crate::{
 };
 
 pub fn link(registry: &mut Registry, package_name: &str) -> Result<()> {
-    let dirs = work_dirs(package_name, registry)?;
+    let dirs = work_dirs(package_name)?;
 
     run_update(registry, package_name, &std::env::current_dir()?)?;
 

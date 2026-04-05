@@ -11,7 +11,7 @@ use crate::utils::{detect_indent, work_dirs};
 
 /// Add logic
 pub fn add(registry: &mut Registry, package_name: &str, is_dev: bool) -> Result<()> {
-    let dirs = work_dirs(package_name, registry)?;
+    let dirs = work_dirs(package_name)?;
 
     run_update(registry, package_name, &std::env::current_dir()?)?;
 
