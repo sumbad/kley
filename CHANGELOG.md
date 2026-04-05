@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`update` Command**: Implemented the `kley update [package...]` command to sync installed packages with the latest versions from the local store. It can update all packages or specific ones.
 - **`--push` flag for `publish`**: The `publish` command now accepts a `--push` flag to automatically update all consumer projects with the new version.
 
 ### Changed

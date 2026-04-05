@@ -43,12 +43,12 @@ kanban
 
     [Todo]
         "Implement `unpublish` command"<br/><br/>@{ assigned: II, priority: 'Medium', ticket: '013-unpublish-command' }
-        "Implement `update` command"<br/><br/>@{ assigned: II, priority: 'Medium', ticket: '011-update-command' }
 
     [In progress]
-        "Add `--push` flag to `publish` command"<br/><br/>@{ assigned: II, priority: 'Very High', ticket: '001-push-command' }
+        "Implement `update` command"<br/><br/>@{ assigned: II, priority: 'Medium', ticket: '011-update-command' }
 
     Done
+        "Add `--push` flag to `publish` command"<br/><br/>@{ assigned: II, priority: 'Very High', ticket: '001-push-command' }
         "Implement Global Package Registry `registry.json`"<br/><br/>@{ assigned: II, priority: 'High', ticket: '015-installation-registry' }
         "Implement `link` command"<br/><br/>@{ assigned: II, priority: 'High', ticket: '009-link-command' }
         "Add base integration tests"<br/><br/>@{ assigned: II, priority: 'Low' }

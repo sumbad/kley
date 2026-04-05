@@ -38,6 +38,11 @@ enum Commands {
         #[arg(long)]
         all: bool,
     },
+    /// Update packages from the store
+    Update {
+        /// Specific packages to update. If not provided, all packages will be updated.
+        packages: Vec<String>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -61,6 +66,9 @@ fn main() -> Result<()> {
         Commands::Link { name } => commands::link::link(&mut registry, name)?,
         Commands::Remove { name, all } => {
             commands::remove::remove(&mut registry, name, *all, &project_dir)?
+        }
+        Commands::Update { packages } => {
+            commands::update::update(&mut registry, packages, &project_dir)?
         }
     }
 
