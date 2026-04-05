@@ -20,7 +20,10 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Publish the current package to the local store
-    Publish,
+    Publish {
+        #[arg(long)]
+        push: bool,
+    },
     /// Add a package from the store to the current project
     Add {
         name: String,
@@ -53,7 +56,7 @@ fn main() -> Result<()> {
     let mut registry = Registry::new(home_dir)?;
 
     match &cli.command {
-        Commands::Publish => commands::publish::publish(&mut registry)?,
+        Commands::Publish { push } => commands::publish::publish(&mut registry, *push)?,
         Commands::Add { name, dev } => commands::add::add(&mut registry, name, *dev)?,
         Commands::Link { name } => commands::link::link(&mut registry, name)?,
         Commands::Remove { name, all } => {
