@@ -10,6 +10,34 @@ use crate::{
     utils::copy_from_registry,
 };
 
+/// Main entry point for the `update` command.
+pub fn update(registry: &mut Registry, packages: &Vec<String>, project_dir: &Path) -> Result<()> {
+    let packages_to_update = if packages.is_empty() {
+        // If no packages are specified, update all packages in kley.lock
+        let lock_path = project_dir.join("kley.lock");
+        if !lock_path.exists() {
+            println!("{}", "No packages to update. kley.lock not found.".yellow());
+            return Ok(());
+        }
+        let lockfile: Lockfile = serde_json::from_str(&fs::read_to_string(lock_path)?)
+            .context("Failed to parse kley.lock")?;
+        lockfile.packages.keys().cloned().collect()
+    } else {
+        packages.clone()
+    };
+
+    if packages_to_update.is_empty() {
+        println!("{}", "No packages found to update.".yellow());
+        return Ok(());
+    }
+
+    for package_name in packages_to_update {
+        run_update(registry, &package_name, project_dir)?;
+    }
+
+    Ok(())
+}
+
 pub fn run_update(registry: &mut Registry, package_name: &str, project_dir: &Path) -> Result<()> {
     tracing::debug!("run_update:\n package_name: {package_name}\n project_dir: {project_dir:?}");
 
@@ -17,7 +45,9 @@ pub fn run_update(registry: &mut Registry, package_name: &str, project_dir: &Pat
 
     update_kley_lock(registry, package_name, project_dir)?;
 
-    println!("Updated {package_name} in {project_dir:?}");
+    tracing::debug!("Updated directory {project_dir:?}");
+
+    println!("Updated {} to the latest version.", package_name.cyan());
 
     Ok(())
 }
