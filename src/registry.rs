@@ -139,6 +139,17 @@ impl Registry {
         Ok(())
     }
 
+    pub fn get_installations(&self, package_name: &str) -> Vec<PathBuf> {
+        self.data
+            .packages
+            .get(package_name)
+            .map_or(vec![], |it| it.installations.clone())
+    }
+
+    pub fn get_pkb_version(&self, package_name: &str) -> Option<&str> {
+        self.data.packages.get(package_name).map(|it| it.version.as_str())
+    }
+
     fn save(&mut self) -> Result<()> {
         if let Some(parent) = self.file_path.parent() {
             fs::create_dir_all(parent)?;

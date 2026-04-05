@@ -1,5 +1,4 @@
 use assert_cmd::prelude::*;
-use predicates::prelude::*;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::fs;
@@ -15,8 +14,6 @@ struct Registry {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PackageMetadata {
-    version: String,
-    last_updated: String,
     installations: Vec<PathBuf>,
 }
 
