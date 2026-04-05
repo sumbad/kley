@@ -1,33 +1,18 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use colored::*;
 use ignore::WalkBuilder;
 use ignore::overrides::OverrideBuilder;
-use serde::Deserialize;
 use std::fs;
 use std::path::Path;
 use tracing;
 
 use crate::commands::update::run_update;
+use crate::npm_package::find_npm_package;
 use crate::registry::*;
-
-#[derive(Deserialize, Debug)]
-struct PackageJson {
-    name: String,
-    version: String,
-    files: Option<Vec<String>>,
-}
 
 /// Publish logic
 pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
-    // 1. Read package.json
-    let pkg_path = Path::new("package.json");
-    if !pkg_path.exists() {
-        anyhow::bail!("package.json not found in the current directory");
-    }
-
-    let pkg_content = fs::read_to_string(pkg_path)?;
-    let pkg: PackageJson =
-        serde_json::from_str(&pkg_content).context("Failed to parse package.json")?;
+    let pkg = find_npm_package(&std::env::current_dir()?)?;
 
     println!(
         "🚀 Publishing {}@{}...",
@@ -35,15 +20,15 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
         pkg.version.magenta()
     );
 
-    // 2. Determine the path in the store (~/.kley/packages/name)
-    let store_path = registry.get_pkg_dir(&pkg.name);
+    // Determine the path in the registry (~/.kley/packages/name)
+    let pkg_in_registry = registry.get_pkg_dir(&pkg.name);
 
-    if store_path.exists() {
-        fs::remove_dir_all(&store_path)?;
+    if pkg_in_registry.exists() {
+        fs::remove_dir_all(&pkg_in_registry)?;
     }
-    fs::create_dir_all(&store_path)?;
+    fs::create_dir_all(&pkg_in_registry)?;
 
-    tracing::debug!("Created dir {:?}", &store_path);
+    tracing::debug!("Created dir {:?}", &pkg_in_registry);
 
     // Apply npm built-in rules via OverrideBuilder
     let mut override_builder = OverrideBuilder::new(Path::new("."));
@@ -60,7 +45,8 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
     override_builder.add("!.npmrc")?;
 
     // Whitelist
-    // NOTE: If an override contains one or more positive patterns, then it will ignore any file path that does not match at least one of those positive patterns
+    // NOTE: If an override contains one or more positive patterns,
+    // then it will ignore any file path that does not match at least one of those positive patterns
     if let Some(files) = &pkg.files {
         for file in files {
             // add files
@@ -94,7 +80,7 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
         tracing::debug!(path = %path.to_string_lossy(), "Packing entry");
 
         let relative_path = path.strip_prefix(".")?;
-        let target_path = store_path.join(relative_path);
+        let target_path = pkg_in_registry.join(relative_path);
 
         if path.is_dir() {
             fs::create_dir_all(&target_path)?;
@@ -119,7 +105,7 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
     for mf in mandatory_files {
         let mf_path = Path::new(mf);
         if mf_path.is_file() {
-            let target = store_path.join(mf);
+            let target = pkg_in_registry.join(mf);
             fs::copy(mf_path, target).ok();
         }
     }
