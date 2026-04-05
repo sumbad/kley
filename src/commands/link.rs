@@ -35,7 +35,7 @@ pub fn link(registry: &mut Registry, package_name: &str) -> Result<()> {
     registry.add_package_installation(package_name, &dirs.project_dir)?;
 
     println!(
-        "{}\\n{}",
+        "{}\n{}",
         format!(
             "✅ Package {} successfully linked to this project!",
             package_name

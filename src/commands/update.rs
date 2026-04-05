@@ -26,7 +26,7 @@ pub fn run_update(registry: &mut Registry, package_name: &str, project_dir: &Pat
 fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path) -> Result<()> {
     let lock_path = project_dir.join("kley.lock");
 
-    let version = if let Some(pkg_version) = registry.get_pkb_version(package_name) {
+    let version = if let Some(pkg_version) = registry.get_pkg_version(package_name) {
         pkg_version
     } else {
         println!("Package {package_name} version not found inside registry");
