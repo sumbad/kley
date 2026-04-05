@@ -32,6 +32,7 @@ config:
 
 kanban
     Backlog
+        "Enhance `kley.lock` with version pinning"<br/><br/>@{ assigned: V, priority: 'High', ticket: '016-enhance-kley-lock' }
         "Implement `clean` command"<br/><br/>@{ assigned: V, priority: 'Low', ticket: '014-clean-command' }
         "Implement watch command"<br/><br/>@{ assigned: V, priority: 'Very High', ticket: '004-watch-command' }
         "Add --global flag to link command"<br/><br/>@{ assigned: V, priority: 'Low', ticket: '010-link-global-flag' }
