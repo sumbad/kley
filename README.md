@@ -73,7 +73,7 @@ This command provides a flexible workflow that avoids modifying `package.json`. 
 
 > **Warning:** Because `package.json` is not modified, running `npm install` (or `yarn`, `pnpm`) will likely delete the symlink from `node_modules`. To restore it, simply run `kley link <package-name>` again. This is a fast operation because the local cache is preserved.
 
-### 4. `kley update [package-name]`
+### 4. `kley update <package-name>`
 This command updates installed packages to the latest version from the kley store.
 
 - If you provide a package name, only that specific package will be updated.

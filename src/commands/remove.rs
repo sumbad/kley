@@ -22,8 +22,6 @@ pub fn remove(
         return Ok(());
     }
 
-    let mut project_kley_path = project_dir.join(".kley");
-
     if is_all {
         // Remove kley.lock file
         let lock_path = project_dir.join("kley.lock");
@@ -35,30 +33,46 @@ pub fn remove(
         remove_all_from_package_json(&project_dir.join("package.json"))?;
 
         registry.remove_all_installations(project_dir)?;
+
+        let local_store = project_dir.join(".kley");
+        if local_store.exists() {
+            fs::remove_dir_all(&local_store)?;
+            println!(
+                "{}",
+                format!("✅ removed directory: {:?}", local_store).green()
+            );
+        }
     } else if let Some(pkg_name) = package_name {
-        project_kley_path = project_kley_path.join(pkg_name);
-
-        // --- Automate package.json modification ---
-        update_package_json(&project_dir.join("package.json"), pkg_name)?;
-
-        // --- Update kley.lock ---
-        update_kley_lock(pkg_name, project_dir)?;
-
-        registry.remove_package_installation(pkg_name, project_dir)?;
+        remove_package(registry, pkg_name, project_dir)?;
     }
 
-    if project_kley_path.exists() {
-        fs::remove_dir_all(&project_kley_path)?;
+    Ok(())
+}
+
+pub fn remove_package(
+    registry: &mut Registry,
+    package_name: &str,
+    project_dir: &Path,
+) -> Result<()> {
+    let local_store_package_dir = project_dir.join(".kley").join(package_name);
+
+    update_package_json(&project_dir.join("package.json"), package_name)?;
+    update_kley_lock(package_name, project_dir)?;
+
+    registry.remove_package_installation(package_name, project_dir)?;
+
+    if local_store_package_dir.exists() {
+        fs::remove_dir_all(&local_store_package_dir)?;
         println!(
             "{}",
-            format!("✅ removed directory: {:?}", project_kley_path).green()
+            format!("✅ removed directory: {:?}", local_store_package_dir).green()
         );
     }
 
     Ok(())
 }
 
-/// Modifies package.json to add or update a dependency.
+/// Modifies package.json to remove a dependency.
 fn update_package_json(pkg_json_path: &Path, package_name: &str) -> Result<()> {
     if !pkg_json_path.exists() {
         println!(
@@ -102,7 +116,7 @@ fn update_package_json(pkg_json_path: &Path, package_name: &str) -> Result<()> {
     Ok(())
 }
 
-/// Updates kley.lock file.
+/// Updates kley.lock file
 fn update_kley_lock(package_name: &str, project_dir: &Path) -> Result<()> {
     let lock_path = project_dir.join("kley.lock");
 
@@ -258,7 +272,12 @@ mod tests {
         let proj_path = proj_dir.path();
         setup_test_project(proj_path)?;
 
-        remove(&mut registry, &Some(String::from("test-lib")), false, proj_path)?;
+        remove(
+            &mut registry,
+            &Some(String::from("test-lib")),
+            false,
+            proj_path,
+        )?;
 
         assert!(
             !proj_path.join(".kley/test-lib").exists(),
@@ -330,8 +349,18 @@ mod tests {
         let proj_path = proj_dir.path();
         setup_test_project(proj_path)?;
 
-        remove(&mut registry, &Some(String::from("test-lib")), false, proj_path)?;
-        remove(&mut registry, &Some(String::from("test-lib")), false, proj_path)?;
+        remove(
+            &mut registry,
+            &Some(String::from("test-lib")),
+            false,
+            proj_path,
+        )?;
+        remove(
+            &mut registry,
+            &Some(String::from("test-lib")),
+            false,
+            proj_path,
+        )?;
 
         Ok(())
     }
@@ -346,7 +375,12 @@ mod tests {
         let proj_path = proj_dir.path();
         setup_test_project(proj_path)?;
 
-        remove(&mut registry, &Some(String::from("test-uknown-lib")), false, proj_path)?;
+        remove(
+            &mut registry,
+            &Some(String::from("test-uknown-lib")),
+            false,
+            proj_path,
+        )?;
 
         Ok(())
     }

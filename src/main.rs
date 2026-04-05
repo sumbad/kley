@@ -6,6 +6,7 @@ use crate::registry::Registry;
 
 mod commands;
 pub mod lockfile;
+pub mod npm_package;
 pub mod registry;
 mod utils;
 
@@ -19,18 +20,18 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Publish the current package to the local store
+    /// Publish the current package to the registry
     Publish {
         #[arg(long)]
         push: bool,
     },
-    /// Add a package from the store to the current project
+    /// Add a package from the registry to the current project
     Add {
         name: String,
         #[arg(long)]
         dev: bool,
     },
-    /// Link a package from the local store to the current project
+    /// Link a package from the registry to the current project
     Link { name: String },
     /// Remove a package from the current project
     Remove {
@@ -38,11 +39,16 @@ enum Commands {
         #[arg(long)]
         all: bool,
     },
-    /// Update packages from the store
+    /// Update packages from the registry
     Update {
         /// Specific packages to update. If not provided, all packages will be updated.
         packages: Vec<String>,
     },
+    /// Unpublish the current package from the registry
+    Unpublish {
+        #[arg(long)]
+        push: bool,
+    }
 }
 
 fn main() -> Result<()> {
@@ -62,6 +68,7 @@ fn main() -> Result<()> {
 
     match &cli.command {
         Commands::Publish { push } => commands::publish::publish(&mut registry, *push)?,
+        Commands::Unpublish { push } => commands::unpublish::unpublish(&mut registry, *push)?,
         Commands::Add { name, dev } => commands::add::add(&mut registry, name, *dev)?,
         Commands::Link { name } => commands::link::link(&mut registry, name)?,
         Commands::Remove { name, all } => {

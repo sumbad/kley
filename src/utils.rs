@@ -1,6 +1,11 @@
 use anyhow::Result;
-use colored::Colorize;
-use std::{fs, path::{Path, PathBuf}};
+use chrono::{DateTime, Utc};
+use colored::*;
+use std::{
+    fs,
+    io::{self, Write},
+    path::{Path, PathBuf},
+};
 
 use crate::registry::Registry;
 
@@ -23,12 +28,18 @@ pub fn work_dirs(package_name: &str) -> Result<WorkDirs> {
     })
 }
 
-pub fn copy_from_registry(registry: &Registry, package_name: &str, project_dir: &Path) -> Result<()> {
-    tracing::debug!("copy_from_registry:\n package_name: {package_name}\n project_dir: {project_dir:?}");
+pub fn copy_from_registry(
+    registry: &Registry,
+    package_name: &str,
+    project_dir: &Path,
+) -> Result<()> {
+    tracing::debug!(
+        "copy_from_registry:\n package_name: {package_name}\n project_dir: {project_dir:?}"
+    );
 
     let registry_dir = registry.dir_path.join("packages").join(package_name);
     tracing::debug!("registry_dir: {registry_dir:?}");
-    
+
     if !registry_dir.exists() {
         anyhow::bail!(
             "Package '{}' not found inside registry. Run 'kley publish' in the package folder first.",
@@ -70,4 +81,30 @@ pub fn detect_indent(json_str: &str) -> String {
         }
     }
     "  ".to_string() // Default to 2 spaces
+}
+
+/// Get the current time in UTC
+pub fn current_formatted_time() -> String {
+    let now_utc: DateTime<Utc> = Utc::now();
+
+    now_utc.format("%Y-%m-%dT%H:%M:%SZ").to_string()
+}
+
+/// Confirm to proceed or abort
+pub fn confirm(prompt: ColoredString) -> bool {
+    loop {
+        print!("{} (y/n): ", prompt);
+        io::stdout().flush().unwrap(); // Ensure the prompt is printed before reading
+
+        let mut input = String::new();
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read line");
+
+        match input.trim().to_lowercase().as_str() {
+            "y" | "yes" => return true,
+            "n" | "no" => return false,
+            _ => println!("Please enter 'y' for yes or 'n' for no."),
+        }
+    }
 }

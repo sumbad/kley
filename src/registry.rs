@@ -1,10 +1,11 @@
 use anyhow::{Context, Ok, Result};
-use chrono::{DateTime, Utc};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+
+use crate::utils::current_formatted_time;
 
 pub static REGISTRY_DIR_NAME: &str = ".kley";
 pub static REGISTRY_FILE_NAME: &str = "registry.json";
@@ -139,6 +140,16 @@ impl Registry {
         Ok(())
     }
 
+    pub fn remove_package_info(&mut self, package_name: &str) -> Result<()> {
+        if self.data.packages.remove(package_name).is_some() {
+            self.save()?;
+            tracing::info!("Package {} was removed from the registry", package_name);
+        } else {
+            tracing::warn!("Package {} not found in the registry", package_name);
+        }
+        Ok(())
+    }
+
     pub fn get_installations(&self, package_name: &str) -> &[PathBuf] {
         self.data
             .packages
@@ -166,11 +177,4 @@ impl Registry {
 
         Ok(())
     }
-}
-
-/// Get the current time in UTC
-fn current_formatted_time() -> String {
-    let now_utc: DateTime<Utc> = Utc::now();
-
-    now_utc.format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
