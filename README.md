@@ -15,7 +15,7 @@ English | [Русский](./README_RU.md)
 - **Node.js Independent**: Publish and install packages even if the library and the host project use different Node.js versions.
 - **Fast, Efficient, and Safe**: Written in Rust for memory safety, security, and maximum performance.
 - **Reliable**: Avoids symlink issues by copying files directly.
-- **Simple API**: Four core commands to get started: `publish`, `add`, `link`, and `remove`.
+- **Simple API**: Five core commands to get started: `publish`, `add`, `link`, `update`, and `remove`.
 - **Cross-Platform**: Works on macOS, Linux, and Windows.
 
 ## Installation
@@ -61,6 +61,8 @@ npm install -g kley-cli
 ### 1. `kley publish`
 Run this command in the directory of the package you want to share locally. Kley copies all necessary files to a central store at `~/.kley/packages/<your-package-name>`.
 
+- Use the `--push` flag to automatically update the package in all projects where it has been added or linked. This is the primary command for a fast, iterative workflow.
+
 ### 2. `kley add <package-name>`
 Run this command in the project where you want to use your local package. Kley copies the package into a local `./.kley/` directory, then automatically updates your `package.json` and `kley.lock`.
 
@@ -71,7 +73,13 @@ This command provides a flexible workflow that avoids modifying `package.json`. 
 
 > **Warning:** Because `package.json` is not modified, running `npm install` (or `yarn`, `pnpm`) will likely delete the symlink from `node_modules`. To restore it, simply run `kley link <package-name>` again. This is a fast operation because the local cache is preserved.
 
-### 4. `kley remove <package-name>`
+### 4. `kley update [package-name]`
+This command updates installed packages to the latest version from the kley store.
+
+- If you provide a package name, only that specific package will be updated.
+- If you run it without arguments, `kley` will update all packages listed in `kley.lock`.
+
+### 5. `kley remove <package-name>`
 Run this command to cleanly remove a kley-managed dependency from your project. It will update `package.json` and `kley.lock`, and delete the package files from the `./.kley/` directory.
 
 - Use the `--all` flag to remove all kley-managed packages from the project.
