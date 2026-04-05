@@ -139,11 +139,11 @@ impl Registry {
         Ok(())
     }
 
-    pub fn get_installations(&self, package_name: &str) -> Vec<PathBuf> {
+    pub fn get_installations(&self, package_name: &str) -> &[PathBuf] {
         self.data
             .packages
             .get(package_name)
-            .map_or(vec![], |it| it.installations.clone())
+            .map_or(&[], |it| &it.installations)
     }
 
     pub fn get_pkb_version(&self, package_name: &str) -> Option<&str> {
