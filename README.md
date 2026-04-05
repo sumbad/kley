@@ -67,7 +67,9 @@ Run this command in the project where you want to use your local package. Kley c
 - Use the `--dev` flag to add the package to `devDependencies`.
 
 ### 3. `kley link <package-name>`
-This command provides a lightweight alternative to `add`. It first copies the package to a local `.kley` directory and then creates a symbolic link from `./.kley/<your-package-name>` to your project's `node_modules` directory. This is faster than a full `add` and does **not** modify your `package.json`.
+This command provides a flexible workflow that avoids modifying `package.json`. It copies the package to a local `.kley` cache and then creates a symbolic link from that cache to your project's `node_modules` directory.
+
+> **Warning:** Because `package.json` is not modified, running `npm install` (or `yarn`, `pnpm`) will likely delete the symlink from `node_modules`. To restore it, simply run `kley link <package-name>` again. This is a fast operation because the local cache is preserved.
 
 ### 4. `kley remove <package-name>`
 Run this command to cleanly remove a kley-managed dependency from your project. It will update `package.json` and `kley.lock`, and delete the package files from the `./.kley/` directory.
