@@ -53,7 +53,7 @@ pub fn copy_from_registry(registry: &Registry, package_name: &str, project_dir: 
     println!(
         "📎 Package {} was coped from registry to {} dir",
         package_name.cyan(),
-        project_dir.to_str().unwrap().cyan()
+        project_dir.to_string_lossy().cyan()
     );
 
     Ok(())

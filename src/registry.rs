@@ -146,7 +146,7 @@ impl Registry {
             .map_or(&[], |it| &it.installations)
     }
 
-    pub fn get_pkb_version(&self, package_name: &str) -> Option<&str> {
+    pub fn get_pkg_version(&self, package_name: &str) -> Option<&str> {
         self.data.packages.get(package_name).map(|it| it.version.as_str())
     }
 
