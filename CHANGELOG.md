@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.4.0] - 2026-04-06
 
 ### Added
 - **`unpublish` Command**: Implemented the `kley unpublish` command with a `--push` flag to remove packages from the local store and optionally from all consumer projects.
@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.3.0] - 2026-02-27
+## [0.3.0] - 2026-03-27
 
 ### Added
 - **Global Package Registry**: Implemented a new global registry (`~/.kley/registry.json`) to track metadata and installation locations for all published packages. This is a foundational feature for upcoming automation commands.
