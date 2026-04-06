@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
+use clap::builder::styling::{AnsiColor, Styles};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 use crate::registry::Registry;
@@ -10,9 +11,21 @@ pub mod npm_package;
 pub mod registry;
 mod utils;
 
+fn styles() -> Styles {
+    Styles::styled()
+        .header(AnsiColor::Green.on_default().bold())
+        .usage(AnsiColor::Yellow.on_default())
+        .literal(AnsiColor::Cyan.on_default().bold())
+        .placeholder(AnsiColor::Cyan.on_default())
+        .error(AnsiColor::Red.on_default().bold())
+        .valid(AnsiColor::Green.on_default())
+        .invalid(AnsiColor::Red.on_default())
+}
+
 #[derive(Parser)]
 #[command(name = "kley")]
-#[command(about = "Fast local package manager for npm (JS/TS)", long_about = None)]
+#[command(styles = styles())]
+#[command(version, about = "Fast local package manager for npm (JS/TS)", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -48,7 +61,7 @@ enum Commands {
     Unpublish {
         #[arg(long)]
         push: bool,
-    }
+    },
 }
 
 fn main() -> Result<()> {
