@@ -10,11 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`unpublish` Command**: Implemented the `kley unpublish` command with a `--push` flag to remove packages from the local store and optionally from all consumer projects.
 - **`update` Command**: Implemented the `kley update [package...]` command to sync installed packages with the latest versions from the local store. It can update all packages or specific ones.
 - **`--push` flag for `publish`**: The `publish` command now accepts a `--push` flag to automatically update all consumer projects with the new version.
-
-### Changed
-- **Internal**: Refactored the package update logic into a reusable `update` module to support `publish --push` and the future `update` command.
 
 ---
 
