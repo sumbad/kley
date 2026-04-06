@@ -4,7 +4,7 @@
 
 English | [Русский](./README_RU.md)
 
-**A simple local package manager for npm (JS/TS)**
+**The simple local package manager for npm (JS/TS)**
 
 > Like **`npm link`**, but with a more convenient workflow. Like **`yalc`**, but without the dependency on Node.js.
 
@@ -17,6 +17,103 @@ English | [Русский](./README_RU.md)
 - **Safe**: Avoids running `npm` scripts, only performing basic file copy and link operations.
 - **Simple API**: Six core commands to get started: `publish`, `unpublish`, `add`, `link`, `update`, and `remove`.
 - **Cross-Platform**: Works on macOS, Linux, and Windows.
+
+## Getting started
+
+Here are two common workflows to illustrate how `kley` can be used.
+
+### Scenario 1: Robust Workflow with `add` and `publish --push`
+
+This is the most common and durable workflow. It's perfect for when you are actively developing a library and consuming it in a project, and you want the changes to be reflected reliably.
+
+**(Here you can place the GIF for the `add` workflow)**
+
+<details>
+<summary>Schema with details</summary>
+
+The diagram below shows the key steps: publishing, adding the dependency, and then pushing an update.
+
+```mermaid
+sequenceDiagram
+    actor Dev
+    participant Lib as test-lib
+    participant Store as ~/.kley
+    participant App as test-app
+
+    Note over Dev, App: Initial State: `test-lib` and `test-app` are separate projects.
+
+    Dev->>Lib: 1. `kley publish`
+    Lib->>Store: Copies files to registry
+
+    Dev->>App: 2. `kley add test-lib`
+    App->>Store: Reads package from registry
+    Store-->>App: Copies files to `test-app/.kley/test-lib`
+    App->>App: Modifies `package.json` to point to `file:.kley/test-lib`
+
+    Dev->>App: 3. `npm install`
+    App->>App: `npm` creates symlink:<br/>`node_modules/test-lib` -> `.kley/test-lib`
+
+    Note over Dev, App: `test-lib` is now usable in `test-app`.
+
+    Dev->>Lib: 4. Makes code changes...
+    Dev->>Lib: 5. `kley publish --push`
+    Lib->>Store: Copies updated files to registry
+    Store->>App: Pushes updates directly to `test-app/.kley/test-lib`
+
+    Note over Dev, App: `test-app` is now running the latest code automatically!
+```
+</details>
+
+### Scenario 2: Rapid Iteration with `link`
+
+This workflow is ideal for quick, temporary testing when you don't want to modify `package.json`. It's faster because it skips the `npm install` step but is less durable.
+
+**(Here you can place the GIF for the `link` workflow)**
+
+<details>
+<summary>Schema with details</summary>
+
+This diagram shows how `kley link` provides a direct connection and how it can be "broken" and "repaired."
+
+```mermaid
+sequenceDiagram
+    actor Dev
+    participant Lib as test-lib
+    participant Store as ~/.kley
+    participant App as test-app
+
+    Note over Dev, App: Prerequisite: `test-lib` has already been published to the store.
+
+    Dev->>Lib: 1. `kley publish`
+    Lib->>Store: Copies files to cache
+
+    Dev->>App: 2. `kley link test-lib`
+    App->>Store: Reads package from registry
+    Store-->>App: Copies files to `test-app/.kley/test-lib`
+    App->>App: Creates symlink:<br/>`node_modules/test-lib` -> `.kley/test-lib`
+
+    Note over Dev, App: `test-lib` is now usable. No `npm install` needed.
+
+    Dev->>Lib: 3. Makes code changes...
+    Dev->>Lib: 4. `kley publish --push`
+    Lib->>Store: Copies updated files to registry
+    Store->>App: Pushes updates directly to `test-app/.kley/test-lib`
+
+    Note over Dev, App: `test-app` is now running the latest code automatically!
+
+    critical Link was broken (it's recommended to use `add` command if `npm i` is supposed to be during this workflow)
+        Dev->>App: `npm install` (for other reasons)
+        App->>App: `npm` deletes the symlink from `node_modules`
+        App-->>Dev: `test-lib` is now broken
+
+        Dev->>App: `kley link test-lib`
+        App->>App: Re-creates symlink:<br/>`node_modules/test-lib` -> `.kley/test-lib`
+
+        Note over Dev, App: The link is instantly restored without re-copying files.
+    end
+```
+
+</details>
 
 ## Installation
 
@@ -41,19 +138,18 @@ Alternatively, you can install `kley` by downloading a pre-compiled binary from 
 2.  Unpack the archive.
 3.  Move the `kley` binary to a directory in your system's `PATH` (e.g., `/usr/local/bin` on macOS/Linux).
 
+### Install via npm (kley-cli)
+You can install `kley-cli` globally. Use it only if you have the same Node.js versions for your library and host a project, otherwise you should install it to all Node.js versions:
+
+```bash
+npm install -g kley-cli
+```
 
 ### Install via Cargo (crates.io)
 If you have Rust and Cargo installed, you can install `kley` directly from crates.io:
 
 ```bash
 cargo install kley
-```
-
-### Install via npm (kley-cli)
-You can install `kley-cli` globally. Use it only if you have the same Node.js versions for your library and host a project, otherwise you should install it to all Node.js versions:
-
-```bash
-npm install -g kley-cli
 ```
 
 ## Usage
@@ -99,8 +195,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## About
 
 This project is inspired by great tools like [yalc](https://github.com/wclr/yalc). The main advantage of `kley` is that it is a single, self-contained binary with **no dependency on Node.js**. This means you can manage packages regardless of your current Node.js version or any issues with `npm` itself.
-
-> **Note:** This project is in active development and currently supports only the basic commands. More features are coming soon!
 
 ## License
 
