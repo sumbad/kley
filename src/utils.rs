@@ -61,10 +61,10 @@ pub fn copy_from_registry(
     options.content_only = true;
     fs_extra::dir::copy(registry_dir, &project_kley_dir, &options)?;
 
-    println!(
-        "📎 Package {} was coped from registry to {} dir",
-        package_name.cyan(),
-        project_dir.to_string_lossy().cyan()
+    tracing::info!(
+        "Package {} was coped from registry to {} dir",
+        package_name,
+        project_dir.display()
     );
 
     Ok(())
@@ -107,4 +107,14 @@ pub fn confirm(prompt: ColoredString) -> bool {
             _ => println!("Please enter 'y' for yes or 'n' for no."),
         }
     }
+}
+
+pub fn tilde_path(path: &Path) -> String {
+    if let Some(home_dir) = dirs::home_dir()
+        && let Ok(stripped_path) = path.strip_prefix(&home_dir)
+    {
+        return format!("~/{}", stripped_path.display());
+    }
+
+    path.to_string_lossy().into_owned()
 }

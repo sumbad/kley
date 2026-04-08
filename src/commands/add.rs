@@ -20,6 +20,13 @@ pub fn add(registry: &mut Registry, package_name: &str, is_dev: bool) -> Result<
 
     registry.add_package_installation(package_name, &dirs.project_dir)?;
 
+    println!(
+        "{} {} {}",
+        "✅ Done:".bold().green(),
+        package_name.cyan(),
+        "was added to this project".green()
+    );
+
     Ok(())
 }
 
@@ -28,7 +35,7 @@ fn update_package_json(pkg_json_path: &Path, package_name: &str, is_dev: bool) -
     if !pkg_json_path.exists() {
         println!(
             "{}",
-            "⚠️ package.json not found, skipping modification.".yellow()
+            "⚠️ Warning: package.json not found, skipping modification.".yellow()
         );
         return Ok(());
     }
@@ -79,7 +86,7 @@ fn update_package_json(pkg_json_path: &Path, package_name: &str, is_dev: bool) -
 
     fs::write(pkg_json_path, buf)?;
 
-    println!("{}", "✅ package.json has been updated!".green());
+    tracing::info!("{}", "package.json has been updated");
 
     Ok(())
 }
@@ -205,4 +212,3 @@ mod tests {
         Ok(())
     }
 }
-

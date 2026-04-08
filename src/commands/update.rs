@@ -47,8 +47,6 @@ pub fn run_update(registry: &mut Registry, package_name: &str, project_dir: &Pat
 
     tracing::debug!("Updated directory {project_dir:?}");
 
-    println!("Updated {} to the latest version.", package_name.cyan());
-
     Ok(())
 }
 
@@ -59,7 +57,10 @@ fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path)
     let version = if let Some(pkg_version) = registry.get_pkg_version(package_name) {
         pkg_version
     } else {
-        println!("Package {package_name} version not found inside registry");
+        println!(
+            "{}",
+            format!("⚠️ Warning: package {package_name} version not found inside registry").yellow()
+        );
         return Ok(());
     };
 
@@ -91,7 +92,7 @@ fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path)
 
     fs::write(lock_path, buf)?;
 
-    println!("{}", "🔒 kley.lock has been updated!".green());
+    tracing::info!("kley.lock has been updated");
 
     Ok(())
 }

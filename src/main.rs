@@ -9,7 +9,7 @@ mod commands;
 pub mod lockfile;
 pub mod npm_package;
 pub mod registry;
-mod utils;
+pub mod utils;
 
 fn styles() -> Styles {
     Styles::styled()
