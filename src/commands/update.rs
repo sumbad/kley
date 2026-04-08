@@ -21,6 +21,7 @@ pub fn update(registry: &mut Registry, packages: &Vec<String>, project_dir: &Pat
         }
         let lockfile: Lockfile = serde_json::from_str(&fs::read_to_string(lock_path)?)
             .context("Failed to parse kley.lock")?;
+
         lockfile.packages.keys().cloned().collect()
     } else {
         packages.clone()
@@ -32,8 +33,12 @@ pub fn update(registry: &mut Registry, packages: &Vec<String>, project_dir: &Pat
     }
 
     for package_name in packages_to_update {
+        println!("Update {}", &package_name);
+
         run_update(registry, &package_name, project_dir)?;
     }
+
+    println!("{}", "✅ Done: update finished successfully".green());
 
     Ok(())
 }
@@ -59,7 +64,8 @@ fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path)
     } else {
         println!(
             "{}",
-            format!("⚠️ Warning: package {package_name} version not found inside registry").yellow()
+            format!("⚠️ Warning: package {package_name} version not found inside registry")
+                .yellow()
         );
         return Ok(());
     };

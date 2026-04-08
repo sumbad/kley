@@ -109,7 +109,9 @@ pub fn confirm(prompt: ColoredString) -> bool {
     }
 }
 
-pub fn tilde_path(path: &Path) -> String {
+pub fn normalized_path(path: &Path) -> String {
+    let path = fs::canonicalize(path).unwrap_or(path.to_path_buf());
+
     if let Some(home_dir) = dirs::home_dir()
         && let Ok(stripped_path) = path.strip_prefix(&home_dir)
     {

@@ -7,7 +7,7 @@ use std::path::Path;
 
 use crate::lockfile::Lockfile;
 use crate::registry::Registry;
-use crate::utils::{detect_indent, tilde_path};
+use crate::utils::{detect_indent, normalized_path};
 
 pub fn remove(
     registry: &mut Registry,
@@ -37,7 +37,7 @@ pub fn remove(
         let local_store = project_dir.join(".kley");
         if local_store.exists() {
             fs::remove_dir_all(&local_store)?;
-            tracing::info!("removed directory: {}", tilde_path(&local_store));
+            tracing::info!("removed directory: {}", normalized_path(&local_store));
         }
     } else if let Some(pkg_name) = package_name {
         remove_package(registry, pkg_name, project_dir)?;
@@ -62,7 +62,7 @@ pub fn remove_package(
         fs::remove_dir_all(&local_store_package_dir)?;
         tracing::info!(
             "removed directory: {}",
-            tilde_path(&local_store_package_dir)
+            normalized_path(&local_store_package_dir)
         );
     }
 

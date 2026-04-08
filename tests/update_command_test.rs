@@ -40,7 +40,7 @@ fn test_update_single_package_success() -> Result<(), Box<dyn std::error::Error>
         .env("HOME", home_dir);
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("package.json has been updated!"));
+        .stdout(predicate::str::contains("source_project was added to this project"));
 
     // Verify initial version is installed
     let kley_path = target_project_path.join(".kley/source_project/index.js");
@@ -67,7 +67,8 @@ fn test_update_single_package_success() -> Result<(), Box<dyn std::error::Error>
         .env("HOME", home_dir);
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("Updated source_project"));
+        .stdout(predicate::str::contains("Update source_project"))
+        .stdout(predicate::str::contains("Done: update finished successfully"));
 
     // 7. Assert that the package was updated
     assert_eq!(fs::read_to_string(&kley_path)?, "console.log('v1.1.0');");
