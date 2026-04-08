@@ -9,7 +9,7 @@ use tracing;
 use crate::commands::update::run_update;
 use crate::npm_package::find_npm_package;
 use crate::registry::*;
-use crate::utils::tilde_path;
+use crate::utils::normalized_path;
 
 /// Publish logic
 pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
@@ -139,7 +139,7 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
                     "{}",
                     format!(
                         "✔️ Updated {} to the latest version of {}",
-                        tilde_path(&project_dir).white(),
+                        normalized_path(&project_dir).white(),
                         &pkg.name.cyan()
                     )
                     .green()

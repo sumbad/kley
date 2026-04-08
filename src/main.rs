@@ -3,13 +3,8 @@ use clap::{Parser, Subcommand};
 use clap::builder::styling::{AnsiColor, Styles};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
-use crate::registry::Registry;
-
-mod commands;
-pub mod lockfile;
-pub mod npm_package;
-pub mod registry;
-pub mod utils;
+use kley::commands;
+use kley::registry::Registry;
 
 fn styles() -> Styles {
     Styles::styled()
