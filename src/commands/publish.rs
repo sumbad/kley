@@ -9,6 +9,7 @@ use tracing;
 use crate::commands::update::run_update;
 use crate::npm_package::find_npm_package;
 use crate::registry::*;
+use crate::utils::tilde_path;
 
 /// Publish logic
 pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
@@ -126,13 +127,23 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
             };
 
             println!(
-                "Pushing {} to {} {plural_text}",
+                "Pushing {} to {} {plural_text}:",
                 pkg.name.cyan(),
                 instalation_len
             );
 
             for project_dir in instalations {
                 run_update(registry, &pkg.name, &project_dir)?;
+
+                println!(
+                    "{}",
+                    format!(
+                        "✔️ Updated {} to the latest version of {}",
+                        tilde_path(&project_dir).white(),
+                        &pkg.name.cyan()
+                    )
+                    .green()
+                );
             }
         }
     }
