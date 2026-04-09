@@ -21,10 +21,11 @@ pub fn add(registry: &mut Registry, package_name: &str, is_dev: bool) -> Result<
     registry.add_package_installation(package_name, &dirs.project_dir)?;
 
     println!(
-        "{} {} {}",
-        "✅ Done:".bold().green(),
-        package_name.cyan(),
-        "was added to this project".green()
+        "{}\n{}",
+        "Note: run `npm install` to update project's node_modules."
+            .italic()
+            .dimmed(),
+        format!("✅ Done: {} added", package_name.cyan()).green(),
     );
 
     Ok(())

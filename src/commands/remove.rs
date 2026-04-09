@@ -16,8 +16,8 @@ pub fn remove(
     project_dir: &Path,
 ) -> Result<()> {
     if package_name.is_none() && !is_all {
-        println!(
-            "⚠️ Set a package name to command for removing it or use --all flag to delete all local dependencies"
+        println!("{}",
+            "⚠️ Warnign: Pass a package name to remove it or use --all flag to delete all local dependencies".yellow()
         );
         return Ok(());
     }
@@ -39,8 +39,15 @@ pub fn remove(
             fs::remove_dir_all(&local_store)?;
             tracing::info!("removed directory: {}", normalized_path(&local_store));
         }
+
+        println!("{}", "✅ Done: all packages removed".green());
     } else if let Some(pkg_name) = package_name {
         remove_package(registry, pkg_name, project_dir)?;
+
+        println!(
+            "{}",
+            format!("✅ Done: {} removed", pkg_name.cyan()).green()
+        );
     }
 
     Ok(())
@@ -74,7 +81,7 @@ fn update_package_json(pkg_json_path: &Path, package_name: &str) -> Result<()> {
     if !pkg_json_path.exists() {
         println!(
             "{}",
-            "⚠️ package.json not found, skipping modification.".yellow()
+            "⚠️ Warnign: package.json not found, skipping modification.".yellow()
         );
         return Ok(());
     }
@@ -95,7 +102,7 @@ fn update_package_json(pkg_json_path: &Path, package_name: &str) -> Result<()> {
                 && *dep == dep_value
                 && deps_obj.remove(package_name).is_some()
             {
-                println!("Removed '{}' from '{}' in package.json", package_name, key);
+                tracing::info!("Removed '{}' from '{}' in package.json", package_name, key);
                 break;
             }
         }
@@ -108,7 +115,7 @@ fn update_package_json(pkg_json_path: &Path, package_name: &str) -> Result<()> {
 
     fs::write(pkg_json_path, buf)?;
 
-    println!("{}", "✅ package.json has been updated!".green());
+    tracing::info!("package.json has been updated!");
 
     Ok(())
 }
@@ -141,7 +148,7 @@ fn update_kley_lock(package_name: &str, project_dir: &Path) -> Result<()> {
 
     fs::write(lock_path, buf)?;
 
-    println!("{}", "🔒 kley.lock has been updated!".green());
+    tracing::info!("{}", "kley.lock has been updated!".green());
 
     Ok(())
 }
@@ -176,7 +183,7 @@ fn remove_all_from_package_json(pkg_json_path: &Path) -> Result<()> {
 
                 for dep in to_remove {
                     if let Some(val) = deps_obj.remove(&dep) {
-                        println!("Removed '{}' from '{}' in package.json", val, key);
+                        tracing::info!("Removed '{}' from '{}' in package.json", val, key);
                     }
                 }
             }
@@ -190,7 +197,7 @@ fn remove_all_from_package_json(pkg_json_path: &Path) -> Result<()> {
 
     fs::write(pkg_json_path, buf)?;
 
-    println!("{}", "✅ package.json has been updated!".green());
+    tracing::info!("package.json has been updated");
 
     Ok(())
 }

@@ -77,9 +77,14 @@ fn test_publish_push_flow() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success()
         .stdout(predicate::str::contains("Pushing my-lib to 2 projects"))
-        .stdout(predicate::str::contains(format!("Updated {} to the latest version of my-lib", normalized_path(&app_a_dir))))
-        .stdout(predicate::str::contains(format!("Updated {} to the latest version of my-lib", normalized_path(&app_b_dir))));
-
+        .stdout(predicate::str::contains(format!(
+            "Updated {} to the latest version of my-lib",
+            normalized_path(&app_a_dir)
+        )))
+        .stdout(predicate::str::contains(format!(
+            "Updated {} to the latest version of my-lib",
+            normalized_path(&app_b_dir)
+        )));
 
     // 4. Assert final state
     // Check registry
