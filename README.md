@@ -22,11 +22,11 @@ English | [Русский](./README_RU.md)
 
 Here are two common workflows to illustrate how `kley` can be used.
 
-### Scenario 1: Robust Workflow with `add` and `publish --push`
+### Scenario 1: Robust Workflow `publish->add->npm i`
 
 This is the most common and durable workflow. It's perfect for when you are actively developing a library and consuming it in a project, and you want the changes to be reflected reliably.
 
-**(Here you can place the GIF for the `add` workflow)**
+![kley demo scenario 1](docs/demo/scenario_1.gif)
 
 <details>
 <summary>Schema with details</summary>
@@ -64,11 +64,11 @@ sequenceDiagram
 ```
 </details>
 
-### Scenario 2: Rapid Iteration with `link`
+### Scenario 2: Rapid Iteration with `publish->link`
 
 This workflow is ideal for quick, temporary testing when you don't want to modify `package.json`. It's faster because it skips the `npm install` step but is less durable.
 
-**(Here you can place the GIF for the `link` workflow)**
+![kley demo scenario 2](docs/demo/scenario_2.gif)
 
 <details>
 <summary>Schema with details</summary>
