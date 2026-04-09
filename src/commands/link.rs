@@ -2,9 +2,7 @@ use anyhow::Result;
 use colored::*;
 use std::fs;
 
-use crate::{
-    commands::update::run_update, registry::Registry, utils::{work_dirs}
-};
+use crate::{commands::update::run_update, registry::Registry, utils::work_dirs};
 
 pub fn link(registry: &mut Registry, package_name: &str) -> Result<()> {
     let dirs = work_dirs(package_name)?;
@@ -37,12 +35,12 @@ pub fn link(registry: &mut Registry, package_name: &str) -> Result<()> {
     println!(
         "{}\n{}",
         format!(
-            "✅ Package {} successfully linked to this project!",
+            "Note: `npm install` will overwrite links. Don't forget to run `kley link {}` again after it to restore the link.",
             package_name
         )
-        .green(),
-        format!("Warning: `npm install` will overwrite this link. Run `kley link {}` again to restore it.", package_name)
-            .yellow()
+        .italic()
+        .dimmed(),
+        format!("✅ Done: {} linked", package_name.cyan()).green(),
     );
 
     Ok(())

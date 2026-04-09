@@ -16,11 +16,14 @@ pub fn update(registry: &mut Registry, packages: &Vec<String>, project_dir: &Pat
         // If no packages are specified, update all packages in kley.lock
         let lock_path = project_dir.join("kley.lock");
         if !lock_path.exists() {
-            println!("{}", "No packages to update. kley.lock not found.".yellow());
+            println!(
+                "{}",
+                "⚠️ Warning: No packages to update. kley.lock not found.".yellow()
+            );
             return Ok(());
         }
         let lockfile: Lockfile = serde_json::from_str(&fs::read_to_string(lock_path)?)
-            .context("Failed to parse kley.lock")?;
+            .context("🚨 Error: Failed to parse kley.lock")?;
 
         lockfile.packages.keys().cloned().collect()
     } else {
@@ -28,17 +31,23 @@ pub fn update(registry: &mut Registry, packages: &Vec<String>, project_dir: &Pat
     };
 
     if packages_to_update.is_empty() {
-        println!("{}", "No packages found to update.".yellow());
+        println!("{}", "⚠️ Warning: No packages found to update.".yellow());
         return Ok(());
     }
 
+    println!("{}", "Updating...".green().dimmed());
     for package_name in packages_to_update {
-        println!("Update {}", &package_name);
-
         run_update(registry, &package_name, project_dir)?;
+
+        println!(
+            "{}",
+            format!("   ✔️ {}", &package_name.clone())
+                .green()
+                .dimmed()
+        );
     }
 
-    println!("{}", "✅ Done: update finished successfully".green());
+    println!("{}", "✅ Done: packages were updated".green());
 
     Ok(())
 }
