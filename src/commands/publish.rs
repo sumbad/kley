@@ -139,7 +139,7 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
                     "{}",
                     format!(
                         "✔️ Updated {} to the latest version of {}",
-                        normalized_path(&project_dir).white(),
+                        normalized_path(&project_dir, dirs::home_dir().as_ref()).white(),
                         &pkg.name.cyan()
                     )
                     .green()

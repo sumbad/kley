@@ -17,7 +17,7 @@ pub fn remove(
 ) -> Result<()> {
     if package_name.is_none() && !is_all {
         println!("{}",
-            "⚠️ Warnign: Pass a package name to remove it or use --all flag to delete all local dependencies".yellow()
+            "⚠️ Warning: Pass a package name to remove it or use --all flag to delete all local dependencies".yellow()
         );
         return Ok(());
     }
@@ -37,7 +37,10 @@ pub fn remove(
         let local_store = project_dir.join(".kley");
         if local_store.exists() {
             fs::remove_dir_all(&local_store)?;
-            tracing::info!("removed directory: {}", normalized_path(&local_store));
+            tracing::info!(
+                "removed directory: {}",
+                normalized_path(&local_store, dirs::home_dir().as_ref())
+            );
         }
 
         println!("{}", "✅ Done: all packages removed".green());
@@ -69,7 +72,7 @@ pub fn remove_package(
         fs::remove_dir_all(&local_store_package_dir)?;
         tracing::info!(
             "removed directory: {}",
-            normalized_path(&local_store_package_dir)
+            normalized_path(&local_store_package_dir, dirs::home_dir().as_ref())
         );
     }
 
@@ -81,7 +84,7 @@ fn update_package_json(pkg_json_path: &Path, package_name: &str) -> Result<()> {
     if !pkg_json_path.exists() {
         println!(
             "{}",
-            "⚠️ Warnign: package.json not found, skipping modification.".yellow()
+            "⚠️ Warning: package.json not found, skipping modification.".yellow()
         );
         return Ok(());
     }

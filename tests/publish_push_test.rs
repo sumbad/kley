@@ -79,11 +79,11 @@ fn test_publish_push_flow() -> Result<(), Box<dyn std::error::Error>> {
         .stdout(predicate::str::contains("Pushing my-lib to 2 projects"))
         .stdout(predicate::str::contains(format!(
             "Updated {} to the latest version of my-lib",
-            normalized_path(&app_a_dir)
+            normalized_path(&app_a_dir, Some(&home_dir.to_path_buf()))
         )))
         .stdout(predicate::str::contains(format!(
             "Updated {} to the latest version of my-lib",
-            normalized_path(&app_b_dir)
+            normalized_path(&app_b_dir, Some(&home_dir.to_path_buf()))
         )));
 
     // 4. Assert final state

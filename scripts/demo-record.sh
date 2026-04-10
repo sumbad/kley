@@ -1,10 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-sh ./scripts/demo-prepare.sh
-cd ./.temp
-vhs ../docs/demo/scenario_1.tape --output "../docs/demo/scenario_1.gif"
-cd ..
-
-sh ./scripts/demo-prepare.sh
-cd ./.temp
-vhs ../docs/demo/scenario_2.tape --output "../docs/demo/scenario_2.gif"
+for scenario in 1 2; do
+    bash ./scripts/demo-prepare.sh
+    (
+        cd ./.temp || exit 1
+        vhs "../docs/demo/scenario_${scenario}.tape" \
+            --output "../docs/demo/scenario_${scenario}.gif"
+        cd ..
+    )
+done

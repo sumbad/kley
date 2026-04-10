@@ -139,7 +139,7 @@ Alternatively, you can install `kley` by downloading a pre-compiled binary from 
 3.  Move the `kley` binary to a directory in your system's `PATH` (e.g., `/usr/local/bin` on macOS/Linux).
 
 ### Install via npm (kley-cli)
-You can install `kley-cli` globally. Use it only if you have the same Node.js versions for your library and host a project, otherwise you should install it to all Node.js versions:
+You can install `kley-cli` globally. Use this only when your library and consuming project use the same Node.js version; otherwise, prefer the standalone `kley` binary workflow.
 
 ```bash
 npm install -g kley-cli
