@@ -5,6 +5,8 @@ use std::fs;
 use std::process::Command;
 use tempfile::tempdir;
 
+use kley::utils::normalized_path;
+
 #[test]
 fn test_publish_push_flow() -> Result<(), Box<dyn std::error::Error>> {
     // 1. SETUP
@@ -75,7 +77,14 @@ fn test_publish_push_flow() -> Result<(), Box<dyn std::error::Error>> {
         .assert()
         .success()
         .stdout(predicate::str::contains("Pushing my-lib to 2 projects"))
-        .stdout(predicate::str::contains("Updated my-lib to the latest version.").count(2));
+        .stdout(predicate::str::contains(format!(
+            "Updated {} to the latest version of my-lib",
+            normalized_path(&app_a_dir, Some(&home_dir.to_path_buf()))
+        )))
+        .stdout(predicate::str::contains(format!(
+            "Updated {} to the latest version of my-lib",
+            normalized_path(&app_b_dir, Some(&home_dir.to_path_buf()))
+        )));
 
     // 4. Assert final state
     // Check registry

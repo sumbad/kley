@@ -4,3 +4,5 @@
 # AI-specific files
 docs/.ai/
 /.opencode
+
+.DS_Store

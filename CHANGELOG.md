@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Project Refactoring**: Project restructured into a library (`src/lib.rs`) for better modularity and testability.
+- **CLI Styling**: Implemented styling for a more visually appealing command-line interface.
+- **Path Normalization Utility**: Added `utils::normalized_path` to display user-friendly, tilde-prefixed paths.
+- **Demo Assets**: Included GIF demonstrations for `README.md`.
+
+### Changed
+- **Improved CLI Output**: Enhanced output messages across `add`, `link`, `publish`, `remove`, `unpublish`, and `update` commands with better clarity, colors, emojis, and contextual information.
+- **`README.md` Enhancements**: Updated "Getting started" section with detailed scenarios, GIF demos, and Mermaid diagrams. Reordered installation methods.
+- **Logging Consistency**: Replaced many direct `println!` calls with `tracing::info!` for internal messages, improving logging separation.
+- **Test Updates**: Adjusted integration tests to assert against the new, improved CLI output.
+
+---
+
 ## [0.4.0] - 2026-04-06
 
 ### Added

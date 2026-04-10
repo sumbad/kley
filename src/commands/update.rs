@@ -16,24 +16,38 @@ pub fn update(registry: &mut Registry, packages: &Vec<String>, project_dir: &Pat
         // If no packages are specified, update all packages in kley.lock
         let lock_path = project_dir.join("kley.lock");
         if !lock_path.exists() {
-            println!("{}", "No packages to update. kley.lock not found.".yellow());
+            println!(
+                "{}",
+                "⚠️ Warning: No packages to update. kley.lock not found.".yellow()
+            );
             return Ok(());
         }
         let lockfile: Lockfile = serde_json::from_str(&fs::read_to_string(lock_path)?)
-            .context("Failed to parse kley.lock")?;
+            .context("🚨 Error: Failed to parse kley.lock")?;
+
         lockfile.packages.keys().cloned().collect()
     } else {
         packages.clone()
     };
 
     if packages_to_update.is_empty() {
-        println!("{}", "No packages found to update.".yellow());
+        println!("{}", "⚠️ Warning: No packages found to update.".yellow());
         return Ok(());
     }
 
+    println!("{}", "Updating...".green().dimmed());
     for package_name in packages_to_update {
         run_update(registry, &package_name, project_dir)?;
+
+        println!(
+            "{}",
+            format!("   ✔️ {}", &package_name.clone())
+                .green()
+                .dimmed()
+        );
     }
+
+    println!("{}", "✅ Done: packages were updated".green());
 
     Ok(())
 }
@@ -47,8 +61,6 @@ pub fn run_update(registry: &mut Registry, package_name: &str, project_dir: &Pat
 
     tracing::debug!("Updated directory {project_dir:?}");
 
-    println!("Updated {} to the latest version.", package_name.cyan());
-
     Ok(())
 }
 
@@ -59,7 +71,11 @@ fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path)
     let version = if let Some(pkg_version) = registry.get_pkg_version(package_name) {
         pkg_version
     } else {
-        println!("Package {package_name} version not found inside registry");
+        println!(
+            "{}",
+            format!("⚠️ Warning: package {package_name} version not found inside registry")
+                .yellow()
+        );
         return Ok(());
     };
 
@@ -91,7 +107,7 @@ fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path)
 
     fs::write(lock_path, buf)?;
 
-    println!("{}", "🔒 kley.lock has been updated!".green());
+    tracing::info!("kley.lock has been updated");
 
     Ok(())
 }

@@ -47,7 +47,7 @@ fn test_link_command_e2e() -> Result<()> {
         .assert()
         .success()
         .stdout(predicates::str::contains(
-            "Package successfully published to store!",
+            "Done: test-lib published",
         ));
 
     // 3. Run the link command in the app directory
@@ -63,7 +63,7 @@ fn test_link_command_e2e() -> Result<()> {
         .assert()
         .success()
         .stdout(predicates::str::contains(
-            "✅ Package test-lib successfully linked to this project!",
+            "Done: test-lib linked",
         ));
 
     // 4. Assertions: Verify the results after the command runs

@@ -7,7 +7,7 @@ use std::path::Path;
 
 use crate::lockfile::Lockfile;
 use crate::registry::Registry;
-use crate::utils::detect_indent;
+use crate::utils::{detect_indent, normalized_path};
 
 pub fn remove(
     registry: &mut Registry,
@@ -16,8 +16,8 @@ pub fn remove(
     project_dir: &Path,
 ) -> Result<()> {
     if package_name.is_none() && !is_all {
-        println!(
-            "⚠️ Set a package name to command for removing it or use --all flag to delete all local dependencies"
+        println!("{}",
+            "⚠️ Warning: Pass a package name to remove it or use --all flag to delete all local dependencies".yellow()
         );
         return Ok(());
     }
@@ -37,13 +37,20 @@ pub fn remove(
         let local_store = project_dir.join(".kley");
         if local_store.exists() {
             fs::remove_dir_all(&local_store)?;
-            println!(
-                "{}",
-                format!("✅ removed directory: {:?}", local_store).green()
+            tracing::info!(
+                "removed directory: {}",
+                normalized_path(&local_store, dirs::home_dir().as_ref())
             );
         }
+
+        println!("{}", "✅ Done: all packages removed".green());
     } else if let Some(pkg_name) = package_name {
         remove_package(registry, pkg_name, project_dir)?;
+
+        println!(
+            "{}",
+            format!("✅ Done: {} removed", pkg_name.cyan()).green()
+        );
     }
 
     Ok(())
@@ -63,9 +70,9 @@ pub fn remove_package(
 
     if local_store_package_dir.exists() {
         fs::remove_dir_all(&local_store_package_dir)?;
-        println!(
-            "{}",
-            format!("✅ removed directory: {:?}", local_store_package_dir).green()
+        tracing::info!(
+            "removed directory: {}",
+            normalized_path(&local_store_package_dir, dirs::home_dir().as_ref())
         );
     }
 
@@ -77,7 +84,7 @@ fn update_package_json(pkg_json_path: &Path, package_name: &str) -> Result<()> {
     if !pkg_json_path.exists() {
         println!(
             "{}",
-            "⚠️ package.json not found, skipping modification.".yellow()
+            "⚠️ Warning: package.json not found, skipping modification.".yellow()
         );
         return Ok(());
     }
@@ -98,7 +105,7 @@ fn update_package_json(pkg_json_path: &Path, package_name: &str) -> Result<()> {
                 && *dep == dep_value
                 && deps_obj.remove(package_name).is_some()
             {
-                println!("Removed '{}' from '{}' in package.json", package_name, key);
+                tracing::info!("Removed '{}' from '{}' in package.json", package_name, key);
                 break;
             }
         }
@@ -111,7 +118,7 @@ fn update_package_json(pkg_json_path: &Path, package_name: &str) -> Result<()> {
 
     fs::write(pkg_json_path, buf)?;
 
-    println!("{}", "✅ package.json has been updated!".green());
+    tracing::info!("package.json has been updated!");
 
     Ok(())
 }
@@ -144,7 +151,7 @@ fn update_kley_lock(package_name: &str, project_dir: &Path) -> Result<()> {
 
     fs::write(lock_path, buf)?;
 
-    println!("{}", "🔒 kley.lock has been updated!".green());
+    tracing::info!("{}", "kley.lock has been updated!".green());
 
     Ok(())
 }
@@ -179,7 +186,7 @@ fn remove_all_from_package_json(pkg_json_path: &Path) -> Result<()> {
 
                 for dep in to_remove {
                     if let Some(val) = deps_obj.remove(&dep) {
-                        println!("Removed '{}' from '{}' in package.json", val, key);
+                        tracing::info!("Removed '{}' from '{}' in package.json", val, key);
                     }
                 }
             }
@@ -193,7 +200,7 @@ fn remove_all_from_package_json(pkg_json_path: &Path) -> Result<()> {
 
     fs::write(pkg_json_path, buf)?;
 
-    println!("{}", "✅ package.json has been updated!".green());
+    tracing::info!("package.json has been updated");
 
     Ok(())
 }

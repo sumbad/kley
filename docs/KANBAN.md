@@ -44,23 +44,24 @@ kanban
     [Todo]
 
     [In progress]
-        "Implement `unpublish` command"<br/><br/>@{ assigned: II, priority: 'Medium', ticket: '013-unpublish-command' }
 
     Done
-        "Implement `update` command"<br/><br/>@{ assigned: II, priority: 'Medium', ticket: '011-update-command' }
+        "More information for CLI description"<br/><br/>@{ assigned: V, priority: 'Low' }
+        "Implement `unpublish` command"<br/><br/>@{ assigned: II, priority: 'High', ticket: '013-unpublish-command' }
+        "Implement `update` command"<br/><br/>@{ assigned: II, priority: 'High', ticket: '011-update-command' }
         "Add `--push` flag to `publish` command"<br/><br/>@{ assigned: II, priority: 'Very High', ticket: '001-push-command' }
         "Implement Global Package Registry `registry.json`"<br/><br/>@{ assigned: II, priority: 'High', ticket: '015-installation-registry' }
         "Implement `link` command"<br/><br/>@{ assigned: II, priority: 'High', ticket: '009-link-command' }
         "Add base integration tests"<br/><br/>@{ assigned: II, priority: 'Low' }
         "Fix the publish command to simulate npm logic"<br/><br/>@{ assigned: II, priority: 'Low' }
         "Publish to crates.io and npm"<br/><br/>@{ assigned: II, priority: 'Low' }
-        "Preserve package.json order on add"<br/><br/>@{ assigned: V, priority: 'Medium', ticket: '008-preserve-pkg-order' }
+        "Preserve package.json order on add"<br/><br/>@{ assigned: V, priority: 'High', ticket: '008-preserve-pkg-order' }
         "Implement remove command"<br/><br/>@{ assigned: I, priority: 'High', ticket: '007-remove-command' }
         "Create and manage kley.lock"<br/><br/>@{ assigned: I, priority: 'High', ticket: '006-kley-lock' }
         "Use ignore crate for filtering"<br/><br/>@{ assigned: I, priority: 'High', ticket: '002-ignore-crate' }
-        "Refactor main.rs to command modules"<br/><br/>@{ assigned: V, priority: 'Medium', ticket: '005-refactor-main' }
+        "Refactor main.rs to command modules"<br/><br/>@{ assigned: V, priority: 'High', ticket: '005-refactor-main' }
         "Automate package.json modification"<br/><br/>@{ assigned: I, priority: 'High', ticket: '003-auto-pkg-json' }
-        "Add unit tests for package.json logic"<br/><br/>@{ assigned: V, priority: 'Medium' }
+        "Add unit tests for package.json logic"<br/><br/>@{ assigned: V, priority: 'High' }
         "Improve Documentation with Mermaid"<br/><br/>@{ assigned: V, priority: 'Low' }
         "Dependency audit home to dirs"<br/><br/>@{ assigned: I, priority: 'Low' }
 ```

@@ -9,6 +9,7 @@ use tracing;
 use crate::commands::update::run_update;
 use crate::npm_package::find_npm_package;
 use crate::registry::*;
+use crate::utils::normalized_path;
 
 /// Publish logic
 pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
@@ -112,7 +113,7 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
 
     registry.update_package_version(&pkg.name, &pkg.version)?;
 
-    println!("{}", "✅ Package successfully published to store!".green());
+    println!("📦 Package '{}' saved to registry", pkg.name.cyan().bold());
 
     if push {
         let instalations = registry.get_installations(&pkg.name).to_vec();
@@ -126,16 +127,45 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
             };
 
             println!(
-                "Pushing {} to {} {plural_text}",
+                "Pushing {} to {} {plural_text}:",
                 pkg.name.cyan(),
                 instalation_len
             );
 
             for project_dir in instalations {
                 run_update(registry, &pkg.name, &project_dir)?;
+
+                println!(
+                    "{}",
+                    format!(
+                        "✔️ Updated {} to the latest version of {}",
+                        normalized_path(&project_dir, dirs::home_dir().as_ref()).white(),
+                        &pkg.name.cyan()
+                    )
+                    .green()
+                );
             }
         }
+    } else {
+        let add_cmd = format!("     kley add {}@{}", pkg.name, pkg.version).cyan();
+        let link_cmd = format!("     kley link {}@{}", pkg.name, pkg.version).cyan();
+
+        let note_msg = format!(
+            "To use it, run:\n{}\nor\n{}\n(Omit version '{}' to use the latest one)",
+            add_cmd,
+            link_cmd,
+            format!("@{}", pkg.version).cyan()
+        )
+        .italic()
+        .dimmed();
+
+        println!("{note_msg}");
     }
+
+    println!(
+        "{}",
+        format!("✅ Done: {} published", pkg.name.cyan()).green()
+    );
 
     Ok(())
 }

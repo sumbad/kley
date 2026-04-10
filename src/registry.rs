@@ -1,5 +1,4 @@
 use anyhow::{Context, Ok, Result};
-use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
@@ -173,7 +172,7 @@ impl Registry {
 
         fs::write(&self.file_path, buf)?;
 
-        println!("{}", "Updated registry has been saved!".green());
+        tracing::info!("Updated registry has been saved!");
 
         Ok(())
     }
