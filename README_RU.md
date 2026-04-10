@@ -1,9 +1,10 @@
 # 📦 kley
 
 [![Release](https://github.com/sumbad/kley/actions/workflows/release.yml/badge.svg)](https://github.com/sumbad/kley/releases)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-blue)](#installation)
+[![npm](https://img.shields.io/npm/v/kley-cli.svg)](https://www.npmjs.com/package/kley-cli)
 [![Crates.io](https://img.shields.io/crates/v/kley.svg)](https://crates.io/crates/kley)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-blue)](#installation)
 
 [English](./README.md) | Русский
 
