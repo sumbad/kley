@@ -43,7 +43,7 @@ Sleep 300ms
 Enter
 Sleep 2s
 
-# only for add
+# only for link
 Type "kley link test-lib"
 Sleep 300ms
 Enter

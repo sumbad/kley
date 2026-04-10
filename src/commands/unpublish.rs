@@ -26,32 +26,29 @@ pub fn unpublish(registry: &mut Registry, push: bool) -> Result<()> {
         }
     }
 
+    // Clean up all projects first while registry metadata is still present
+    if push {
+        for project_dir in &pkg_installations {
+            remove_package(registry, &pkg.name, project_dir)?;
+        }
+    }
+
     // Delete the package from the registry
     let pkg_in_registry = registry.get_pkg_dir(&pkg.name);
+
+    // Delete package files if present, but don't abort if already missing
     if pkg_in_registry.exists() {
         fs::remove_dir_all(&pkg_in_registry)?;
     } else {
         println!("Package {} not found in the registry", pkg.name.cyan());
-        return Ok(());
     }
 
-    // Delete the package from registry.json
+    // Always remove metadata to prevent stale registry state
     registry.remove_package_info(&pkg.name)?;
-
-    // Clean up all projects
-    if push {
-        for project_dir in pkg_installations {
-            remove_package(registry, &pkg.name, &project_dir)?;
-        }
-    }
 
     println!(
         "{}",
-        format!(
-            "✅ Done: {} unpublished",
-            pkg.name.cyan()
-        )
-        .green()
+        format!("✅ Done: {} unpublished", pkg.name.cyan()).green()
     );
 
     Ok(())

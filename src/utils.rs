@@ -62,7 +62,7 @@ pub fn copy_from_registry(
     fs_extra::dir::copy(registry_dir, &project_kley_dir, &options)?;
 
     tracing::info!(
-        "Package {} was coped from registry to {} dir",
+        "Package {} was copied from registry to {} dir",
         package_name,
         project_dir.display()
     );
@@ -109,10 +109,10 @@ pub fn confirm(prompt: ColoredString) -> bool {
     }
 }
 
-pub fn normalized_path(path: &Path) -> String {
+pub fn normalized_path(path: &Path, home: Option<&PathBuf>) -> String {
     let path = fs::canonicalize(path).unwrap_or(path.to_path_buf());
 
-    if let Some(home_dir) = dirs::home_dir()
+    if let Some(home_dir) = home
         && let Ok(stripped_path) = path.strip_prefix(&home_dir)
     {
         return format!("~/{}", stripped_path.display());
