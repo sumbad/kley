@@ -39,7 +39,7 @@ fn test_publish_command_e2e() -> Result<()> {
     cmd.arg("publish").current_dir(proj_path);
 
     cmd.assert().success().stdout(predicates::str::contains(
-        "Package successfully published to store!",
+        "Done: test-pkg-integration published",
     ));
 
     // Assert that whitelisted files ARE included
