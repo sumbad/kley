@@ -1,6 +1,9 @@
 # 📦 kley
 
 [![Release](https://github.com/sumbad/kley/actions/workflows/release.yml/badge.svg)](https://github.com/sumbad/kley/releases)
+[![Crates.io](https://img.shields.io/crates/v/kley.svg)](https://crates.io/crates/kley)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-blue)](#installation)
 
 English | [Русский](./README_RU.md)
 
@@ -25,6 +28,13 @@ Here are two common workflows to illustrate how `kley` can be used.
 ### Scenario 1: Robust Workflow `publish->add->npm i`
 
 This is the most common and durable workflow. It's perfect for when you are actively developing a library and consuming it in a project, and you want the changes to be reflected reliably.
+
+**Steps:**
+1. In your **library** directory — run `kley publish`: copies package files to `kley` registry.
+2. In your **project** directory — run `kley add <name>`: copies files to `.kley/` and updates `package.json`.
+3. Run `npm install`, npm creates `node_modules/<name>` from `.kley/<name>`.
+4. Make changes in your library, then run `kley publish --push`: updates all linked.
+5. Run `npm install`.
 
 ![kley demo scenario 1](docs/demo/scenario_1.gif)
 
@@ -67,6 +77,14 @@ sequenceDiagram
 ### Scenario 2: Rapid Iteration with `publish->link`
 
 This workflow is ideal for quick, temporary testing when you don't want to modify `package.json`. It's faster because it skips the `npm install` step but is less durable.
+
+**Steps:**
+1. In your **library** directory — run `kley publish`: copies package files to `kley` registry.
+2. In your **project** directory — run `kley link <name>`: copies files to `.kley/` and creates a symlink
+   directly in `node_modules/<name>` — **no `npm install` needed**
+3. Make changes in your library, then run `kley publish --push`: updates the project automatically
+
+> ⚠️ **Note:**: If you run `npm install` for any reason, it will delete the symlink. Restore it instantly with `kley link <name>` again — files are already cached, so it's fast.
 
 ![kley demo scenario 2](docs/demo/scenario_2.gif)
 
@@ -115,6 +133,15 @@ sequenceDiagram
 
 </details>
 
+### **Quick pick:** Not sure which workflow to use?
+
+| | Scenario 1 `publish→add→npm i` | Scenario 2 `publish→link` |
+|---|---|---|
+| Best for | Stable, ongoing development | Quick, temporary testing |
+| Modifies `package.json` |Yes | No |
+| Requires `npm install` | Once | Not needed |
+| Survives `npm install` | Yes | Run `kley link` again |
+
 ## Installation
 
 ### Quick Install (recommended)
@@ -139,7 +166,8 @@ Alternatively, you can install `kley` by downloading a pre-compiled binary from 
 3.  Move the `kley` binary to a directory in your system's `PATH` (e.g., `/usr/local/bin` on macOS/Linux).
 
 ### Install via npm (kley-cli)
-You can install `kley-cli` globally. Use this only when your library and consuming project use the same Node.js version; otherwise, prefer the standalone `kley` binary workflow.
+⚠️ **Note:** The npm package wraps the `kley` binary and requires Node.js to run.
+If your library and consuming project use **different Node.js versions**, prefer the [binary installer](#quick-install-recommended) or Cargo install instead.
 
 ```bash
 npm install -g kley-cli
