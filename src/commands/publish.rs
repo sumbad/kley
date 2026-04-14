@@ -147,17 +147,12 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
             }
         }
     } else {
-        let add_cmd = format!("     kley add {}@{}", pkg.name, pkg.version).cyan();
-        let link_cmd = format!("     kley link {}@{}", pkg.name, pkg.version).cyan();
+        let add_cmd = format!("     kley add {}", pkg.name).cyan();
+        let link_cmd = format!("     kley link {}", pkg.name).cyan();
 
-        let note_msg = format!(
-            "To use it, run:\n{}\nor\n{}\n(Omit version '{}' to use the latest one)",
-            add_cmd,
-            link_cmd,
-            format!("@{}", pkg.version).cyan()
-        )
-        .italic()
-        .dimmed();
+        let note_msg = format!("To use it, run:\n{}\nor\n{}", add_cmd, link_cmd,)
+            .italic()
+            .dimmed();
 
         println!("{note_msg}");
     }
