@@ -43,9 +43,9 @@ kanban
     [Todo]
 
     [In progress]
-        "Fix `add` command to support version syntax (`pkg@version`)"<br/><br/>@{ assigned: II, priority: 'Very Low' }
 
     Done
+        "Fix `add` command to support version syntax (`pkg@version`)"<br/><br/>@{ assigned: II, priority: 'Very Low' }
         "More information for CLI description"<br/><br/>@{ assigned: V, priority: 'Low' }
         "Implement `unpublish` command"<br/><br/>@{ assigned: II, priority: 'High', ticket: '013-unpublish-command' }
         "Implement `update` command"<br/><br/>@{ assigned: II, priority: 'High', ticket: '011-update-command' }

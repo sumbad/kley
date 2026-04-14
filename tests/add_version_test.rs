@@ -31,8 +31,6 @@ fn test_add_package_with_version_syntax() -> Result<(), Box<dyn std::error::Erro
     fs::write(app_dir.join("package.json"), r#"{"name": "test-app"}"#)?;
 
     // 4. EXECUTE & ASSERT: Try to add the package using "name@version" syntax
-    // This test will FAIL until the `add` command is fixed to parse versions.
-    // Currently, it looks for a package literally named "test-lib@1.0.0".
     Command::cargo_bin("kley")?
         .current_dir(&app_dir)
         .env("HOME", home_dir)

@@ -32,22 +32,21 @@ pub fn add(registry: &mut Registry, package_name_version: &str, is_dev: bool) ->
         } else {
             format!(
                 "Run `kley publish` in the {} package folder first",
-                package_name
+                package_name.cyan()
             )
         };
 
-        println!(
+        eprintln!(
             "{}\n{}",
             format!(
-                "❌ Error: {}@{} not found in the registry",
-                package_name.cyan(),
-                package_version.unwrap_or_default().magenta()
+                "❌ Error: {} not found in the registry",
+                package_name_version.cyan()
             )
             .red(),
             help.italic().dimmed()
         );
 
-        return Ok(());
+        std::process::exit(1);
     }
 
     let dirs = work_dirs(package_name)?;
