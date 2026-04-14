@@ -1,6 +1,6 @@
 [package]
 name = "kley"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2024"
 authors = ["Denis Sumbaev <denis.sumbaev@gmail.com>"]
 description = "The simple local package manager for npm (JS/TS)"
