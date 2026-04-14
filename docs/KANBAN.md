@@ -39,11 +39,11 @@ kanban
         "Implement list command"<br/><br/>@{ assigned: V, priority: 'Low', ticket: '012-list-command' }
         "Implement locations command"<br/><br/>@{ assigned: V, priority: 'Low' }
         "Add progress indicators"<br/><br/>@{ assigned: V, priority: 'Low' }
-        "Add comprehensive tests"<br/><br/>@{ priority: 'Very High' }
 
     [Todo]
 
     [In progress]
+        "Fix `add` command to support version syntax (`pkg@version`)"<br/><br/>@{ assigned: II, priority: 'Very Low' }
 
     Done
         "More information for CLI description"<br/><br/>@{ assigned: V, priority: 'Low' }
