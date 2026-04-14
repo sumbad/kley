@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **`add` Command**: The `add` command correctly parses version syntax (e.g., `pkg@1.0.0`) and validates the version against the registry.
+
+---
+
 ## [0.5.0] - 2026-04-10
 
 ### Added
