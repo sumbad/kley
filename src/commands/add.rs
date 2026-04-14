@@ -10,7 +10,46 @@ use crate::registry::Registry;
 use crate::utils::{detect_indent, work_dirs};
 
 /// Add logic
-pub fn add(registry: &mut Registry, package_name: &str, is_dev: bool) -> Result<()> {
+pub fn add(registry: &mut Registry, package_name_version: &str, is_dev: bool) -> Result<()> {
+    let (package_name, package_version) =
+        if let Some((name, version)) = package_name_version.rsplit_once('@') {
+            (name, Some(version))
+        } else {
+            (package_name_version, None)
+        };
+
+    let registry_pkg_version = registry.get_pkg_version(package_name);
+    let has_version_in_registry = package_version.is_none()
+        || registry_pkg_version == package_version
+        || package_version.is_some_and(|it| it == "latest");
+
+    if registry_pkg_version.is_none() || !has_version_in_registry {
+        let help = if registry_pkg_version.is_some() {
+            format!(
+                "Try to add the latest version from the registry `kley add {}`",
+                package_name
+            )
+        } else {
+            format!(
+                "Run `kley publish` in the {} package folder first",
+                package_name
+            )
+        };
+
+        println!(
+            "{}\n{}",
+            format!(
+                "❌ Error: {}@{} not found in the registry",
+                package_name.cyan(),
+                package_version.unwrap_or_default().magenta()
+            )
+            .red(),
+            help.italic().dimmed()
+        );
+
+        return Ok(());
+    }
+
     let dirs = work_dirs(package_name)?;
 
     run_update(registry, package_name, &std::env::current_dir()?)?;
