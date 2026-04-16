@@ -1,6 +1,6 @@
 # Ticket 017: Implement `install` Command
 
-- **Epic:** V (DX/UX Improvements)
+- **Epic:** III (Streamlined Local Package Workflow)
 - **Complexity:** `Medium`
 - **Depends On:** #018
 

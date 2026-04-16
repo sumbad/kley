@@ -1,6 +1,6 @@
 # Ticket 019: Future - Implement "Fast Install" Optimization
 
-- **Epic:** V (DX/UX Improvements)
+- **Epic:** III (Streamlined Local Package Workflow)
 - **Complexity:** `High`
 - **Depends On:** #017, #018
 

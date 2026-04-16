@@ -1,6 +1,6 @@
 # Ticket 018: Implement Robust Package Manager Detection
 
-- **Epic:** V (DX/UX Improvements)
+- **Epic:** III (Streamlined Local Package Workflow)
 - **Complexity:** `Medium`
 
 ## 1. Problem Statement

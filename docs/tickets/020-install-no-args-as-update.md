@@ -1,6 +1,6 @@
 # Ticket 020: Implement `install` (no args) as Update All
 
-- **Epic:** V (DX/UX Improvements)
+- **Epic:** III (Streamlined Local Package Workflow)
 - **Complexity:** `Medium`
 - **Depends On:** #017
 
