@@ -5,9 +5,10 @@ This board tracks the progress of development tasks for the kley project.
 **Epics:**
 - **I:** Core Publishing & Adding
 - **II:** Publish Automation & Linking Speed
-- **III:** Yarn/Pnpm Workspaces Support
-- **IV:** Monorepos & Sub-projects
-- **V:** DX/UX Improvements
+- **III:** Streamlined Local Package Workflow
+- **IV:** Yarn/Pnpm Workspaces Support
+- **V:** Monorepos & Sub-projects
+- **VI:** DX/UX Improvements (General)
 
 **Complexity Estimate (color):**
 - `Very High`: Complex task, may require significant refactoring or research.
@@ -15,7 +16,10 @@ This board tracks the progress of development tasks for the kley project.
 - `Low`: A small, well-defined task.
 - `Very Low`: A trivial change.
 
-
+**NOTE:**
+- When setting the `priority` field in the Mermaid Kanban diagram, use only the following allowed values: `'Very High'`, `'High'`, `'Low'`, `'Very Low'`.
+- Kanban task titles should not contain special characters like ()@".
+- Use only alphanumeric characters, spaces, and hyphens.
 ---
 
 ```mermaid
@@ -32,6 +36,10 @@ config:
 
 kanban
     Backlog
+        "Implement install Command"<br/><br/>@{ assigned: VI, priority: 'High', ticket: '017-implement-install-command' }
+        "Implement Robust Package Manager Detection"<br/><br/>@{ assigned: VI, priority: 'High', ticket: '018-robust-pm-detection' }
+        "Implement install no args as Update All"<br/><br/>@{ assigned: VI, priority: 'High', ticket: '020-install-no-args-as-update' }
+        "Future: Implement Fast Install Optimization"<br/><br/>@{ assigned: VI, priority: 'High', ticket: '019-fast-install-optimization' }
         "Enhance `kley.lock` with version pinning"<br/><br/>@{ assigned: V, priority: 'High', ticket: '016-enhance-kley-lock' }
         "Implement `clean` command"<br/><br/>@{ assigned: V, priority: 'Low', ticket: '014-clean-command' }
         "Implement watch command"<br/><br/>@{ assigned: V, priority: 'Very High', ticket: '004-watch-command' }
@@ -45,7 +53,7 @@ kanban
     [In progress]
 
     Done
-        "Fix `add` command to support version syntax (`pkg@version`)"<br/><br/>@{ assigned: II, priority: 'Very Low' }
+        "Fix `add` command to support version syntax"<br/><br/>@{ assigned: II, priority: 'Very Low' }
         "More information for CLI description"<br/><br/>@{ assigned: V, priority: 'Low' }
         "Implement `unpublish` command"<br/><br/>@{ assigned: II, priority: 'High', ticket: '013-unpublish-command' }
         "Implement `update` command"<br/><br/>@{ assigned: II, priority: 'High', ticket: '011-update-command' }
