@@ -1,5 +1,7 @@
 # T010: Add --global flag to the 'link' command
 
+- **Epic**: VI (DX/UX Improvements (General))
+
 ## Goal
 
 To add an optional `--global` flag to the `kley link` command. When this flag is present, kley will bypass the local copy step and create a symlink directly from the package's location in the global kley store to the project's `node_modules` directory.

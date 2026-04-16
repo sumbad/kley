@@ -1,6 +1,6 @@
 # Ticket 016: Enhance `kley.lock` with Version Pinning
 
-- **Epic**: V (DX/UX Improvements)
+- **Epic**: VI (DX/UX Improvements (General))
 - **Complexity**: High
 
 ## 1. Description
