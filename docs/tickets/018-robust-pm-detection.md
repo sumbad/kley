@@ -9,26 +9,41 @@ Many of `kley`'s commands need to interact with the host project's package manag
 
 ## 2. Proposed Solution
 
-A utility function will be created to provide a reliable guess of the currently used package manager. The detection will use a multi-layered approach.
+A utility function will be created to provide a reliable guess of the project's package manager. The detection will use a clear hierarchy of configuration sources.
 
-### Detection Logic
+### Detection Logic Hierarchy
 
-The function will check the following sources in order, returning the first positive result:
+The function will check the following sources in order, returning the first valid result found:
 
-1.  **Environment Variable:** Check the `npm_config_user_agent` environment variable. This is the most reliable source, as it's set by the package managers themselves during execution.
-    - `npm/...` -> npm
-    - `yarn/...` -> yarn
-    - `pnpm/...` -> pnpm
+1.  **`kley.lock`:** Check for a `packageManager` field within the project's `kley.lock` file. This is the highest priority and allows users to specify a package manager for `kley`'s use explicitly.
+    ```json
+    // kley.lock
+    {
+      "packageManager": "pnpm",
+      "packages": { ... }
+    }
+    ```
 
-2.  **Lock Files:** If the environment variable is not set, fall back to the presence of lock files in the project root.
-    - `pnpm-lock.yaml` -> pnpm
-    - `yarn.lock` -> yarn
-    - `package-lock.json` -> npm
+2.  **`package.json`:** If not found in `kley.lock`, check for the standard `packageManager` field in the project's `package.json`.
+    ```json
+    // package.json
+    {
+      "name": "my-project",
+      "packageManager": "yarn@1.22.19"
+    }
+    ```
+
+3.  **Lock Files:** If no explicit configuration is found, fall back to detecting the presence of lock files in the project root.
+    - `pnpm-lock.yaml` -> `pnpm`
+    - `yarn.lock` -> `yarn`
+    - `package-lock.json` -> `npm`
+
+4.  **Default:** If no package manager can be determined, default to `npm` and display a warning to the user.
 
 The function should return a simple enum, e.g., `PackageManager::{Npm, Pnpm, Yarn}`.
 
 ## 3. Acceptance Criteria
 
 - A reusable function `detect_package_manager()` is implemented.
-- The function correctly identifies the package manager based on environment variables first, then lock files.
-- The function is used by the `kley install` command (and any other future commands that need it).
+- The function correctly identifies the package manager based on the specified hierarchy: `kley.lock` -> `package.json` -> lock files -> default.
+- The function is used by the `kley install` command.

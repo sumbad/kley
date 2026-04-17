@@ -1,6 +1,6 @@
 # Ticket 008: Preserve package.json Order on `kley add`
 
-**Epic**: V (DX/UX Improvements)
+**Epic**: VI (DX/UX Improvements (General))
 **Complexity**: Medium
 
 ## Problem

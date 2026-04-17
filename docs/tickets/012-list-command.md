@@ -1,6 +1,6 @@
 # Ticket 012: Implement `list` command
 
-- **Epic**: V (DX/UX Improvements)
+- **Epic**: VI (DX/UX Improvements (General))
 - **Complexity**: Low
 
 ## 1. Description
