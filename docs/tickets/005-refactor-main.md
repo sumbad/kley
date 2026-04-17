@@ -1,7 +1,7 @@
 # TICKET: 005 - Refactor main.rs
 
-**Epic:** V (Code Quality & Testing)
-**Complexity:** Medium
+**Epic**: VI (DX/UX Improvements (General))
+**Complexity:** High
 
 ## Description
 The `main.rs` file currently contains all application logic for commands, helpers, and tests. This makes the file large and difficult to maintain.
