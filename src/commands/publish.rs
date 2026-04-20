@@ -7,22 +7,22 @@ use std::path::Path;
 use tracing;
 
 use crate::commands::update::run_update;
-use crate::npm_package::find_npm_package;
+use crate::package::Package;
 use crate::registry::*;
 use crate::utils::normalized_path;
 
 /// Publish logic
 pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
-    let pkg = find_npm_package(&std::env::current_dir()?)?;
+    let package = Package::get(&std::env::current_dir()?)?;
 
     println!(
         "🚀 Publishing {}@{}...",
-        pkg.name.cyan(),
-        pkg.version.magenta()
+        package.json.name.cyan(),
+        package.json.version.magenta()
     );
 
     // Determine the path in the registry (~/.kley/packages/name)
-    let pkg_in_registry = registry.get_pkg_dir(&pkg.name);
+    let pkg_in_registry = registry.get_pkg_dir(&package.json.name);
 
     if pkg_in_registry.exists() {
         fs::remove_dir_all(&pkg_in_registry)?;
@@ -48,7 +48,7 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
     // Whitelist
     // NOTE: If an override contains one or more positive patterns,
     // then it will ignore any file path that does not match at least one of those positive patterns
-    if let Some(files) = &pkg.files {
+    if let Some(files) = &package.json.files {
         for file in files {
             // add files
             override_builder.add(file)?;
@@ -111,12 +111,15 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
         }
     }
 
-    registry.update_package_version(&pkg.name, &pkg.version)?;
+    registry.update_package_version(&package.json.name, &package.json.version)?;
 
-    println!("📦 Package '{}' saved to registry", pkg.name.cyan().bold());
+    println!(
+        "📦 Package '{}' saved to registry",
+        package.json.name.cyan().bold()
+    );
 
     if push {
-        let instalations = registry.get_installations(&pkg.name).to_vec();
+        let instalations = registry.get_installations(&package.json.name).to_vec();
         let instalation_len = instalations.len();
 
         if instalation_len > 0 {
@@ -128,27 +131,27 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
 
             println!(
                 "Pushing {} to {} {plural_text}:",
-                pkg.name.cyan(),
+                package.json.name.cyan(),
                 instalation_len
             );
 
             for project_dir in instalations {
-                run_update(registry, &pkg.name, &project_dir)?;
+                run_update(registry, &package.json.name, &project_dir)?;
 
                 println!(
                     "{}",
                     format!(
                         "✔️ Updated {} to the latest version of {}",
                         normalized_path(&project_dir, dirs::home_dir().as_ref()).white(),
-                        &pkg.name.cyan()
+                        &package.json.name.cyan()
                     )
                     .green()
                 );
             }
         }
     } else {
-        let add_cmd = format!("     kley add {}", pkg.name).cyan();
-        let link_cmd = format!("     kley link {}", pkg.name).cyan();
+        let add_cmd = format!("     kley add {}", package.json.name).cyan();
+        let link_cmd = format!("     kley link {}", package.json.name).cyan();
 
         let note_msg = format!("To use it, run:\n{}\nor\n{}", add_cmd, link_cmd,)
             .italic()
@@ -159,7 +162,7 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
 
     println!(
         "{}",
-        format!("✅ Done: {} published", pkg.name.cyan()).green()
+        format!("✅ Done: {} published", package.json.name.cyan()).green()
     );
 
     Ok(())
