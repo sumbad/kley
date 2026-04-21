@@ -32,25 +32,33 @@ impl Lockfile {
 
     pub fn get(dir: &Path) -> Option<Lockfile> {
         let lock_path = Lockfile::path(dir);
-        let lockfile: Lockfile = if lock_path.exists() {
-            let content = fs::read_to_string(&lock_path).unwrap_or(String::new());
-            if content.trim().is_empty() {
-                return None;
-            } else {
-                let json = serde_json::from_str(&content);
 
-                if json.is_err() {
-                    tracing::warn!("Failed to parse kley.lock");
-                    return None;
-                } else {
-                    json.unwrap()
-                }
-            }
-        } else {
+        if !lock_path.exists() {
+            tracing::info!("Lockfile does not exist");
+
             return None;
+        }
+
+        let content = match fs::read_to_string(&lock_path) {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!("Failed to read kley.lock: {e}");
+
+                return None;
+            }
         };
 
-        Some(lockfile)
+        if content.trim().is_empty() {
+            return None;
+        }
+
+        match serde_json::from_str(&content) {
+            Ok(lf) => Some(lf),
+            Err(e) => {
+                tracing::warn!("Failed to parse kley.lock: {e}");
+                None
+            }
+        }
     }
 
     pub fn save(&mut self, dir: &Path) -> Result<()> {
