@@ -50,9 +50,9 @@ kanban
         "Future: Implement Fast Install Optimization"<br/><br/>@{ assigned: III, priority: 'High', ticket: '019-fast-install-optimization' }
 
     [In progress]
-        "Implement Robust Package Manager Detection"<br/><br/>@{ assigned: III, priority: 'High', ticket: '018-robust-pm-detection' }
 
     Done
+        "Implement Robust Package Manager Detection"<br/><br/>@{ assigned: III, priority: 'High', ticket: '018-robust-pm-detection' }
         "Fix `add` command to support version syntax"<br/><br/>@{ assigned: II, priority: 'Very Low' }
         "More information for CLI description"<br/><br/>@{ assigned: VI, priority: 'Low' }
         "Implement `unpublish` command"<br/><br/>@{ assigned: II, priority: 'High', ticket: '013-unpublish-command' }
