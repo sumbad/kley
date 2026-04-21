@@ -1,22 +1,22 @@
-use crate::{commands::remove::remove_package, utils::confirm};
+use crate::{commands::remove::remove_package, package::Package, utils::confirm};
 use std::{fs, path::PathBuf};
 
-use crate::{npm_package::find_npm_package, registry::Registry};
+use crate::registry::Registry;
 use anyhow::Result;
 use colored::*;
 
 pub fn unpublish(registry: &mut Registry, push: bool) -> Result<()> {
-    let pkg = find_npm_package(&std::env::current_dir()?)?;
+    let package = Package::get(&std::env::current_dir()?)?;
 
-    println!("🧹 Unpublishing {}...", pkg.name.cyan(),);
+    println!("🧹 Unpublishing {}...", package.json.name.cyan(),);
 
-    let pkg_installations = registry.get_installations(&pkg.name).to_vec();
+    let pkg_installations = registry.get_installations(&package.json.name).to_vec();
 
     if !pkg_installations.is_empty() {
         let confirm_msg = if push {
-            confirm_hard_msg(&pkg.name, &pkg_installations)
+            confirm_hard_msg(&package.json.name, &pkg_installations)
         } else {
-            confirm_soft_msg(&pkg.name, pkg_installations.len())
+            confirm_soft_msg(&package.json.name, pkg_installations.len())
         };
 
         if !confirm(confirm_msg) {
@@ -29,26 +29,29 @@ pub fn unpublish(registry: &mut Registry, push: bool) -> Result<()> {
     // Clean up all projects first while registry metadata is still present
     if push {
         for project_dir in &pkg_installations {
-            remove_package(registry, &pkg.name, project_dir)?;
+            remove_package(registry, &package.json.name, project_dir)?;
         }
     }
 
     // Delete the package from the registry
-    let pkg_in_registry = registry.get_pkg_dir(&pkg.name);
+    let pkg_in_registry = registry.get_pkg_dir(&package.json.name);
 
     // Delete package files if present, but don't abort if already missing
     if pkg_in_registry.exists() {
         fs::remove_dir_all(&pkg_in_registry)?;
     } else {
-        println!("Package {} not found in the registry", pkg.name.cyan());
+        println!(
+            "Package {} not found in the registry",
+            package.json.name.cyan()
+        );
     }
 
     // Always remove metadata to prevent stale registry state
-    registry.remove_package_info(&pkg.name)?;
+    registry.remove_package_info(&package.json.name)?;
 
     println!(
         "{}",
-        format!("✅ Done: {} unpublished", pkg.name.cyan()).green()
+        format!("✅ Done: {} unpublished", package.json.name.cyan()).green()
     );
 
     Ok(())

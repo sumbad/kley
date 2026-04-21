@@ -1,8 +1,7 @@
-use std::{fs, path::Path};
+use std::path::Path;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use colored::Colorize;
-use serde::Serialize;
 
 use crate::{
     lockfile::{Lockfile, PackageInfo},
@@ -14,16 +13,13 @@ use crate::{
 pub fn update(registry: &mut Registry, packages: &Vec<String>, project_dir: &Path) -> Result<()> {
     let packages_to_update = if packages.is_empty() {
         // If no packages are specified, update all packages in kley.lock
-        let lock_path = project_dir.join("kley.lock");
-        if !lock_path.exists() {
+        let Some(lockfile) = Lockfile::get(project_dir) else {
             println!(
                 "{}",
                 "⚠️ Warning: No packages to update. kley.lock not found.".yellow()
             );
             return Ok(());
-        }
-        let lockfile: Lockfile = serde_json::from_str(&fs::read_to_string(lock_path)?)
-            .context("🚨 Error: Failed to parse kley.lock")?;
+        };
 
         lockfile.packages.keys().cloned().collect()
     } else {
@@ -41,9 +37,7 @@ pub fn update(registry: &mut Registry, packages: &Vec<String>, project_dir: &Pat
 
         println!(
             "{}",
-            format!("   ✔️ {}", &package_name.clone())
-                .green()
-                .dimmed()
+            format!("   ✔️ {}", &package_name.clone()).green().dimmed()
         );
     }
 
@@ -66,8 +60,6 @@ pub fn run_update(registry: &mut Registry, package_name: &str, project_dir: &Pat
 
 /// Creates or updates kley.lock file.
 fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path) -> Result<()> {
-    let lock_path = project_dir.join("kley.lock");
-
     let version = if let Some(pkg_version) = registry.get_pkg_version(package_name) {
         pkg_version
     } else {
@@ -79,35 +71,18 @@ fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path)
         return Ok(());
     };
 
-    // 2. Read existing kley.lock or create a new one
-    let mut lockfile: Lockfile = if lock_path.exists() {
-        let content = fs::read_to_string(&lock_path)?;
-        if content.trim().is_empty() {
-            Lockfile::default()
-        } else {
-            serde_json::from_str(&content).context("Failed to parse kley.lock")?
-        }
-    } else {
-        Lockfile::default()
-    };
+    let mut lockfile = Lockfile::new(project_dir);
 
-    // 3. Insert or update package info
+    // Insert or update package info
     let package_info = PackageInfo {
         version: version.to_string(),
     };
+
     lockfile
         .packages
         .insert(package_name.to_string(), package_info);
 
-    // 4. Write back to kley.lock
-    let mut buf = Vec::new();
-    let formatter = serde_json::ser::PrettyFormatter::with_indent(b"  ");
-    let mut ser = serde_json::Serializer::with_formatter(&mut buf, formatter);
-    lockfile.serialize(&mut ser)?;
-
-    fs::write(lock_path, buf)?;
-
-    tracing::info!("kley.lock has been updated");
+    lockfile.save(project_dir)?;
 
     Ok(())
 }
@@ -115,7 +90,7 @@ fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path)
 #[cfg(test)]
 mod kley_lock_tests {
     use super::*;
-    use std::io::Write;
+    use std::{fs, io::Write};
     use tempfile::tempdir;
 
     #[test]

@@ -2,6 +2,7 @@
 name = "kley"
 version = "0.5.1"
 edition = "2024"
+rust-version = "1.88"
 authors = ["Denis Sumbaev <denis.sumbaev@gmail.com>"]
 description = "The simple local package manager for npm (JS/TS)"
 homepage = "https://github.com/sumbad/kley"
