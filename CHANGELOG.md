@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Package Manager Detection**: Implemented a robust mechanism to detect the project's package manager (`npm`, `pnpm`, `yarn`). The detection logic prioritizes `kley.lock`, then `package.json`, and finally lock files.
+
+### Changed
+- **`Package` Struct**: Introduced a new central `Package` struct to encapsulate project information (`package.json`, `kley.lock`, and detected package manager), improving code structure.
+
+---
+
 ## [0.5.1] - 2026-04-14
 
 ### Fixed
