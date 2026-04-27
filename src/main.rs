@@ -39,6 +39,10 @@ enum Commands {
         #[arg(long)]
         dev: bool,
     },
+    /// Install a package from the registry to the current project
+    Install {
+        name: String,
+    },
     /// Link a package from the registry to the current project
     Link { name: String },
     /// Remove a package from the current project
@@ -78,6 +82,7 @@ fn main() -> Result<()> {
         Commands::Publish { push } => commands::publish::publish(&mut registry, *push)?,
         Commands::Unpublish { push } => commands::unpublish::unpublish(&mut registry, *push)?,
         Commands::Add { name, dev } => commands::add::add(&mut registry, name, *dev)?,
+        Commands::Install { name } => commands::install::install(&mut registry)?,
         Commands::Link { name } => commands::link::link(&mut registry, name)?,
         Commands::Remove { name, all } => {
             commands::remove::remove(&mut registry, name, *all, &project_dir)?
