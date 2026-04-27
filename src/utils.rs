@@ -113,10 +113,61 @@ pub fn normalized_path(path: &Path, home: Option<&PathBuf>) -> String {
     let path = fs::canonicalize(path).unwrap_or(path.to_path_buf());
 
     if let Some(home_dir) = home
-        && let Ok(stripped_path) = path.strip_prefix(&home_dir)
+        && let Ok(stripped_path) = path.strip_prefix(home_dir)
     {
         return format!("~/{}", stripped_path.display());
     }
 
     path.to_string_lossy().into_owned()
+}
+
+pub fn package_name_version_parse(package_name_version: &str) -> (&str, Option<&str>) {
+    if let Some((name, version)) = package_name_version.rsplit_once('@') {
+        (name, Some(version))
+    } else {
+        (package_name_version, None)
+    }
+}
+
+pub fn validate_version_in_registry(
+    registry: &Registry,
+    package_name: &str,
+    package_version: Option<&str>,
+) {
+    let registry_pkg_version = registry.get_pkg_version(package_name);
+
+    if registry_pkg_version.is_none()
+        || !registry.has_version_in_registry(package_name, package_version)
+    {
+        let help = if registry_pkg_version.is_some() {
+            format!(
+                "Try to add the latest version from the registry. There is no {} version",
+                package_version.unwrap_or("expected").magenta()
+            )
+        } else {
+            format!(
+                "Run `kley publish` in the {} package folder first",
+                package_name.cyan()
+            )
+        };
+
+        let version_msg = if let Some(ver) = package_version {
+            format!("@{}", ver.magenta())
+        } else {
+            String::new()
+        };
+
+        eprintln!(
+            "{}\n{}",
+            format!(
+                "❌ Error: {}{} not found in the registry",
+                package_name.cyan(),
+                version_msg,
+            )
+            .red(),
+            help.italic().dimmed()
+        );
+
+        std::process::exit(1);
+    }
 }

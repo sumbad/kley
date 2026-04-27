@@ -1,15 +1,17 @@
 #![allow(dead_code)]
 
+use chrono::Utc;
 use assert_cmd::Command;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use tempfile::TempDir; // Import TempDir
+use tempfile::TempDir;
+use kley::registry::{RegistryData, PackageMetadata};
 
 /// Represents a temporary test environment with a project and kley home.
 pub struct TestEnv {
-    pub temp_dir: TempDir, // Change to TempDir
-    pub kley_home: PathBuf,
+    pub temp_dir: TempDir,
+    pub kley_registry: PathBuf,
     pub project_dir: PathBuf,
 }
 
@@ -18,7 +20,7 @@ impl TestEnv {
     /// Creates a temporary directory, a mock kley home, and a mock project.
     pub fn new() -> Self {
         let temp_dir = tempfile::tempdir().unwrap(); // Store the TempDir object
-        let kley_home = temp_dir.path().join(".kley_home"); // Use temp_dir.path()
+        let kley_home = temp_dir.path().join(".kley"); // Use temp_dir.path()
         let project_dir = temp_dir.path().join("my-project"); // Use temp_dir.path()
 
         fs::create_dir_all(&kley_home).unwrap();
@@ -31,14 +33,14 @@ impl TestEnv {
 
         TestEnv {
             temp_dir,
-            kley_home,
+            kley_registry: kley_home,
             project_dir,
         }
     }
 
     /// Creates a mock package in the kley registry.
     pub fn create_mock_registry_package(&self, pkg_name: &str, pkg_version: &str) {
-        let packages_dir = self.kley_home.join("packages");
+        let packages_dir = self.kley_registry.join("packages");
         let pkg_dir = packages_dir.join(pkg_name);
         fs::create_dir_all(&pkg_dir).unwrap();
 
@@ -51,16 +53,28 @@ impl TestEnv {
         .unwrap();
 
         // Update registry.json
-        let registry_path = self.kley_home.join("registry.json");
-        let registry_content = if registry_path.exists() {
-            fs::read_to_string(&registry_path).unwrap_or_else(|_| r#"{"packages":{}}"#.to_string())
+        let registry_path = self.kley_registry.join("registry.json");
+        let mut registry_data = if registry_path.exists() {
+            let content = fs::read_to_string(&registry_path).unwrap();
+            serde_json::from_str(&content).unwrap_or_default()
         } else {
-            r#"{"packages":{}}"#.to_string()
+            RegistryData::default()
         };
 
-        let mut registry_json: serde_json::Value = serde_json::from_str(&registry_content).unwrap();
-        registry_json["packages"][pkg_name] = serde_json::json!({"version": pkg_version});
-        fs::write(&registry_path, serde_json::to_string_pretty(&registry_json).unwrap()).unwrap();
+        registry_data.packages.insert(
+            pkg_name.to_string(),
+            PackageMetadata {
+                version: pkg_version.to_string(),
+                last_updated: Utc::now().to_rfc3339(),
+                installations: vec![],
+            },
+        );
+
+        fs::write(
+            &registry_path,
+            serde_json::to_string_pretty(&registry_data).unwrap(),
+        )
+        .unwrap();
     }
 
     /// Configures the project directory for a specific package manager.
@@ -69,7 +83,11 @@ impl TestEnv {
         let pkg_json_path = self.project_dir.join("package.json");
         if !pkg_json_path.exists() {
             let mut pkg_json_file = fs::File::create(&pkg_json_path).unwrap();
-            writeln!(pkg_json_file, r#"{{"name": "my-project", "version": "1.0.0"}}"#).unwrap();
+            writeln!(
+                pkg_json_file,
+                r#"{{"name": "my-project", "version": "1.0.0"}}"#
+            )
+            .unwrap();
         }
 
         // Simulate package manager detection by creating lock files
@@ -90,8 +108,8 @@ impl TestEnv {
     /// Runs the kley command within the test project.
     pub fn run_kley_command(&self, args: &[&str]) -> Command {
         let mut cmd = Command::cargo_bin("kley").unwrap();
-        cmd.current_dir(&self.project_dir)
-           .args(args);
+        cmd.env("HOME", self.temp_dir.path());
+        cmd.current_dir(&self.project_dir).args(args);
         cmd
     }
 
