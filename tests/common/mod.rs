@@ -1,12 +1,12 @@
 #![allow(dead_code)]
 
-use chrono::Utc;
 use assert_cmd::Command;
+use chrono::Utc;
+use kley::registry::{PackageMetadata, RegistryData};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
-use kley::registry::{RegistryData, PackageMetadata};
 
 /// Represents a temporary test environment with a project and kley home.
 pub struct TestEnv {
@@ -25,11 +25,6 @@ impl TestEnv {
 
         fs::create_dir_all(&kley_home).unwrap();
         fs::create_dir_all(&project_dir).unwrap();
-
-        // Set KLEY_HOME for the duration of the test
-        unsafe {
-            std::env::set_var("KLEY_HOME", &kley_home);
-        }
 
         TestEnv {
             temp_dir,
@@ -137,10 +132,6 @@ impl TestEnv {
 
 impl Drop for TestEnv {
     fn drop(&mut self) {
-        // Clean up KLEY_HOME environment variable
-        unsafe {
-            std::env::remove_var("KLEY_HOME");
-        }
         // temp_dir will be automatically cleaned up by tempfile
     }
 }

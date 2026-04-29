@@ -19,7 +19,7 @@ pub fn install(
 
     utils::validate_version_in_registry(registry, package_name, package_version);
 
-    run_update(registry, package_name, &std::env::current_dir()?)?;
+    run_update(registry, package_name, project_dir)?;
 
     let package = Package::get(&std::env::current_dir()?)?;
 
@@ -27,7 +27,9 @@ pub fn install(
         .join(PROJECT_REGISTRY_DIR_NAME)
         .join(package_name);
 
-    let pkg_kley_path_str = pkg_kley_path.as_os_str().to_str().unwrap();
+    let pkg_kley_path_str = pkg_kley_path
+        .to_str()
+        .ok_or_else(|| anyhow::anyhow!("Path contains non-UTF8 characters: {:?}", pkg_kley_path))?;
 
     let npm_command = std::env::var("KLEY_USE_NPM_COMMAND").unwrap_or("npm".to_string());
     let pnpm_command = std::env::var("KLEY_USE_PNPM_COMMAND").unwrap_or("pnpm".to_string());
@@ -62,6 +64,7 @@ pub fn install(
             .red(),
         );
 
+        // TODO: change to return Error for supporting RAII destructors
         std::process::exit(1);
     }
 
