@@ -116,7 +116,7 @@ impl TestEnv {
     /// Creates a kley.lock file in the project directory.
     pub fn create_kley_lock(&self, content: &str) {
         let mut kley_lock_file = fs::File::create(self.project_dir.join("kley.lock")).unwrap();
-        writeln!(kley_lock_file, "{}", content).unwrap();
+        kley_lock_file.write_all(content.as_bytes()).unwrap();
     }
 }
 

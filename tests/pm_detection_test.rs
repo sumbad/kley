@@ -11,7 +11,7 @@ use common::TestEnv;
 fn test_detects_from_kley_lock_first() {
     let env = TestEnv::new();
     // Create a kley.lock with "pnpm"
-    env.create_kley_lock(r#"{{"packageManager": "pnpm", "packages": {}}}"#);
+    env.create_kley_lock(r#"{"packageManager": "pnpm", "packages": {}}"#);
 
     // Create conflicting files to ensure kley.lock has priority
     File::create(env.project_dir.join("yarn.lock")).unwrap();
