@@ -1,9 +1,58 @@
-#!/bin/sh
-# Mock pnpm v2
+#!/usr/bin/env bash
+set -e
+
 echo "pnpm $@" >> pm.log
-mkdir -p node_modules
-# Simulate updating package.json by appending the dependency.
-PKG_PATH=$2
+
+CMD="$1"
+shift
+
+if [[ "$CMD" != "add" ]]; then
+  exit 0
+fi
+
+MODE="dependencies"
+PKG_PATH=""
+
+for arg in "$@"; do
+  case "$arg" in
+    -D|--save-dev)
+      MODE="devDependencies"
+      ;;
+    --no-save)
+      MODE="none"
+      ;;
+    -*)
+      ;;
+    *)
+      PKG_PATH="$arg"
+      ;;
+  esac
+done
+
+[ -z "$PKG_PATH" ] && exit 0
+
 PKG_NAME=$(basename "$PKG_PATH")
-echo ",\"$PKG_NAME\":\"file:$PKG_PATH\"" >> package.json
-exit 0
+
+if [ "$MODE" != "none" ]; then
+node <<EOF
+const fs = require('fs');
+
+const pkg = JSON.parse(fs.readFileSync('package.json'));
+pkg["$MODE"] ||= {};
+pkg["$MODE"]["$PKG_NAME"] = "file:$PKG_PATH";
+
+fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+EOF
+fi
+
+mkdir -p node_modules/.pnpm
+rm -rf "node_modules/$PKG_NAME"
+
+STORE_PATH="node_modules/.pnpm/$PKG_NAME"
+
+rm -rf "$STORE_PATH"
+cp -R "$PKG_PATH" "$STORE_PATH" 2>/dev/null || true
+
+ln -sf "$(realpath "$STORE_PATH")" "node_modules/$PKG_NAME"
+
+touch pnpm-lock.yaml

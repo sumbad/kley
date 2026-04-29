@@ -1,21 +1,52 @@
-#!/bin/sh
-# Mock npm - Node.js version
-echo "npm $@" >> pm.log
-mkdir -p node_modules
+#!/usr/bin/env bash
+set -e
 
-PKG_PATH=$2
+echo "npm $@" >> pm.log
+
+CMD="$1"
+shift
+
+if [[ "$CMD" != "install" && "$CMD" != "i" ]]; then
+  exit 0
+fi
+
+MODE="dependencies"
+PKG_PATH=""
+
+for arg in "$@"; do
+  case "$arg" in
+    -D|--save-dev)
+      MODE="devDependencies"
+      ;;
+    --no-save)
+      MODE="none"
+      ;;
+    -*)
+      ;;
+    *)
+      PKG_PATH="$arg"
+      ;;
+  esac
+done
+
+[ -z "$PKG_PATH" ] && exit 0
+
 PKG_NAME=$(basename "$PKG_PATH")
 
-# Use Node.js to reliably edit the JSON file.
-node -e "
+if [ "$MODE" != "none" ]; then
+node <<EOF
 const fs = require('fs');
-const path = require('path');
-const pkgPath = path.resolve('package.json');
-const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-if (!pkg.dependencies) {
-  pkg.dependencies = {};
-}
-pkg.dependencies['$PKG_NAME'] = 'file:' + '$PKG_PATH';
-fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
-"
-exit 0
+
+const pkg = JSON.parse(fs.readFileSync('package.json'));
+pkg["$MODE"] ||= {};
+pkg["$MODE"]["$PKG_NAME"] = "file:$PKG_PATH";
+
+fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+EOF
+fi
+
+mkdir -p node_modules
+rm -rf "node_modules/$PKG_NAME"
+cp -R "$PKG_PATH" "node_modules/$PKG_NAME" 2>/dev/null || true
+
+touch package-lock.json
