@@ -106,8 +106,23 @@ impl TestEnv {
     }
 
     /// Runs the kley command within the test project.
+    /// This function automatically uses the mocked package managers from `tests/mocks`
+    /// by setting the `KLEY_USE_..._COMMAND` environment variables.
     pub fn run_kley_command(&self, args: &[&str]) -> Command {
         let mut cmd = Command::cargo_bin("kley").unwrap();
+
+        // Get absolute paths to the mock scripts
+        let mut mocks_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        mocks_dir.push("tests/mocks");
+        let npm_mock_path = mocks_dir.join("npm");
+        let pnpm_mock_path = mocks_dir.join("pnpm");
+        let yarn_mock_path = mocks_dir.join("yarn");
+
+        // Set env vars to point to the mock scripts
+        cmd.env("KLEY_USE_NPM_COMMAND", npm_mock_path);
+        cmd.env("KLEY_USE_PNPM_COMMAND", pnpm_mock_path);
+        cmd.env("KLEY_USE_YARN_COMMAND", yarn_mock_path);
+
         cmd.env("HOME", self.temp_dir.path());
         cmd.current_dir(&self.project_dir).args(args);
         cmd

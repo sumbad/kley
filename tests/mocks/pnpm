@@ -1,0 +1,9 @@
+#!/bin/sh
+# Mock pnpm v2
+echo "pnpm $@" >> pm.log
+mkdir -p node_modules
+# Simulate updating package.json by appending the dependency.
+PKG_PATH=$2
+PKG_NAME=$(basename "$PKG_PATH")
+echo ",\"$PKG_NAME\":\"file:$PKG_PATH\"" >> package.json
+exit 0
