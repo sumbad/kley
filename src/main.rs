@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use clap::{Parser, Subcommand};
 use clap::builder::styling::{AnsiColor, Styles};
+use clap::{Parser, Subcommand};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 use kley::commands;
@@ -20,7 +20,7 @@ fn styles() -> Styles {
 #[derive(Parser)]
 #[command(name = "kley")]
 #[command(styles = styles())]
-#[command(version, about = "Fast local package manager for npm (JS/TS)", long_about = None)]
+#[command(version, about = "Local package manager for Node.js projects", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -40,9 +40,8 @@ enum Commands {
         dev: bool,
     },
     /// Install a package from the registry to the current project
-    Install {
-        name: String,
-    },
+    #[command(visible_alias = "i")]
+    Install { name: String },
     /// Link a package from the registry to the current project
     Link { name: String },
     /// Remove a package from the current project
@@ -82,7 +81,9 @@ fn main() -> Result<()> {
         Commands::Publish { push } => commands::publish::publish(&mut registry, *push)?,
         Commands::Unpublish { push } => commands::unpublish::unpublish(&mut registry, *push)?,
         Commands::Add { name, dev } => commands::add::add(&mut registry, name, *dev)?,
-        Commands::Install { name } => commands::install::install(&mut registry, name, &project_dir)?,
+        Commands::Install { name } => {
+            commands::install::install(&mut registry, name, &project_dir)?
+        }
         Commands::Link { name } => commands::link::link(&mut registry, name)?,
         Commands::Remove { name, all } => {
             commands::remove::remove(&mut registry, name, *all, &project_dir)?
