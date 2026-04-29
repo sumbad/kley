@@ -61,6 +61,8 @@ pub fn install(
         std::process::exit(1);
     }
 
+    registry.add_package_installation(package_name, project_dir)?;
+
     println!(
         "{}",
         format!("✅ Done: {} installed", package_name.cyan()).green(),
