@@ -1,5 +1,4 @@
 use anyhow::{Context, Ok, Result};
-use tracing;
 use std::{fs, path::Path};
 
 use serde::Deserialize;

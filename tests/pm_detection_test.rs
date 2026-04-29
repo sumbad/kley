@@ -107,7 +107,7 @@ fn test_ignores_empty_package_manager_field() {
     writeln!(file, r#"{{"name": "test", "version": "0.0.0"}}"#).unwrap();
 
     // Create a kley.lock with an empty packageManager string
-    env.create_kley_lock(r#"{{"packageManager": "", "packages": {}}}"#);
+    env.create_kley_lock(r#"{"packageManager": "", "packages": {}}"#);
 
     // It should fall back to the next mechanism, in this case the yarn.lock
     File::create(env.project_dir.join("yarn.lock")).unwrap();
