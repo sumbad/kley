@@ -29,10 +29,14 @@ pub fn install(
 
     let pkg_kley_path_str = pkg_kley_path.as_os_str().to_str().unwrap();
 
+    let npm_command = std::env::var("KLEY_USE_NPM_COMMAND").unwrap_or("npm".to_string());
+    let pnpm_command = std::env::var("KLEY_USE_PNPM_COMMAND").unwrap_or("pnpm".to_string());
+    let yarn_command = std::env::var("KLEY_USE_YARN_COMMAND").unwrap_or("yarn".to_string());
+
     let cmd_str = match package.manager_type {
-        PackageManagerType::Pnpm => format!("pnpm add {}", pkg_kley_path_str),
-        PackageManagerType::Yarn => format!("yarn add {}", pkg_kley_path_str),
-        PackageManagerType::Npm => format!("npm install {}", pkg_kley_path_str),
+        PackageManagerType::Pnpm => format!("{} add {}", pnpm_command, pkg_kley_path_str),
+        PackageManagerType::Yarn => format!("{} add {}", yarn_command, pkg_kley_path_str),
+        PackageManagerType::Npm => format!("{} install {}", npm_command, pkg_kley_path_str),
     };
 
     let status = if cfg!(target_os = "windows") {

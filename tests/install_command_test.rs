@@ -1,5 +1,6 @@
 mod common;
 
+use kley::utils::normalized_path;
 use predicates::prelude::*;
 use std::fs;
 
@@ -24,12 +25,14 @@ fn test_install_command_npm_project() {
     kley_lock_content.retain(|c| !c.is_whitespace());
     assert!(kley_lock_content.contains(r#""my-package":{"version":"1.0.0"}"#));
 
-    let mut project_pkg_json_content =
+    let project_pkg_json_content =
         fs::read_to_string(env.project_dir.join("package.json")).unwrap();
     tracing::info!("project_pkg_json_content: {}", project_pkg_json_content);
 
-    project_pkg_json_content.retain(|c| !c.is_whitespace());
-    assert!(project_pkg_json_content.contains(r#""my-package":"file:.kley/my-package""#));
+    let expected_path = normalized_path(&env.project_dir.join(".kley").join("my-package"), None);
+    let expected_dep_string = format!(r#""my-package": "file:{}"#, expected_path);
+
+    assert!(project_pkg_json_content.contains(&expected_dep_string));
 }
 
 #[test]
