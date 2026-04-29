@@ -19,23 +19,69 @@ English | [Русский](./README_RU.md)
 - **Fast and Efficient**: All operations are local, with no network latency or unnecessary publishing of intermediate versions.
 - **Reliable and Independent**: Avoids `npm link` issues and works even if your library and projects use different versions of Node.js.
 - **Safe**: Avoids running `npm` scripts, only performing basic file copy and link operations.
-- **Simple API**: Six core commands to get started: `publish`, `unpublish`, `add`, `link`, `update`, and `remove`.
+- **Simple API**: Two core commands to get started: `publish` and `install`.
 - **Cross-Platform**: Works on macOS, Linux, and Windows.
 
 ## Getting started
 
-Here are two common workflows to illustrate how `kley` can be used.
+If your goal is simply to use a locally built package, two commands are enough: `publish` and `install`. Let's walk through the basic scenario:
+
+**Steps:**
+1. In your **library** directory — run `kley publish`: copies package files to `kley` registry.
+2. In your **project** directory — run `kley install <name>`: copies files to `.kley/`, updates `kley.lock`, and automatically runs the native package manager to install the package into `node_modules/`.
+3. Make changes in your library, then run `kley publish --push`: updates all linked projects.
+
+![kley demo scenario 0](docs/demo/scenario_0.gif)
+
+<details>
+<summary>Schema with details</summary>
+
+The diagram below shows the key steps: publishing, installing the dependency, and then pushing an update.
+
+```mermaid
+sequenceDiagram
+    actor Dev
+    participant Lib as test-lib
+    participant Store as ~/.kley
+    participant App as test-app
+
+    Note over Dev, App: Initial State: `test-lib` and `test-app` are separate projects.
+
+    Dev->>Lib: 1. `kley publish`
+    Lib->>Store: Copies files to registry
+
+    Dev->>App: 2. `kley install test-lib`
+    App->>Store: Reads package from registry
+    Store-->>App: Copies files to `test-app/.kley/test-lib`
+    App->>App: Runs `npm install .kley/test-lib` (or pnpm/yarn)
+    App->>App: Updates `package.json` and installs into `node_modules/`
+
+    Note over Dev, App: `test-lib` is now usable in `test-app`. No manual `npm install` needed.
+
+    Dev->>Lib: 3. Makes code changes...
+    Dev->>Lib: 4. `kley publish --push`
+    Lib->>Store: Copies updated files to registry
+    Store->>App: Pushes updates directly to `test-app/.kley/test-lib`
+
+    Note over Dev, App: `test-app` is now running the latest code automatically!
+```
+</details>
+
+
+<details>
+<summary>If you need more control, here are two alternative workflows</summary>
+
 
 ### Scenario 1: Robust Workflow `publish->add->npm i`
 
-This is the most common and durable workflow. It's perfect for when you are actively developing a library and consuming it in a project, and you want the changes to be reflected reliably.
+This is a more controlled workflow. It's perfect for when you prefer the traditional `npm install` flow, but want to move faster without publishing to a remote repository.
 
 **Steps:**
 1. In your **library** directory — run `kley publish`: copies package files to `kley` registry.
 2. In your **project** directory — run `kley add <name>`: copies files to `.kley/` and updates `package.json`.
 3. Run `npm install`, npm creates `node_modules/<name>` from `.kley/<name>`.
-4. Make changes in your library, then run `kley publish --push`: updates all linked.
-5. Run `npm install`.
+4. Make changes in your library, then run `kley publish --push`: updates all linked projects. Or just `kley publish`, but in this case you'll also need to run `kley update` in the project directory to get the changed version.
+5. Run `npm install`. You can now use the **project** with the updated **library**.
 
 ![kley demo scenario 1](docs/demo/scenario_1.gif)
 
@@ -139,9 +185,11 @@ sequenceDiagram
 | | Scenario 1 `publish→add→npm i` | Scenario 2 `publish→link` |
 |---|---|---|
 | Best for | Stable, ongoing development | Quick, temporary testing |
-| Modifies `package.json` |Yes | No |
-| Requires `npm install` | Once | Not needed |
-| Survives `npm install` | Yes | Run `kley link` again |
+| Modifies `package.json` | Yes | No |
+| Requires `npm install` | Yes | No |
+| Survives `npm install` | Yes | No. Run `kley link` again |
+
+</details>
 
 ## Installation
 
@@ -194,25 +242,34 @@ Run this command in the directory of a published package to remove it from the k
 - By default, it performs a "soft" unpublish, removing the package from the store but leaving your projects intact until the next install.
 - Use the `--push` flag to perform a "hard" unpublish, which also removes the package from all projects that use it.
 
-### 3. `kley add <package-name>`
+### 3. `kley install <package-name>` (alias `i`)
+A universal command that combines `add` and the native package manager installation. It automatically detects whether your project uses `npm`, `pnpm`, or `yarn`, copies the package to `.kley/`, updates `kley.lock`, and delegates the installation to the appropriate package manager — all in one go.
+
+- Supports `npm`, `pnpm`, and `yarn` out of the box.
+- To explicitly specify the package manager, set the `packageManager` value in `package.json` or `kley.lock`.
+- Override the package manager executable with environment variables: `KLEY_USE_NPM_COMMAND`, `KLEY_USE_PNPM_COMMAND`, `KLEY_USE_YARN_COMMAND`.
+
+> **Note:** If you need to add a package as a dev dependency (`--dev`), use `kley add --dev` instead and run the package manager manually.
+
+### 4. `kley add <package-name>`
 Run this command in the project where you want to use your local package. Kley copies the package into a local `./.kley/` directory, then automatically updates your `package.json` and `kley.lock`.
 
 - Use the `--dev` flag to add the package to `devDependencies`.
 
-> **Note:** For the changes to appear in `node_modules`, you must run `npm install` (or `yarn`, `pnpm`) after `kley add`.
+> **Note:** For the changes to appear in `node_modules`, you must run `npm install` (or `yarn`, `pnpm`) after `kley add`. For a one-step alternative, use `kley install`.
 
-### 4. `kley link <package-name>`
+### 5. `kley link <package-name>`
 This command provides a flexible workflow that avoids modifying `package.json`. It copies the package to a local `.kley` cache and then creates a symbolic link from that cache to your project's `node_modules` directory.
 
 > **Warning:** Because `package.json` is not modified, running `npm install` (or `yarn`, `pnpm`) will likely delete the symlink from `node_modules`. To restore it, simply run `kley link <package-name>` again. This is a fast operation because the local cache is preserved.
 
-### 5. `kley update [package-name]`
+### 6. `kley update [package-name]`
 This command updates installed packages to the latest version from the kley store.
 
 - If you provide a package name, only that specific package will be updated.
 - If you run it without arguments, `kley` will update all packages listed in `kley.lock`.
 
-### 6. `kley remove [package-name]`
+### 7. `kley remove [package-name]`
 Run this command to cleanly remove a kley-managed dependency from your project. It will update `package.json` and `kley.lock`, and delete the package files from the `./.kley/` directory.
 
 - Use the `--all` flag to remove all kley-managed packages from the project.

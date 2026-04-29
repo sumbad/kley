@@ -10,10 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`install` Command**: Implemented `kley install <package-name>` (alias `i`) — a one-step command that combines `add` and native package manager installation. It detects the project's package manager, copies the package to `.kley/`, updates `kley.lock`, and delegates the final installation to `npm`, `pnpm`, or `yarn`.
 - **Package Manager Detection**: Implemented a robust mechanism to detect the project's package manager (`npm`, `pnpm`, `yarn`). The detection logic prioritizes `kley.lock`, then `package.json`, and finally lock files.
+- **`KLEY_USE_*_COMMAND` Environment Variables**: Added `KLEY_USE_NPM_COMMAND`, `KLEY_USE_PNPM_COMMAND`, and `KLEY_USE_YARN_COMMAND` to override the default package manager executables. Useful for users with non-standard setups (e.g., `volta`, `nvm`).
 
 ### Changed
 - **`Package` Struct**: Introduced a new central `Package` struct to encapsulate project information (`package.json`, `kley.lock`, and detected package manager), improving code structure.
+- **Refactored validation logic**: Extracted `package_name_version_parse` and `validate_version_in_registry` from `add` into `utils`, now shared with `install`.
 
 ---
 
