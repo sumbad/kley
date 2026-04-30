@@ -18,7 +18,7 @@ English | [Русский](./README_RU.md)
 
 - **Fast and Efficient**: All operations are local, with no network latency or unnecessary publishing of intermediate versions.
 - **Reliable and Independent**: Avoids `npm link` issues and works even if your library and projects use different versions of Node.js.
-- **Safe**: Avoids running `npm` scripts, only performing basic file copy and link operations.
+- **Safe by design**: Works with files directly, minimizing package script execution.
 - **Simple API**: Two core commands to get started: `publish` and `install`.
 - **Cross-Platform**: Works on macOS, Linux, and Windows.
 
