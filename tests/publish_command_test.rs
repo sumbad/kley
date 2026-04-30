@@ -23,20 +23,17 @@ fn setup_test_project(dir: &Path) -> Result<()> {
 
 #[test]
 fn test_publish_command_e2e() -> Result<()> {
+    let home_dir = tempdir()?;
     let proj_dir = tempdir()?;
     let proj_path = proj_dir.path();
     setup_test_project(proj_path)?;
 
-    let home_dir = dirs::home_dir().expect("Failed to find home directory");
-    let store_path = home_dir.join(".kley/packages/test-pkg-integration");
-
-    // Cleanup before the test
-    if store_path.exists() {
-        fs::remove_dir_all(&store_path)?;
-    }
+    let store_path = home_dir.path().join(".kley/packages/test-pkg-integration");
 
     let mut cmd = Command::cargo_bin("kley")?;
-    cmd.arg("publish").current_dir(proj_path);
+    cmd.arg("publish")
+        .env("KLEY_HOME", home_dir.path())
+        .current_dir(proj_path);
 
     cmd.assert().success().stdout(predicates::str::contains(
         "Done: test-pkg-integration published",
@@ -61,15 +58,14 @@ fn test_publish_command_e2e() -> Result<()> {
         !store_path.join("secret.log").exists(),
         "secret.log should NOT exist"
     );
-    assert!(!store_path.join(".git").exists(), ".git should NOT exist");
+    assert!(
+        !store_path.join(".git").exists(),
+        ".git should NOT exist"
+    );
     assert!(
         !store_path.join("node_modules").exists(),
         "node_modules should NOT exist"
     );
-
-    // Cleanup after the test
-    fs::remove_dir_all(&store_path)?;
-    proj_dir.close()?;
 
     Ok(())
 }

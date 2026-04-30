@@ -27,7 +27,7 @@ fn test_update_single_package_success() -> Result<(), Box<dyn std::error::Error>
     let mut cmd = Command::cargo_bin("kley")?;
     cmd.arg("publish")
         .current_dir(&source_project_path)
-        .env("HOME", home_dir);
+        .env("KLEY_HOME", home_dir);
     cmd.assert().success().stdout(predicate::str::contains(
         "Done: source_project published",
     ));
@@ -37,7 +37,7 @@ fn test_update_single_package_success() -> Result<(), Box<dyn std::error::Error>
     cmd.arg("add")
         .arg("source_project")
         .current_dir(&target_project_path)
-        .env("HOME", home_dir);
+        .env("KLEY_HOME", home_dir);
     cmd.assert().success().stdout(predicate::str::contains(
         "Done: source_project added",
     ));
@@ -54,7 +54,7 @@ fn test_update_single_package_success() -> Result<(), Box<dyn std::error::Error>
     let mut cmd = Command::cargo_bin("kley")?;
     cmd.arg("publish")
         .current_dir(&source_project_path)
-        .env("HOME", home_dir);
+        .env("KLEY_HOME", home_dir);
     cmd.assert().success().stdout(predicate::str::contains(
         "Done: source_project published",
     ));
@@ -64,7 +64,7 @@ fn test_update_single_package_success() -> Result<(), Box<dyn std::error::Error>
     cmd.arg("update")
         .arg("source_project")
         .current_dir(&target_project_path)
-        .env("HOME", home_dir);
+        .env("KLEY_HOME", home_dir);
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("source_project"))

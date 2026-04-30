@@ -117,8 +117,8 @@ impl TestEnv {
         cmd.env("KLEY_USE_NPM_COMMAND", npm_mock_path);
         cmd.env("KLEY_USE_PNPM_COMMAND", pnpm_mock_path);
         cmd.env("KLEY_USE_YARN_COMMAND", yarn_mock_path);
+        cmd.env("KLEY_HOME", self.temp_dir.path());
 
-        cmd.env("HOME", self.temp_dir.path());
         cmd.current_dir(&self.project_dir).args(args);
         cmd
     }
@@ -127,12 +127,6 @@ impl TestEnv {
     pub fn create_kley_lock(&self, content: &str) {
         let mut kley_lock_file = fs::File::create(self.project_dir.join("kley.lock")).unwrap();
         kley_lock_file.write_all(content.as_bytes()).unwrap();
-    }
-}
-
-impl Drop for TestEnv {
-    fn drop(&mut self) {
-        // temp_dir will be automatically cleaned up by tempfile
     }
 }
 

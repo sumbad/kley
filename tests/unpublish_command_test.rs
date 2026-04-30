@@ -23,14 +23,14 @@ fn test_unpublish_soft() -> Result<(), Box<dyn std::error::Error>> {
     // Publish and add the package
     Command::cargo_bin("kley")?
         .current_dir(&source_project_path)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .arg("publish")
         .assert()
         .success();
 
     Command::cargo_bin("kley")?
         .current_dir(&target_project_path)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .arg("add")
         .arg("source_project")
         .assert()
@@ -40,7 +40,7 @@ fn test_unpublish_soft() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("kley")?;
     let mut child = cmd
         .current_dir(&source_project_path)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .arg("unpublish")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -96,13 +96,13 @@ fn test_unpublish_hard_push() -> Result<(), Box<dyn std::error::Error>> {
     // Publish both source projects
     Command::cargo_bin("kley")?
         .current_dir(&source_a_path)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .arg("publish")
         .assert()
         .success();
     Command::cargo_bin("kley")?
         .current_dir(&source_b_path)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .arg("publish")
         .assert()
         .success();
@@ -110,13 +110,13 @@ fn test_unpublish_hard_push() -> Result<(), Box<dyn std::error::Error>> {
     // Add A and B to target_1
     Command::cargo_bin("kley")?
         .current_dir(&target_1_path)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .args(["add", "source_a"])
         .assert()
         .success();
     Command::cargo_bin("kley")?
         .current_dir(&target_1_path)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .args(["add", "source_b"])
         .assert()
         .success();
@@ -124,7 +124,7 @@ fn test_unpublish_hard_push() -> Result<(), Box<dyn std::error::Error>> {
     // Add A to target_2
     Command::cargo_bin("kley")?
         .current_dir(&target_2_path)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .args(["add", "source_a"])
         .assert()
         .success();
@@ -133,7 +133,7 @@ fn test_unpublish_hard_push() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("kley")?;
     let mut child = cmd
         .current_dir(&source_a_path)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .args(["unpublish", "--push"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

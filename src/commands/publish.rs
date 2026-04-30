@@ -9,7 +9,7 @@ use tracing;
 use crate::commands::update::run_update;
 use crate::package::Package;
 use crate::registry::*;
-use crate::utils::normalized_path;
+use crate::utils::{get_kley_home_dir, normalized_path};
 
 /// Publish logic
 pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
@@ -142,7 +142,7 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
                     "{}",
                     format!(
                         "✔️ Updated {} to the latest version of {}",
-                        normalized_path(&project_dir, dirs::home_dir().as_ref()).white(),
+                        normalized_path(&project_dir, get_kley_home_dir().ok().as_ref()).white(),
                         &package.json.name.cyan()
                     )
                     .green()
@@ -201,10 +201,10 @@ mod tests {
     fn test_publish_filtering_logic() -> Result<()> {
         let original_dir = std::env::current_dir()?;
         let tmp_home_dir = tempdir()?;
-        let home_dir = tmp_home_dir.path();
-        let store_path = home_dir.join(".kley/packages/test-pkg");
+        unsafe { std::env::set_var("KLEY_HOME", tmp_home_dir.path()); }
+        let store_path = tmp_home_dir.path().join(".kley/packages/test-pkg");
 
-        let mut registry = Registry::new(home_dir.to_path_buf())?;
+        let mut registry = Registry::new()?;
 
         // --- SCENARIO 1: .npmignore exists ---
         {

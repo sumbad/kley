@@ -39,7 +39,7 @@ fn test_link_command_e2e() -> Result<()> {
     // 2. Publish the library to our temporary kley store
     let mut publish_cmd = Command::cargo_bin("kley")?;
     publish_cmd
-        .env("HOME", temp_home.path()) // Isolate kley store
+        .env("KLEY_HOME", temp_home.path()) // Isolate kley store
         .arg("publish")
         .current_dir(lib_dir.path());
 
@@ -53,7 +53,7 @@ fn test_link_command_e2e() -> Result<()> {
     // 3. Run the link command in the app directory
     let mut link_cmd = Command::cargo_bin("kley")?;
     link_cmd
-        .env("HOME", temp_home.path()) // Use the same isolated store
+        .env("KLEY_HOME", temp_home.path()) // Use the same isolated store
         .arg("link")
         .arg("test-lib")
         .current_dir(app_dir.path());

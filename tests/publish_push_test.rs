@@ -34,7 +34,7 @@ fn test_publish_push_flow() -> Result<(), Box<dyn std::error::Error>> {
     // 2. Initial publish and setup
     Command::cargo_bin("kley")?
         .current_dir(&lib_dir)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .arg("publish")
         .assert()
         .success();
@@ -42,7 +42,7 @@ fn test_publish_push_flow() -> Result<(), Box<dyn std::error::Error>> {
     // Add to app-a
     Command::cargo_bin("kley")?
         .current_dir(&app_a_dir)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .arg("add")
         .arg("my-lib")
         .assert()
@@ -51,7 +51,7 @@ fn test_publish_push_flow() -> Result<(), Box<dyn std::error::Error>> {
     // Link to app-b
     Command::cargo_bin("kley")?
         .current_dir(&app_b_dir)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .arg("link")
         .arg("my-lib")
         .assert()
@@ -72,7 +72,7 @@ fn test_publish_push_flow() -> Result<(), Box<dyn std::error::Error>> {
 
     Command::cargo_bin("kley")?
         .current_dir(&lib_dir)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .args(["publish", "--push"])
         .assert()
         .success()

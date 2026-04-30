@@ -19,7 +19,7 @@ fn test_add_command_preserves_order() -> Result<()> {
 
     let mut cmd = Command::cargo_bin("kley")?;
     let assert = cmd
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .env("RUST_LOG", "debug")
         .current_dir(&lib_dir)
         .arg("publish")
@@ -46,7 +46,7 @@ fn test_add_command_preserves_order() -> Result<()> {
     let mut cmd = Command::cargo_bin("kley")?;
 
     let assert = cmd
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .env("RUST_LOG", "debug")
         .current_dir(proj_path)
         .arg("add")
