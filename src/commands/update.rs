@@ -99,8 +99,8 @@ mod kley_lock_tests {
         let project_dir = dir.path();
 
         let tmp_home_dir = tempdir()?;
-        let home_dir = tmp_home_dir.path();
-        let mut registry = Registry::new(home_dir.to_path_buf())?;
+        unsafe { std::env::set_var("KLEY_HOME", tmp_home_dir.path()); }
+        let mut registry = Registry::new()?;
 
         let package_name = "test-lib";
         // Create a dummy package.json in a dummy source path
@@ -128,8 +128,8 @@ mod kley_lock_tests {
         let project_dir = dir.path();
 
         let tmp_home_dir = tempdir()?;
-        let home_dir = tmp_home_dir.path();
-        let mut registry = Registry::new(home_dir.to_path_buf())?;
+        unsafe { std::env::set_var("KLEY_HOME", tmp_home_dir.path()); }
+        let mut registry = Registry::new()?;
 
         let package_name = "test-lib";
         // Create a dummy source package

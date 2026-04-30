@@ -51,7 +51,7 @@ fn test_registry_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
 
     // 2. TEST `kley publish`
     cmd.current_dir(&lib_dir)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .arg("publish")
         .assert()
         .success();
@@ -69,7 +69,7 @@ fn test_registry_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
     // 3. TEST `kley add`
     Command::cargo_bin("kley")?
         .current_dir(&app_dir)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .arg("add")
         .arg("my-lib")
         .assert()
@@ -84,7 +84,7 @@ fn test_registry_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
     // 4. TEST `kley link`
     Command::cargo_bin("kley")?
         .current_dir(&app_dir_2)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .arg("link")
         .arg("my-lib")
         .assert()
@@ -104,7 +104,7 @@ fn test_registry_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
     // 5. TEST `kley remove` from first app
     Command::cargo_bin("kley")?
         .current_dir(&app_dir)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .arg("remove")
         .arg("my-lib")
         .assert()
@@ -123,7 +123,7 @@ fn test_registry_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
     // 6. TEST `kley remove` from second app
     Command::cargo_bin("kley")?
         .current_dir(&app_dir_2)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .arg("remove")
         .arg("my-lib")
         .assert()

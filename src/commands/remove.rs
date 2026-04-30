@@ -7,7 +7,7 @@ use std::path::Path;
 
 use crate::lockfile::Lockfile;
 use crate::registry::Registry;
-use crate::utils::{detect_indent, normalized_path};
+use crate::utils::{detect_indent, get_kley_home_dir, normalized_path};
 
 pub fn remove(
     registry: &mut Registry,
@@ -39,7 +39,7 @@ pub fn remove(
             fs::remove_dir_all(&local_store)?;
             tracing::info!(
                 "removed directory: {}",
-                normalized_path(&local_store, dirs::home_dir().as_ref())
+                normalized_path(&local_store, get_kley_home_dir().ok().as_ref())
             );
         }
 
@@ -72,7 +72,7 @@ pub fn remove_package(
         fs::remove_dir_all(&local_store_package_dir)?;
         tracing::info!(
             "removed directory: {}",
-            normalized_path(&local_store_package_dir, dirs::home_dir().as_ref())
+            normalized_path(&local_store_package_dir, get_kley_home_dir().ok().as_ref())
         );
     }
 
@@ -272,8 +272,8 @@ mod tests {
     #[test]
     fn test_remove_single_package() -> Result<()> {
         let tmp_home_dir = tempdir()?;
-        let home_dir = tmp_home_dir.path();
-        let mut registry = Registry::new(home_dir.to_path_buf())?;
+        unsafe { std::env::set_var("KLEY_HOME", tmp_home_dir.path()); }
+        let mut registry = Registry::new()?;
 
         let proj_dir = tempdir()?;
         let proj_path = proj_dir.path();
@@ -315,8 +315,8 @@ mod tests {
     #[test]
     fn test_remove_all_packages() -> Result<()> {
         let tmp_home_dir = tempdir()?;
-        let home_dir = tmp_home_dir.path();
-        let mut registry = Registry::new(home_dir.to_path_buf())?;
+        unsafe { std::env::set_var("KLEY_HOME", tmp_home_dir.path()); }
+        let mut registry = Registry::new()?;
 
         let proj_dir = tempdir()?;
         let proj_path = proj_dir.path();
@@ -349,8 +349,8 @@ mod tests {
     #[test]
     fn test_remove_is_idempotent() -> Result<()> {
         let tmp_home_dir = tempdir()?;
-        let home_dir = tmp_home_dir.path();
-        let mut registry = Registry::new(home_dir.to_path_buf())?;
+        unsafe { std::env::set_var("KLEY_HOME", tmp_home_dir.path()); }
+        let mut registry = Registry::new()?;
 
         let proj_dir = tempdir()?;
         let proj_path = proj_dir.path();
@@ -375,8 +375,8 @@ mod tests {
     #[test]
     fn test_remove_missing_file() -> Result<()> {
         let tmp_home_dir = tempdir()?;
-        let home_dir = tmp_home_dir.path();
-        let mut registry = Registry::new(home_dir.to_path_buf())?;
+        unsafe { std::env::set_var("KLEY_HOME", tmp_home_dir.path()); }
+        let mut registry = Registry::new()?;
 
         let proj_dir = tempdir()?;
         let proj_path = proj_dir.path();

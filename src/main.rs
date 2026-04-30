@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::builder::styling::{AnsiColor, Styles};
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
@@ -71,11 +71,9 @@ fn main() -> Result<()> {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    let home_dir = dirs::home_dir().context("Failed to find home directory")?;
-
     let cli = Cli::parse();
     let project_dir = std::env::current_dir()?;
-    let mut registry = Registry::new(home_dir)?;
+    let mut registry = Registry::new()?;
 
     match &cli.command {
         Commands::Publish { push } => commands::publish::publish(&mut registry, *push)?,

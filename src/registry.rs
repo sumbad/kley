@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::utils::current_formatted_time;
+use crate::utils::{current_formatted_time, get_kley_home_dir};
 
 pub static REGISTRY_DIR_NAME: &str = ".kley";
 pub static REGISTRY_FILE_NAME: &str = "registry.json";
@@ -30,7 +30,8 @@ pub struct Registry {
 }
 
 impl Registry {
-    pub fn new(home_dir: PathBuf) -> Result<Registry> {
+    pub fn new() -> Result<Registry> {
+        let home_dir = get_kley_home_dir()?;
         let registry_dir = home_dir.join(REGISTRY_DIR_NAME);
         let registry_file = registry_dir.join(REGISTRY_FILE_NAME);
 

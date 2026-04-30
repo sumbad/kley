@@ -121,6 +121,12 @@ pub fn normalized_path(path: &Path, home: Option<&PathBuf>) -> String {
     path.to_string_lossy().into_owned()
 }
 
+pub fn get_kley_home_dir() -> Result<PathBuf> {
+    std::env::var("KLEY_HOME")
+        .map(PathBuf::from)
+        .or_else(|_| dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Failed to find home directory")))
+}
+
 pub fn package_name_version_parse(package_name_version: &str) -> (&str, Option<&str>) {
     if let Some((name, version)) = package_name_version.rsplit_once('@') {
         if !name.is_empty() {

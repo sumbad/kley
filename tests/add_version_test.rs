@@ -20,7 +20,7 @@ fn test_add_package_with_version_syntax() -> Result<(), Box<dyn std::error::Erro
     // 2. PUBLISH: Publish the library to the local kley registry
     Command::cargo_bin("kley")?
         .current_dir(&lib_dir)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .arg("publish")
         .assert()
         .success();
@@ -33,7 +33,7 @@ fn test_add_package_with_version_syntax() -> Result<(), Box<dyn std::error::Erro
     // 4. EXECUTE & ASSERT: Try to add the package using "name@version" syntax
     Command::cargo_bin("kley")?
         .current_dir(&app_dir)
-        .env("HOME", home_dir)
+        .env("KLEY_HOME", home_dir)
         .arg("add")
         .arg("test-lib@1.0.0") // Using the version syntax
         .assert()
