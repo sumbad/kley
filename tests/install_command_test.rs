@@ -38,6 +38,7 @@ fn test_install_command_npm_project() {
 
     let pm_log_content = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
     assert!(pm_log_content.contains("npm install"));
+    assert!(pm_log_content.contains("--ignore-scripts"));
 }
 
 #[test]
@@ -77,6 +78,7 @@ fn test_install_command_pnpm_project() {
 
     let pm_log_content = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
     assert!(pm_log_content.contains("pnpm add"));
+    assert!(pm_log_content.contains("--ignore-scripts"));
 }
 
 #[test]
@@ -114,6 +116,7 @@ fn test_install_command_yarn_project() {
 
     let pm_log_content = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
     assert!(pm_log_content.contains("yarn add"));
+    assert!(pm_log_content.contains("--ignore-scripts"));
 }
 
 #[test]
@@ -159,4 +162,5 @@ fn test_install_command_kley_lock_pm_override() {
 
     let pm_log_content = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
     assert!(pm_log_content.contains("pnpm add"));
+    assert!(pm_log_content.contains("--ignore-scripts"));
 }

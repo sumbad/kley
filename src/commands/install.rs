@@ -35,18 +35,27 @@ pub fn install(
     let pnpm_command = std::env::var("KLEY_USE_PNPM_COMMAND").unwrap_or("pnpm".to_string());
     let yarn_command = std::env::var("KLEY_USE_YARN_COMMAND").unwrap_or("yarn".to_string());
 
+    let (cmd_name, cmd_args): (&str, Vec<&str>) = match package.manager_type {
+        PackageManagerType::Pnpm => (&pnpm_command, vec!["add", pkg_kley_path_str, "--ignore-scripts"]),
+        PackageManagerType::Yarn => (&yarn_command, vec!["add", pkg_kley_path_str, "--ignore-scripts"]),
+        PackageManagerType::Npm => (&npm_command, vec!["install", pkg_kley_path_str, "--ignore-scripts"]),
+    };
+
+    let cmd_display = format!("{} {}", cmd_name, cmd_args.join(" "));
+    println!(
+        "{}",
+        format!("⏳ Running {}...", cmd_display.dimmed())
+    );
+
     let status = match package.manager_type {
         PackageManagerType::Pnpm => Command::new(&pnpm_command)
-            .arg("add")
-            .arg(pkg_kley_path_str)
+            .args(&cmd_args)
             .status(),
         PackageManagerType::Yarn => Command::new(&yarn_command)
-            .arg("add")
-            .arg(pkg_kley_path_str)
+            .args(&cmd_args)
             .status(),
         PackageManagerType::Npm => Command::new(&npm_command)
-            .arg("install")
-            .arg(pkg_kley_path_str)
+            .args(&cmd_args)
             .status(),
     }
     .expect("Failed to run command");

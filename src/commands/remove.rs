@@ -272,8 +272,7 @@ mod tests {
     #[test]
     fn test_remove_single_package() -> Result<()> {
         let tmp_home_dir = tempdir()?;
-        unsafe { std::env::set_var("KLEY_HOME", tmp_home_dir.path()); }
-        let mut registry = Registry::new()?;
+        let mut registry = Registry::with_home_dir(tmp_home_dir.path())?;
 
         let proj_dir = tempdir()?;
         let proj_path = proj_dir.path();
@@ -315,8 +314,7 @@ mod tests {
     #[test]
     fn test_remove_all_packages() -> Result<()> {
         let tmp_home_dir = tempdir()?;
-        unsafe { std::env::set_var("KLEY_HOME", tmp_home_dir.path()); }
-        let mut registry = Registry::new()?;
+        let mut registry = Registry::with_home_dir(tmp_home_dir.path())?;
 
         let proj_dir = tempdir()?;
         let proj_path = proj_dir.path();
@@ -349,8 +347,7 @@ mod tests {
     #[test]
     fn test_remove_is_idempotent() -> Result<()> {
         let tmp_home_dir = tempdir()?;
-        unsafe { std::env::set_var("KLEY_HOME", tmp_home_dir.path()); }
-        let mut registry = Registry::new()?;
+        let mut registry = Registry::with_home_dir(tmp_home_dir.path())?;
 
         let proj_dir = tempdir()?;
         let proj_path = proj_dir.path();
@@ -375,8 +372,7 @@ mod tests {
     #[test]
     fn test_remove_missing_file() -> Result<()> {
         let tmp_home_dir = tempdir()?;
-        unsafe { std::env::set_var("KLEY_HOME", tmp_home_dir.path()); }
-        let mut registry = Registry::new()?;
+        let mut registry = Registry::with_home_dir(tmp_home_dir.path())?;
 
         let proj_dir = tempdir()?;
         let proj_path = proj_dir.path();

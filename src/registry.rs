@@ -32,6 +32,16 @@ pub struct Registry {
 impl Registry {
     pub fn new() -> Result<Registry> {
         let home_dir = get_kley_home_dir()?;
+        Registry::from_home_dir(&home_dir)
+    }
+
+    /// Create a Registry with an explicit home directory.
+    /// Used for testing to avoid mutating global env vars.
+    pub fn with_home_dir(home_dir: &Path) -> Result<Registry> {
+        Registry::from_home_dir(home_dir)
+    }
+
+    fn from_home_dir(home_dir: &Path) -> Result<Registry> {
         let registry_dir = home_dir.join(REGISTRY_DIR_NAME);
         let registry_file = registry_dir.join(REGISTRY_FILE_NAME);
 

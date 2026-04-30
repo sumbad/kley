@@ -1,6 +1,7 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use colored::*;
+use dirs::home_dir;
 use std::{
     fs,
     io::{self, Write},
@@ -124,7 +125,7 @@ pub fn normalized_path(path: &Path, home: Option<&PathBuf>) -> String {
 pub fn get_kley_home_dir() -> Result<PathBuf> {
     std::env::var("KLEY_HOME")
         .map(PathBuf::from)
-        .or_else(|_| dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Failed to find home directory")))
+        .or_else(|_| home_dir().ok_or_else(|| anyhow::anyhow!("Failed to find home directory")))
 }
 
 pub fn package_name_version_parse(package_name_version: &str) -> (&str, Option<&str>) {
