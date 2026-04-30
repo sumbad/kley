@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.6.0] - 2026-04-30
 
 ### Added
 - **`install` Command**: Implemented `kley install <package-name>` (alias `i`) — a one-step command that combines `add` and native package manager installation. It detects the project's package manager, copies the package to `.kley/`, updates `kley.lock`, and delegates the final installation to `npm`, `pnpm`, or `yarn`.
