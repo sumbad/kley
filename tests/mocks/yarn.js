@@ -39,7 +39,7 @@ if (mode !== 'none') {
   const pkgJsonPath = path.resolve('package.json');
   const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
   pkg[mode] = pkg[mode] || {};
-  pkg[mode][pkgName] = `file:${pkgPath}`;
+  pkg[mode][pkgName] = `file:${pkgPath.replace(/\\/g, '/')}`;
   fs.writeFileSync(pkgJsonPath, JSON.stringify(pkg, null, 2));
 }
 

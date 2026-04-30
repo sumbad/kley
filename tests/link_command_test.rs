@@ -82,11 +82,19 @@ fn test_link_command_e2e() -> Result<()> {
     );
 
     // b. Check that the symlink points to the local .kley copy
+    // Use canonicalize on both sides to handle platform differences:
+    // - Windows: canonicalize may return UNC path (\\?\C:\...) vs normal path
+    // - Windows: 8.3 short names (RUNNER~1) vs long names (runneradmin)
     let link_target = fs::read_link(&symlink_path)?;
-    assert_eq!(
+    let link_target_canonical = fs::canonicalize(&link_target)?;
+    let local_copy_canonical = fs::canonicalize(&local_copy_path)?;
+    assert!(
+        link_target_canonical == local_copy_canonical
+            || link_target.to_string_lossy().replace('\\', "/")
+                == local_copy_path.to_string_lossy().replace('\\', "/"),
+        "Symlink should point to the .kley directory\n  link target: {:?}\n  expected:    {:?}",
         link_target,
-        fs::canonicalize(&local_copy_path)?,
-        "Symlink should point to the .kley directory"
+        local_copy_path
     );
 
     // c. Check that the local .kley copy exists and has content

@@ -6,10 +6,10 @@ const path = require('path');
 const args = process.argv.slice(2);
 
 // Log the command
-fs.appendFileSync('pm.log', `pnpm ${args.join(' ')}\n`);
+fs.appendFileSync('pm.log', `npm ${args.join(' ')}\n`);
 
 const cmd = args[0];
-if (cmd !== 'add') {
+if (cmd !== 'install' && cmd !== 'i') {
   process.exit(0);
 }
 
@@ -39,27 +39,18 @@ if (mode !== 'none') {
   const pkgJsonPath = path.resolve('package.json');
   const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
   pkg[mode] = pkg[mode] || {};
-  pkg[mode][pkgName] = `file:${pkgPath}`;
+  pkg[mode][pkgName] = `file:${pkgPath.replace(/\\/g, '/')}`;
   fs.writeFileSync(pkgJsonPath, JSON.stringify(pkg, null, 2));
 }
 
-// Create node_modules/.pnpm and copy package
+// Create node_modules and copy package
 const nodeModules = path.resolve('node_modules');
-const pnpmStore = path.join(nodeModules, '.pnpm');
-fs.mkdirSync(pnpmStore, { recursive: true });
-
-const dest = path.join(pnpmStore, pkgName);
+fs.mkdirSync(nodeModules, { recursive: true });
+const dest = path.join(nodeModules, pkgName);
 if (fs.existsSync(dest)) {
   fs.rmSync(dest, { recursive: true, force: true });
 }
 fs.cpSync(pkgPath, dest, { recursive: true, force: true });
 
-// Create symlink (junction on Windows, symlink on Unix)
-const symlinkPath = path.join(nodeModules, pkgName);
-if (fs.existsSync(symlinkPath)) {
-  fs.rmSync(symlinkPath, { recursive: true, force: true });
-}
-fs.symlinkSync(dest, symlinkPath, 'junction');
-
 // Create lock file marker
-fs.writeFileSync(path.resolve('pnpm-lock.yaml'), '');
+fs.writeFileSync(path.resolve('package-lock.json'), '');
