@@ -1,58 +1,65 @@
-#!/usr/bin/env bash
-set -e
+#!/usr/bin/env node
 
-echo "pnpm $@" >> pm.log
-
-CMD="$1"
-shift
-
-if [[ "$CMD" != "add" ]]; then
-  exit 0
-fi
-
-MODE="dependencies"
-PKG_PATH=""
-
-for arg in "$@"; do
-  case "$arg" in
-    -D|--save-dev)
-      MODE="devDependencies"
-      ;;
-    --no-save)
-      MODE="none"
-      ;;
-    -*)
-      ;;
-    *)
-      PKG_PATH="$arg"
-      ;;
-  esac
-done
-
-[ -z "$PKG_PATH" ] && exit 0
-
-PKG_NAME=$(basename "$PKG_PATH")
-
-if [ "$MODE" != "none" ]; then
-node <<EOF
 const fs = require('fs');
+const path = require('path');
 
-const pkg = JSON.parse(fs.readFileSync('package.json'));
-pkg["$MODE"] ||= {};
-pkg["$MODE"]["$PKG_NAME"] = "file:$PKG_PATH";
+const args = process.argv.slice(2);
 
-fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
-EOF
-fi
+// Log the command
+fs.appendFileSync('pm.log', `pnpm ${args.join(' ')}\n`);
 
-mkdir -p node_modules/.pnpm
-rm -rf "node_modules/$PKG_NAME"
+const cmd = args[0];
+if (cmd !== 'add') {
+  process.exit(0);
+}
 
-STORE_PATH="node_modules/.pnpm/$PKG_NAME"
+let mode = 'dependencies';
+let pkgPath = null;
 
-rm -rf "$STORE_PATH"
-cp -R "$PKG_PATH" "$STORE_PATH" 2>/dev/null || true
+for (let i = 1; i < args.length; i++) {
+  const arg = args[i];
+  if (arg === '-D' || arg === '--save-dev') {
+    mode = 'devDependencies';
+  } else if (arg === '--no-save') {
+    mode = 'none';
+  } else if (arg.startsWith('-')) {
+    // skip other flags
+  } else {
+    pkgPath = arg;
+  }
+}
 
-ln -sf "$(realpath "$STORE_PATH")" "node_modules/$PKG_NAME"
+if (!pkgPath) {
+  process.exit(0);
+}
 
-touch pnpm-lock.yaml
+const pkgName = path.basename(pkgPath);
+
+if (mode !== 'none') {
+  const pkgJsonPath = path.resolve('package.json');
+  const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+  pkg[mode] = pkg[mode] || {};
+  pkg[mode][pkgName] = `file:${pkgPath}`;
+  fs.writeFileSync(pkgJsonPath, JSON.stringify(pkg, null, 2));
+}
+
+// Create node_modules/.pnpm and copy package
+const nodeModules = path.resolve('node_modules');
+const pnpmStore = path.join(nodeModules, '.pnpm');
+fs.mkdirSync(pnpmStore, { recursive: true });
+
+const dest = path.join(pnpmStore, pkgName);
+if (fs.existsSync(dest)) {
+  fs.rmSync(dest, { recursive: true, force: true });
+}
+fs.cpSync(pkgPath, dest, { recursive: true, force: true });
+
+// Create symlink (junction on Windows, symlink on Unix)
+const symlinkPath = path.join(nodeModules, pkgName);
+if (fs.existsSync(symlinkPath)) {
+  fs.rmSync(symlinkPath, { recursive: true, force: true });
+}
+fs.symlinkSync(dest, symlinkPath, 'junction');
+
+// Create lock file marker
+fs.writeFileSync(path.resolve('pnpm-lock.yaml'), '');
