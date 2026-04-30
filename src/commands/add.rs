@@ -7,47 +7,13 @@ use std::path::Path;
 
 use crate::commands::update::run_update;
 use crate::registry::Registry;
-use crate::utils::{detect_indent, work_dirs};
+use crate::utils::{self, detect_indent, work_dirs};
 
 /// Add logic
 pub fn add(registry: &mut Registry, package_name_version: &str, is_dev: bool) -> Result<()> {
-    let (package_name, package_version) =
-        if let Some((name, version)) = package_name_version.rsplit_once('@') {
-            (name, Some(version))
-        } else {
-            (package_name_version, None)
-        };
+    let (package_name, package_version) = utils::package_name_version_parse(package_name_version);
 
-    let registry_pkg_version = registry.get_pkg_version(package_name);
-    let has_version_in_registry = package_version.is_none()
-        || registry_pkg_version == package_version
-        || package_version.is_some_and(|it| it == "latest");
-
-    if registry_pkg_version.is_none() || !has_version_in_registry {
-        let help = if registry_pkg_version.is_some() {
-            format!(
-                "Try to add the latest version from the registry `kley add {}`",
-                package_name
-            )
-        } else {
-            format!(
-                "Run `kley publish` in the {} package folder first",
-                package_name.cyan()
-            )
-        };
-
-        eprintln!(
-            "{}\n{}",
-            format!(
-                "❌ Error: {} not found in the registry",
-                package_name_version.cyan()
-            )
-            .red(),
-            help.italic().dimmed()
-        );
-
-        std::process::exit(1);
-    }
+    utils::validate_version_in_registry(registry, package_name, package_version);
 
     let dirs = work_dirs(package_name)?;
 

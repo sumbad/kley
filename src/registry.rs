@@ -10,17 +10,17 @@ pub static REGISTRY_DIR_NAME: &str = ".kley";
 pub static REGISTRY_FILE_NAME: &str = "registry.json";
 
 #[derive(Serialize, Deserialize, Debug, Default)]
-struct RegistryData {
+pub struct RegistryData {
     #[serde(default)]
-    packages: BTreeMap<String, PackageMetadata>,
+    pub packages: BTreeMap<String, PackageMetadata>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-struct PackageMetadata {
-    version: String,
-    last_updated: String,
-    installations: Vec<PathBuf>,
+pub struct PackageMetadata {
+    pub version: String,
+    pub last_updated: String,
+    pub installations: Vec<PathBuf>,
 }
 
 pub struct Registry {
@@ -157,7 +157,22 @@ impl Registry {
     }
 
     pub fn get_pkg_version(&self, package_name: &str) -> Option<&str> {
-        self.data.packages.get(package_name).map(|it| it.version.as_str())
+        self.data
+            .packages
+            .get(package_name)
+            .map(|it| it.version.as_str())
+    }
+
+    pub fn has_version_in_registry(
+        &self,
+        package_name: &str,
+        package_version: Option<&str>,
+    ) -> bool {
+        let registry_pkg_version = self.get_pkg_version(package_name);
+
+        package_version.is_none()
+            || registry_pkg_version == package_version
+            || (registry_pkg_version.is_some() && package_version == Some("latest"))
     }
 
     fn save(&mut self) -> Result<()> {

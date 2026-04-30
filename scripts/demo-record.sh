@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-for scenario in 1 2; do
+for scenario in 0 1 2; do
     bash ./scripts/demo-prepare.sh
     (
         cd ./.temp || exit 1

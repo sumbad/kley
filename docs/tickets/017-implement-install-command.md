@@ -52,3 +52,23 @@ sequenceDiagram
 - The command correctly identifies and uses the project's native package manager.
 - After execution, the package is correctly installed and ready for use without any manual steps.
 - `package.json` and `kley.lock` are correctly updated.
+
+## 4. Advanced Configuration: Overriding Package Manager Commands
+
+To provide flexibility for both testing and users with non-standard setups (e.g., using version managers like `volta`), the `install` command supports overriding the default package manager executables via environment variables.
+
+-   **`KLEY_USE_NPM_COMMAND`**: If set, its value will be used instead of `npm`.
+-   **`KLEY_USE_YARN_COMMAND`**: If set, its value will be used instead of `yarn`.
+-   **`KLEY_USE_PNPM_COMMAND`**: If set, its value will be used instead of `pnpm`.
+
+### Example
+
+```bash
+# Use a globally installed pnpm via volta
+export KLEY_USE_PNPM_COMMAND="/Users/me/.volta/bin/pnpm"
+
+# kley will now execute the command at the specified path
+kley install my-package
+```
+
+This mechanism is used internally by the test suite to inject mock package managers, ensuring fast, reliable, and hermetic integration tests.

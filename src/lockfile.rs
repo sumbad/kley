@@ -76,8 +76,6 @@ impl Lockfile {
     }
 
     fn path(dir: &Path) -> PathBuf {
-        let lock_path = dir.join("kley.lock");
-
-        lock_path
+        dir.join("kley.lock")
     }
 }

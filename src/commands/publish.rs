@@ -150,10 +150,14 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
             }
         }
     } else {
-        let add_cmd = format!("     kley add {}", package.json.name).cyan();
-        let link_cmd = format!("     kley link {}", package.json.name).cyan();
+        let install_cmd = format!("     kley install {}", package.json.name).cyan();
+        let other_cmds = format!(
+            "(or `kley add {}` / `kley link {}` for other workflows)",
+            package.json.name, package.json.name
+        )
+        .dimmed();
 
-        let note_msg = format!("To use it, run:\n{}\nor\n{}", add_cmd, link_cmd,)
+        let note_msg = format!("To use it, run:\n{}\n\n{}", install_cmd, other_cmds)
             .italic()
             .dimmed();
 
