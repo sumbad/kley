@@ -45,6 +45,7 @@ kanban
         "Add progress indicators"<br/><br/>@{ assigned: VI, priority: 'Low' }
 
     [Todo]
+        "Add --dev flag to install command"<br/><br/>@{ assigned: III, priority: 'Low', ticket: '021-install-dev-flag' }
         "Implement install no args as Update All"<br/><br/>@{ assigned: III, priority: 'High', ticket: '020-install-no-args-as-update' }
         "Future: Implement Fast Install Optimization"<br/><br/>@{ assigned: III, priority: 'High', ticket: '019-fast-install-optimization' }
 
