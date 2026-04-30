@@ -201,10 +201,9 @@ mod tests {
     fn test_publish_filtering_logic() -> Result<()> {
         let original_dir = std::env::current_dir()?;
         let tmp_home_dir = tempdir()?;
-        unsafe { std::env::set_var("KLEY_HOME", tmp_home_dir.path()); }
         let store_path = tmp_home_dir.path().join(".kley/packages/test-pkg");
 
-        let mut registry = Registry::new()?;
+        let mut registry = Registry::with_home_dir(tmp_home_dir.path())?;
 
         // --- SCENARIO 1: .npmignore exists ---
         {
