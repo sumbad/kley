@@ -109,14 +109,27 @@ impl TestEnv {
         // Get absolute paths to the mock scripts
         let mut mocks_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         mocks_dir.push("tests/mocks");
-        let npm_mock_path = mocks_dir.join("npm");
-        let pnpm_mock_path = mocks_dir.join("pnpm");
-        let yarn_mock_path = mocks_dir.join("yarn");
+
+        // On Windows, use .cmd wrappers; on Unix, use .sh wrappers.
+        // Both delegate to the .js scripts via Node.js.
+        let (npm_mock, pnpm_mock, yarn_mock) = if cfg!(target_os = "windows") {
+            (
+                mocks_dir.join("npm.cmd"),
+                mocks_dir.join("pnpm.cmd"),
+                mocks_dir.join("yarn.cmd"),
+            )
+        } else {
+            (
+                mocks_dir.join("npm.sh"),
+                mocks_dir.join("pnpm.sh"),
+                mocks_dir.join("yarn.sh"),
+            )
+        };
 
         // Set env vars to point to the mock scripts
-        cmd.env("KLEY_USE_NPM_COMMAND", npm_mock_path);
-        cmd.env("KLEY_USE_PNPM_COMMAND", pnpm_mock_path);
-        cmd.env("KLEY_USE_YARN_COMMAND", yarn_mock_path);
+        cmd.env("KLEY_USE_NPM_COMMAND", npm_mock);
+        cmd.env("KLEY_USE_PNPM_COMMAND", pnpm_mock);
+        cmd.env("KLEY_USE_YARN_COMMAND", yarn_mock);
         cmd.env("KLEY_HOME", self.temp_dir.path());
 
         cmd.current_dir(&self.project_dir).args(args);
@@ -154,4 +167,22 @@ pub fn setup_kley_and_project(
     fs::create_dir_all(project_path.join(".kley"))?;
     fs::write(project_path.join("kley.lock"), r#"{"packages":{}}"#)?;
     Ok(())
+}
+
+/// Compares two paths for equality in a platform-independent way.
+/// Handles Windows-specific issues:
+/// - UNC prefix: `\\?\C:\...` vs `C:\...`
+/// - 8.3 short names: `RUNNER~1` vs `runneradmin`
+/// - Backslashes vs forward slashes
+pub fn paths_match(a: &Path, b: &Path) -> bool {
+    // Try canonicalize both — resolves symlinks, UNC prefixes, short names
+    if let (Ok(ca), Ok(cb)) = (fs::canonicalize(a), fs::canonicalize(b)) {
+        if ca == cb {
+            return true;
+        }
+    }
+    // Fallback: string comparison with normalized separators
+    let a_str = a.to_string_lossy().replace('\\', "/");
+    let b_str = b.to_string_lossy().replace('\\', "/");
+    a_str == b_str
 }

@@ -1,4 +1,7 @@
+mod common;
+
 use assert_cmd::prelude::*;
+use common::paths_match;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::fs;
@@ -79,7 +82,12 @@ fn test_registry_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
     let registry_after_add: Registry = serde_json::from_str(&fs::read_to_string(&registry_path)?)?;
     let lib_meta_after_add = registry_after_add.packages.get("my-lib").unwrap();
     assert_eq!(lib_meta_after_add.installations.len(), 1);
-    assert_eq!(lib_meta_after_add.installations[0], app_dir.canonicalize()?);
+    assert!(
+        paths_match(&lib_meta_after_add.installations[0], &app_dir),
+        "installation path {:?} should match {:?}",
+        lib_meta_after_add.installations[0],
+        app_dir
+    );
 
     // 4. TEST `kley link`
     Command::cargo_bin("kley")?
@@ -94,12 +102,22 @@ fn test_registry_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
     let registry_after_link: Registry = serde_json::from_str(&fs::read_to_string(&registry_path)?)?;
     let lib_meta_after_link = registry_after_link.packages.get("my-lib").unwrap();
     assert_eq!(lib_meta_after_link.installations.len(), 2);
-    assert!(lib_meta_after_link
-        .installations
-        .contains(&app_dir.canonicalize()?));
-    assert!(lib_meta_after_link
-        .installations
-        .contains(&app_dir_2.canonicalize()?));
+    assert!(
+        lib_meta_after_link
+            .installations
+            .iter()
+            .any(|p| paths_match(p, &app_dir)),
+        "installations should contain {:?}",
+        app_dir
+    );
+    assert!(
+        lib_meta_after_link
+            .installations
+            .iter()
+            .any(|p| paths_match(p, &app_dir_2)),
+        "installations should contain {:?}",
+        app_dir_2
+    );
 
     // 5. TEST `kley remove` from first app
     Command::cargo_bin("kley")?
@@ -115,9 +133,11 @@ fn test_registry_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
         serde_json::from_str(&fs::read_to_string(&registry_path)?)?;
     let lib_meta_after_remove1 = registry_after_remove1.packages.get("my-lib").unwrap();
     assert_eq!(lib_meta_after_remove1.installations.len(), 1);
-    assert_eq!(
+    assert!(
+        paths_match(&lib_meta_after_remove1.installations[0], &app_dir_2),
+        "remaining installation {:?} should match {:?}",
         lib_meta_after_remove1.installations[0],
-        app_dir_2.canonicalize()?
+        app_dir_2
     );
 
     // 6. TEST `kley remove` from second app
