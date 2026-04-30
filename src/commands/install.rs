@@ -35,22 +35,20 @@ pub fn install(
     let pnpm_command = std::env::var("KLEY_USE_PNPM_COMMAND").unwrap_or("pnpm".to_string());
     let yarn_command = std::env::var("KLEY_USE_YARN_COMMAND").unwrap_or("yarn".to_string());
 
-    let cmd_str = match package.manager_type {
-        PackageManagerType::Pnpm => format!("{} add {}", pnpm_command, pkg_kley_path_str),
-        PackageManagerType::Yarn => format!("{} add {}", yarn_command, pkg_kley_path_str),
-        PackageManagerType::Npm => format!("{} install {}", npm_command, pkg_kley_path_str),
-    };
-
-    let status = if cfg!(target_os = "windows") {
-        let mut cmd = Command::new("cmd");
-        cmd.args(["/C", &cmd_str]);
-        cmd
-    } else {
-        let mut cmd = Command::new("sh");
-        cmd.args(["-c", &cmd_str]);
-        cmd
+    let status = match package.manager_type {
+        PackageManagerType::Pnpm => Command::new(&pnpm_command)
+            .arg("add")
+            .arg(pkg_kley_path_str)
+            .status(),
+        PackageManagerType::Yarn => Command::new(&yarn_command)
+            .arg("add")
+            .arg(pkg_kley_path_str)
+            .status(),
+        PackageManagerType::Npm => Command::new(&npm_command)
+            .arg("install")
+            .arg(pkg_kley_path_str)
+            .status(),
     }
-    .status()
     .expect("Failed to run command");
 
     if !status.success() {

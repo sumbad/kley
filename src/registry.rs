@@ -172,7 +172,7 @@ impl Registry {
 
         package_version.is_none()
             || registry_pkg_version == package_version
-            || package_version.is_some_and(|it| it == "latest")
+            || (registry_pkg_version.is_some() && package_version == Some("latest"))
     }
 
     fn save(&mut self) -> Result<()> {
