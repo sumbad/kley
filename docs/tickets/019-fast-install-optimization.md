@@ -24,8 +24,30 @@ The `kley install` command can be augmented with the following logic **only when
     c. Skip the call to `npm install`.
 4.  **Fallback:** If any dependency is missing, `kley` will fall back to the standard behavior of delegating to the native package manager.
 
-## 3. Acceptance Criteria (for future implementation)
+## 3. Discovered Issue: devDependencies Leak
+
+**Status:** Confirmed during `kley install` testing (v0.6.0)
+
+When `kley install` delegates to the native package manager (e.g. `npm install <path>`), the PM installs **all** dependencies listed in the local package's `package.json` — including `devDependencies`. This is problematic because:
+
+- The package in `.kley/<pkg>/` is a **consumed** copy, not a development source. Its `devDependencies` (test runners, build tools, linters) are irrelevant to the consumer.
+- Installing them adds unnecessary packages to the consumer's `node_modules`, increasing install time and disk usage.
+- In real-world testing, `kley install @mail/features` caused `rollup-plugin-postcss` (a devDependency of the library) to be installed in the host project.
+
+**Why `--omit=dev` doesn't work:** This flag tells npm to skip devDependencies across the **entire dependency tree of the host project**, not just the added package. Using it causes the host project to lose its own devDependencies.
+
+### Proposed Fix (for this ticket)
+
+Strip `devDependencies` from `<project>/.kley/<pkg>/package.json` after copying from the registry. This way:
+
+1. The original package in the registry (`~/.kley/packages/<pkg>/`) retains its full `package.json` — needed for the library author.
+2. The local copy in the consuming project (`<project>/.kley/<pkg>/`) has `devDependencies` removed — PM won't install them.
+
+Implementation: modify `copy_from_registry()` in `src/utils.rs` to call a `strip_dev_dependencies()` function after the `fs_extra::dir::copy()` call. The function reads `package.json`, removes the `devDependencies` key, and writes it back.
+
+## 4. Acceptance Criteria (for future implementation)
 
 - When using `npm` or `yarn v1`, `kley install` is significantly faster if all dependencies are already met.
 - The "fast path" correctly verifies dependencies using semantic versioning.
 - The optimization does not run when `pnpm` or `yarn v2+` are detected.
+- `kley install` does not install `devDependencies` of the consumed package into the host project.

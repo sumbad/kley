@@ -247,7 +247,7 @@ A universal command that combines `add` and the native package manager installat
 
 - Supports `npm`, `pnpm`, and `yarn` out of the box.
 - To explicitly specify the package manager, set the `packageManager` value in `package.json` or `kley.lock`.
-- Override the package manager executable with environment variables: `KLEY_USE_NPM_COMMAND`, `KLEY_USE_PNPM_COMMAND`, `KLEY_USE_YARN_COMMAND`.
+- **Lifecycle scripts** (`preinstall`, `install`, `postinstall`) are **disabled by default** (`--ignore-scripts`) for safety. This prevents arbitrary code execution during install. If a package requires lifecycle scripts to function (e.g., native modules), run the package manager manually.
 
 > **Note:** If you need to add a package as a dev dependency (`--dev`), use `kley add --dev` instead and run the package manager manually.
 
@@ -273,6 +273,15 @@ This command updates installed packages to the latest version from the kley stor
 Run this command to cleanly remove a kley-managed dependency from your project. It will update `package.json` and `kley.lock`, and delete the package files from the `./.kley/` directory.
 
 - Use the `--all` flag to remove all kley-managed packages from the project.
+
+## Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `KLEY_HOME` | `~` (home directory) | The directory where kley stores its registry (`$KLEY_HOME/.kley/`). By default, kley uses your system's home directory. Override this to store the registry in a custom location (e.g., for CI/CD or isolated test environments). |
+| `KLEY_USE_NPM_COMMAND` | `npm` | Override the `npm` executable path. Useful for testing or when npm is not in `PATH`. |
+| `KLEY_USE_PNPM_COMMAND` | `pnpm` | Override the `pnpm` executable path. |
+| `KLEY_USE_YARN_COMMAND` | `yarn` | Override the `yarn` executable path. |
 
 ## Contributing
 
