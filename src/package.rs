@@ -1,4 +1,4 @@
-use anyhow::{self, Context, Result};
+use anyhow::{Context, Ok, Result};
 use std::{fs, path::Path};
 
 use serde::Deserialize;
@@ -68,6 +68,7 @@ impl Package {
             && !lf_pm.is_empty()
         // packageManager exists inside kley.lock and is not empty
         {
+            tracing::debug!("Detected package manager from kley.lock: {}", lf_pm);
             return Package::translate_pm_type(lf_pm);
         }
 
@@ -75,6 +76,7 @@ impl Package {
         if let Some(json_pm) = &package_json.package_manager
             && !json_pm.is_empty()
         {
+            tracing::debug!("Detected package manager from package.json: {}", json_pm);
             return Package::translate_pm_type(json_pm.as_str());
         }
 

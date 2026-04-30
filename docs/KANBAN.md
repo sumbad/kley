@@ -45,13 +45,13 @@ kanban
         "Add progress indicators"<br/><br/>@{ assigned: VI, priority: 'Low' }
 
     [Todo]
-        "Implement install Command"<br/><br/>@{ assigned: III, priority: 'High', ticket: '017-implement-install-command' }
         "Implement install no args as Update All"<br/><br/>@{ assigned: III, priority: 'High', ticket: '020-install-no-args-as-update' }
         "Future: Implement Fast Install Optimization"<br/><br/>@{ assigned: III, priority: 'High', ticket: '019-fast-install-optimization' }
 
     [In progress]
 
     Done
+        "Implement install Command"<br/><br/>@{ assigned: III, priority: 'High', ticket: '017-implement-install-command' }
         "Implement Robust Package Manager Detection"<br/><br/>@{ assigned: III, priority: 'High', ticket: '018-robust-pm-detection' }
         "Fix `add` command to support version syntax"<br/><br/>@{ assigned: II, priority: 'Very Low' }
         "More information for CLI description"<br/><br/>@{ assigned: VI, priority: 'Low' }

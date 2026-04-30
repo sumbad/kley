@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -e
+
+echo "npm $@" >> pm.log
+
+CMD="$1"
+shift
+
+if [[ "$CMD" != "install" && "$CMD" != "i" ]]; then
+  exit 0
+fi
+
+MODE="dependencies"
+PKG_PATH=""
+
+for arg in "$@"; do
+  case "$arg" in
+    -D|--save-dev)
+      MODE="devDependencies"
+      ;;
+    --no-save)
+      MODE="none"
+      ;;
+    -*)
+      ;;
+    *)
+      PKG_PATH="$arg"
+      ;;
+  esac
+done
+
+[ -z "$PKG_PATH" ] && exit 0
+
+PKG_NAME=$(basename "$PKG_PATH")
+
+if [ "$MODE" != "none" ]; then
+node <<EOF
+const fs = require('fs');
+
+const pkg = JSON.parse(fs.readFileSync('package.json'));
+pkg["$MODE"] ||= {};
+pkg["$MODE"]["$PKG_NAME"] = "file:$PKG_PATH";
+
+fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+EOF
+fi
+
+mkdir -p node_modules
+rm -rf "node_modules/$PKG_NAME"
+cp -R "$PKG_PATH" "node_modules/$PKG_NAME" 2>/dev/null
+
+touch package-lock.json
