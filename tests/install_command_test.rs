@@ -35,6 +35,9 @@ fn test_install_command_npm_project() {
     let expected_dep_string = format!(r#""my-package": "file:{}"#, expected_path);
 
     assert!(project_pkg_json_content.contains(&expected_dep_string));
+
+    let pm_log_content = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert!(pm_log_content.contains("npm install"));
 }
 
 #[test]
@@ -71,6 +74,9 @@ fn test_install_command_pnpm_project() {
     // tracing::debug!("expected_dep_string: {}", expected_dep_string);
 
     assert!(project_pkg_json_content.contains(&expected_dep_string));
+
+    let pm_log_content = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert!(pm_log_content.contains("pnpm add"));
 }
 
 #[test]
@@ -105,6 +111,9 @@ fn test_install_command_yarn_project() {
     let expected_dep_string = format!(r#""my-yarn-package": "file:{}"#, expected_path);
 
     assert!(project_pkg_json_content.contains(&expected_dep_string));
+
+    let pm_log_content = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert!(pm_log_content.contains("yarn add"));
 }
 
 #[test]
@@ -147,4 +156,7 @@ fn test_install_command_kley_lock_pm_override() {
     let expected_dep_string = format!(r#""my-override-package": "file:{}"#, expected_path);
 
     assert!(project_pkg_json_content.contains(&expected_dep_string));
+
+    let pm_log_content = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert!(pm_log_content.contains("pnpm add"));
 }

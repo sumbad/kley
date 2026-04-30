@@ -47,6 +47,6 @@ fi
 
 mkdir -p node_modules
 rm -rf "node_modules/$PKG_NAME"
-cp -R "$PKG_PATH" "node_modules/$PKG_NAME" 2>/dev/null || true
+cp -R "$PKG_PATH" "node_modules/$PKG_NAME" 2>/dev/null
 
 touch package-lock.json

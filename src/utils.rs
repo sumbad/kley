@@ -123,10 +123,12 @@ pub fn normalized_path(path: &Path, home: Option<&PathBuf>) -> String {
 
 pub fn package_name_version_parse(package_name_version: &str) -> (&str, Option<&str>) {
     if let Some((name, version)) = package_name_version.rsplit_once('@') {
-        (name, Some(version))
-    } else {
-        (package_name_version, None)
+        if !name.is_empty() {
+            return (name, Some(version));
+        }
     }
+
+    (package_name_version, None)
 }
 
 pub fn validate_version_in_registry(
@@ -169,5 +171,33 @@ pub fn validate_version_in_registry(
         );
 
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::package_name_version_parse;
+
+    #[test]
+    fn test_package_name_version_parsing() {
+        assert_eq!(
+            package_name_version_parse("my-pkg@1.2.3"),
+            ("my-pkg", Some("1.2.3"))
+        );
+        assert_eq!(package_name_version_parse("my-pkg"), ("my-pkg", None));
+        assert_eq!(
+            package_name_version_parse("@scope/pkg@1.2.3"),
+            ("@scope/pkg", Some("1.2.3"))
+        );
+        assert_eq!(
+            package_name_version_parse("@scope/pkg"),
+            ("@scope/pkg", None)
+        );
+        assert_eq!(
+            package_name_version_parse("a@b@c"),
+            ("a@b", Some("c"))
+        );
+        assert_eq!(package_name_version_parse(""), ("", None));
+        assert_eq!(package_name_version_parse("@"), ("@", None));
     }
 }
