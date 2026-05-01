@@ -128,10 +128,10 @@ pub fn get_kley_home_dir() -> Result<PathBuf> {
 }
 
 pub fn package_name_version_parse(package_name_version: &str) -> (&str, Option<&str>) {
-    if let Some((name, version)) = package_name_version.rsplit_once('@') {
-        if !name.is_empty() {
-            return (name, Some(version));
-        }
+    if let Some((name, version)) = package_name_version.rsplit_once('@')
+        && !name.is_empty()
+    {
+        return (name, Some(version));
     }
 
     (package_name_version, None)
