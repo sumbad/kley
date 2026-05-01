@@ -4,6 +4,7 @@ use anyhow::Result;
 use colored::Colorize;
 
 use crate::{
+    emoji,
     lockfile::{Lockfile, PackageInfo},
     registry::Registry,
     utils::copy_from_registry,
@@ -16,7 +17,7 @@ pub fn update(registry: &mut Registry, packages: &Vec<String>, project_dir: &Pat
         let Some(lockfile) = Lockfile::get(project_dir) else {
             println!(
                 "{}",
-                "⚠️ Warning: No packages to update. kley.lock not found.".yellow()
+                format!("{} Warning: No packages to update. kley.lock not found.", emoji::WARNING).yellow()
             );
             return Ok(());
         };
@@ -27,7 +28,7 @@ pub fn update(registry: &mut Registry, packages: &Vec<String>, project_dir: &Pat
     };
 
     if packages_to_update.is_empty() {
-        println!("{}", "⚠️ Warning: No packages found to update.".yellow());
+        println!("{}", format!("{} Warning: No packages found to update.", emoji::WARNING).yellow());
         return Ok(());
     }
 
@@ -37,11 +38,11 @@ pub fn update(registry: &mut Registry, packages: &Vec<String>, project_dir: &Pat
 
         println!(
             "{}",
-            format!("   ✔️ {}", &package_name.clone()).green().dimmed()
+            format!("   {} {}", emoji::UPDATED, &package_name.clone()).green().dimmed()
         );
     }
 
-    println!("{}", "✅ Done: packages were updated".green());
+    println!("{}", format!("{} Done: packages were updated", emoji::SUCCESS).green());
 
     Ok(())
 }

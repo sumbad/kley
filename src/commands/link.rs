@@ -2,7 +2,7 @@ use anyhow::Result;
 use colored::*;
 use std::fs;
 
-use crate::{commands::update::run_update, registry::Registry, utils::work_dirs};
+use crate::{commands::update::run_update, emoji, registry::Registry, utils::work_dirs};
 
 pub fn link(registry: &mut Registry, package_name: &str) -> Result<()> {
     let dirs = work_dirs(package_name)?;
@@ -40,7 +40,7 @@ pub fn link(registry: &mut Registry, package_name: &str) -> Result<()> {
         )
         .italic()
         .bright_black(),
-        format!("✅ Done: {} linked", package_name.cyan()).green(),
+        format!("{} Done: {} linked", emoji::SUCCESS, package_name.cyan()).green(),
     );
 
     Ok(())

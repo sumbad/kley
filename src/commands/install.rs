@@ -5,6 +5,7 @@ use colored::*;
 
 use crate::{
     commands::update::run_update,
+    emoji,
     package::{Package, PackageManagerType},
     registry::Registry,
     utils::{self, PROJECT_REGISTRY_DIR_NAME},
@@ -72,7 +73,7 @@ pub fn install(
     };
 
     let cmd_display = format!("{} {}", cmd_name, cmd_args.join(" "));
-    println!("⏳ Running...\n{}", cmd_display.bright_black());
+    println!("{} Running...\n{}", emoji::WAITING, cmd_display.bright_black());
 
     let status = create_command(cmd_name, &cmd_args)
         .status()
@@ -82,7 +83,8 @@ pub fn install(
         eprintln!(
             "{}",
             format!(
-                "❌ Error: {:?} command failed with status: {:?}",
+                "{} Error: {:?} command failed with status: {:?}",
+                emoji::ERROR,
                 package.manager_type,
                 status.code(),
             )
@@ -97,7 +99,7 @@ pub fn install(
 
     println!(
         "{}",
-        format!("✅ Done: {} installed", package_name.cyan()).green(),
+        format!("{} Done: {} installed", emoji::SUCCESS, package_name.cyan()).green(),
     );
 
     Ok(())
