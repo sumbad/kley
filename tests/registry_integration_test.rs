@@ -62,12 +62,14 @@ fn test_registry_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
     // Assert registry content after publish
     let registry: Registry = serde_json::from_str(&fs::read_to_string(&registry_path)?)?;
     assert!(registry.packages.contains_key("my-lib"));
-    assert!(registry
-        .packages
-        .get("my-lib")
-        .unwrap()
-        .installations
-        .is_empty());
+    assert!(
+        registry
+            .packages
+            .get("my-lib")
+            .unwrap()
+            .installations
+            .is_empty()
+    );
 
     // 3. TEST `kley add`
     Command::cargo_bin("kley")?

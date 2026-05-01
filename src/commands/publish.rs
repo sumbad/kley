@@ -163,14 +163,19 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
 
         let note_msg = format!("To use it, run:\n{}\n\n{}", install_cmd, other_cmds)
             .italic()
-        .bright_black();
+            .bright_black();
 
         println!("{note_msg}");
     }
 
     println!(
         "{}",
-        format!("{} Done: {} published", emoji::SUCCESS, package.json.name.cyan()).green()
+        format!(
+            "{} Done: {} published",
+            emoji::SUCCESS,
+            package.json.name.cyan()
+        )
+        .green()
     );
 
     Ok(())

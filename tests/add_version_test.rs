@@ -37,7 +37,7 @@ fn test_add_package_with_version_syntax() -> Result<(), Box<dyn std::error::Erro
         .arg("add")
         .arg("test-lib@1.0.0") // Using the version syntax
         .assert()
-        .success() // This assertion will fail
+        .success()
         .stdout(predicate::str::contains("Done: test-lib added"));
 
     // 5. VERIFY: Check if package.json was updated correctly

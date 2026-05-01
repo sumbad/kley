@@ -215,21 +215,24 @@ mod tests {
     #[test]
     fn test_normalized_path_inside_home() {
         let home = PathBuf::from("/home/user");
-        let path = PathBuf::from("/home/user/projects/app");
-        assert_eq!(normalized_path(&path, Some(&home)), "~/projects/app");
+        let path = home.join("projects").join("app");
+        let result = normalized_path(&path, Some(&home));
+        assert_eq!(PathBuf::from(result), PathBuf::from("~/projects/app"));
     }
 
     #[test]
     fn test_normalized_path_outside_home() {
         let home = PathBuf::from("/home/user");
         let path = PathBuf::from("/tmp/some-project");
-        assert_eq!(normalized_path(&path, Some(&home)), "/tmp/some-project");
+        let result = normalized_path(&path, Some(&home));
+        assert_eq!(PathBuf::from(result), path);
     }
 
     #[test]
     fn test_normalized_path_no_home() {
         let path = PathBuf::from("/tmp/some-project");
-        assert_eq!(normalized_path(&path, None), "/tmp/some-project");
+        let result = normalized_path(&path, None);
+        assert_eq!(PathBuf::from(result), path);
     }
 
     #[test]

@@ -52,8 +52,10 @@ fn test_unpublish_soft() -> Result<(), Box<dyn std::error::Error>> {
 
     let output = child.wait_with_output()?;
     assert!(output.status.success());
-    assert!(String::from_utf8(output.stdout)?
-        .contains("Warning: 'source_project' is used by 1 project."));
+    assert!(
+        String::from_utf8(output.stdout)?
+            .contains("Warning: 'source_project' is used by 1 project.")
+    );
 
     // 3. Assertions
     // Global store should be clean

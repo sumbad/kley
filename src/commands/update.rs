@@ -11,24 +11,31 @@ use crate::{
 };
 
 /// Main entry point for the `update` command.
-pub fn update(registry: &mut Registry, packages: &Vec<String>, project_dir: &Path) -> Result<()> {
+pub fn update(registry: &mut Registry, packages: &[String], project_dir: &Path) -> Result<()> {
     let packages_to_update = if packages.is_empty() {
         // If no packages are specified, update all packages in kley.lock
         let Some(lockfile) = Lockfile::get(project_dir) else {
             println!(
                 "{}",
-                format!("{} Warning: No packages to update. kley.lock not found.", emoji::WARNING).yellow()
+                format!(
+                    "{} Warning: No packages to update. kley.lock not found.",
+                    emoji::WARNING
+                )
+                .yellow()
             );
             return Ok(());
         };
 
         lockfile.packages.keys().cloned().collect()
     } else {
-        packages.clone()
+        packages.to_vec()
     };
 
     if packages_to_update.is_empty() {
-        println!("{}", format!("{} Warning: No packages found to update.", emoji::WARNING).yellow());
+        println!(
+            "{}",
+            format!("{} Warning: No packages found to update.", emoji::WARNING).yellow()
+        );
         return Ok(());
     }
 
@@ -38,11 +45,16 @@ pub fn update(registry: &mut Registry, packages: &Vec<String>, project_dir: &Pat
 
         println!(
             "{}",
-            format!("   {} {}", emoji::UPDATED, &package_name.clone()).green().dimmed()
+            format!("   {} {}", emoji::UPDATED, &package_name.clone())
+                .green()
+                .dimmed()
         );
     }
 
-    println!("{}", format!("{} Done: packages were updated", emoji::SUCCESS).green());
+    println!(
+        "{}",
+        format!("{} Done: packages were updated", emoji::SUCCESS).green()
+    );
 
     Ok(())
 }

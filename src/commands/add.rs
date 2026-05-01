@@ -5,8 +5,8 @@ use serde_json;
 use std::fs;
 use std::path::Path;
 
-use crate::emoji;
 use crate::commands::update::run_update;
+use crate::emoji;
 use crate::registry::Registry;
 use crate::utils::{self, detect_indent, work_dirs};
 
@@ -30,12 +30,7 @@ pub fn add(registry: &mut Registry, package_name_version: &str, is_dev: bool) ->
         "Note: run `npm install` to update project's node_modules."
             .italic()
             .bright_black(),
-        format!(
-            "{} Done: {} added",
-            emoji::SUCCESS,
-            package_name.cyan()
-        )
-        .green(),
+        format!("{} Done: {} added", emoji::SUCCESS, package_name.cyan()).green(),
     );
 
     Ok(())
@@ -46,7 +41,11 @@ fn update_package_json(pkg_json_path: &Path, package_name: &str, is_dev: bool) -
     if !pkg_json_path.exists() {
         println!(
             "{}",
-            format!("{} Warning: package.json not found, skipping modification.", emoji::WARNING).yellow()
+            format!(
+                "{} Warning: package.json not found, skipping modification.",
+                emoji::WARNING
+            )
+            .yellow()
         );
         return Ok(());
     }

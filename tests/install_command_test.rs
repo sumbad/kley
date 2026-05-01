@@ -6,11 +6,15 @@ use std::fs;
 use common::TestEnv;
 
 ///  RUST_LOG=debug cargo test --test install_command_test -- --nocapture
-
+///
 /// Checks that package.json contains a file: dependency pointing to .kley/<pkg_name>.
 /// This is platform-independent: normalizes both the actual content and the expected
 /// path to use forward slashes before comparison.
-fn assert_pkg_json_has_file_dep(pkg_json_content: &str, pkg_name: &str, project_dir: &std::path::Path) {
+fn assert_pkg_json_has_file_dep(
+    pkg_json_content: &str,
+    pkg_name: &str,
+    project_dir: &std::path::Path,
+) {
     let kley_path = project_dir.join(".kley").join(pkg_name);
     // Normalize expected path to forward slashes (matching what mock scripts write)
     let expected_path = kley_path.to_string_lossy().replace('\\', "/");
@@ -18,12 +22,14 @@ fn assert_pkg_json_has_file_dep(pkg_json_content: &str, pkg_name: &str, project_
     assert!(
         pkg_json_content.contains(&expected_prefix),
         "package.json should contain a file: dependency for '{}'. Content:\n{}",
-        pkg_name, pkg_json_content
+        pkg_name,
+        pkg_json_content
     );
     assert!(
         pkg_json_content.contains(&expected_path),
         "package.json should contain path '{}'. Content:\n{}",
-        expected_path, pkg_json_content
+        expected_path,
+        pkg_json_content
     );
 }
 
@@ -64,9 +70,7 @@ fn test_install_command_pnpm_project() {
     env.run_kley_command(&["install", "my-pnpm-package"])
         .assert()
         .success()
-        .stdout(predicate::str::contains(
-            "Done: my-pnpm-package installed",
-        ));
+        .stdout(predicate::str::contains("Done: my-pnpm-package installed"));
 
     assert!(
         env.project_dir
@@ -82,7 +86,11 @@ fn test_install_command_pnpm_project() {
     let project_pkg_json_content =
         fs::read_to_string(env.project_dir.join("package.json")).unwrap();
 
-    assert_pkg_json_has_file_dep(&project_pkg_json_content, "my-pnpm-package", &env.project_dir);
+    assert_pkg_json_has_file_dep(
+        &project_pkg_json_content,
+        "my-pnpm-package",
+        &env.project_dir,
+    );
 
     let pm_log_content = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
     assert!(pm_log_content.contains("pnpm add"));
@@ -98,9 +106,7 @@ fn test_install_command_yarn_project() {
     env.run_kley_command(&["install", "my-yarn-package"])
         .assert()
         .success()
-        .stdout(predicate::str::contains(
-            "Done: my-yarn-package installed",
-        ));
+        .stdout(predicate::str::contains("Done: my-yarn-package installed"));
 
     assert!(
         env.project_dir
@@ -116,7 +122,11 @@ fn test_install_command_yarn_project() {
     let project_pkg_json_content =
         fs::read_to_string(env.project_dir.join("package.json")).unwrap();
 
-    assert_pkg_json_has_file_dep(&project_pkg_json_content, "my-yarn-package", &env.project_dir);
+    assert_pkg_json_has_file_dep(
+        &project_pkg_json_content,
+        "my-yarn-package",
+        &env.project_dir,
+    );
 
     let pm_log_content = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
     assert!(pm_log_content.contains("yarn add"));
@@ -155,7 +165,11 @@ fn test_install_command_kley_lock_pm_override() {
     let project_pkg_json_content =
         fs::read_to_string(env.project_dir.join("package.json")).unwrap();
 
-    assert_pkg_json_has_file_dep(&project_pkg_json_content, "my-override-package", &env.project_dir);
+    assert_pkg_json_has_file_dep(
+        &project_pkg_json_content,
+        "my-override-package",
+        &env.project_dir,
+    );
 
     let pm_log_content = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
     assert!(pm_log_content.contains("pnpm add"));

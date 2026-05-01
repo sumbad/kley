@@ -58,10 +58,7 @@ fn test_publish_command_e2e() -> Result<()> {
         !store_path.join("secret.log").exists(),
         "secret.log should NOT exist"
     );
-    assert!(
-        !store_path.join(".git").exists(),
-        ".git should NOT exist"
-    );
+    assert!(!store_path.join(".git").exists(), ".git should NOT exist");
     assert!(
         !store_path.join("node_modules").exists(),
         "node_modules should NOT exist"
