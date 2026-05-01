@@ -39,7 +39,7 @@ pub fn link(registry: &mut Registry, package_name: &str) -> Result<()> {
             package_name
         )
         .italic()
-        .dimmed(),
+        .bright_black(),
         format!("✅ Done: {} linked", package_name.cyan()).green(),
     );
 

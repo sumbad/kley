@@ -72,7 +72,7 @@ pub fn install(
     };
 
     let cmd_display = format!("{} {}", cmd_name, cmd_args.join(" "));
-    println!("⏳ Running...\n{}", cmd_display.dimmed());
+    println!("⏳ Running...\n{}", cmd_display.bright_black());
 
     let status = create_command(cmd_name, &cmd_args)
         .status()
