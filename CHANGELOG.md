@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.2] - 2026-05-02
+
+### Fixed
+- **Windows link command**: Fixed "Access denied" (os error 5) when removing an existing junction point in `node_modules` during `kley link`. Junction points on Windows are directories, not files — now uses `remove_dir` as a fallback when `remove_file` fails.
+- **Invisible hint text on Windows**: The secondary hint line in `kley publish` output ("or kley add / kley link for other workflows") was invisible on Windows due to `.dimmed()` — replaced with `.bright_black()`.
+
+### Changed
+- **Improved debug logging for link command**: Added detailed debug/trace logs throughout the `link` command flow (path resolution, symlink removal, junction creation) for easier troubleshooting on Windows.
+
+---
+
 ## [0.7.1] - 2026-05-02
 
 ### Fixed
