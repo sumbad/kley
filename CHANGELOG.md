@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **`-v`/`--verbose` flag**: Added `-v` for info-level logging and `-vv` for debug+trace. Default output now shows only `println!` messages (errors visible via tracing).
+- **Windows emoji fallback**: CLI emoji prefixes (✅, ❌, ⚠️, etc.) now display as ASCII equivalents (`[OK]`, `[ERR]`, `[!]`, etc.) on Windows terminals that cannot render them.
+
+### Fixed
+- **Windows install command**: `kley install` no longer panics with "program not found" on Windows. npm/pnpm/yarn are now invoked via `cmd /C` to correctly resolve `.cmd` scripts.
+- **Windows UNC paths in output**: `normalized_path()` no longer displays `\\?\C:\...` UNC paths on Windows. `canonicalize` is skipped on Windows (paths are already absolute), while Unix symlink resolution is preserved.
+- **Windows TLS error on install**: PowerShell installer command now forces TLS 1.2 (`[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12`), fixing SSL/TLS errors on older Windows PowerShell versions.
+- **Invisible dimmed text on Windows**: Replaced standalone `.dimmed()` calls with `.bright_black()` to ensure secondary text is visible on all terminal backgrounds.
+
+### Changed
+- **Default log level**: Changed from `info` to `error` — tracing diagnostics are now hidden unless `-v` is used. User-facing output (`println!`) is always visible.
+
+---
+
 ## [0.6.0] - 2026-04-30
 
 ### Added

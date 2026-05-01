@@ -5,6 +5,7 @@ use serde_json;
 use std::fs;
 use std::path::Path;
 
+use crate::emoji;
 use crate::lockfile::Lockfile;
 use crate::registry::Registry;
 use crate::utils::{detect_indent, get_kley_home_dir, normalized_path};
@@ -17,7 +18,7 @@ pub fn remove(
 ) -> Result<()> {
     if package_name.is_none() && !is_all {
         println!("{}",
-            "⚠️ Warning: Pass a package name to remove it or use --all flag to delete all local dependencies".yellow()
+            format!("{} Warning: Pass a package name to remove it or use --all flag to delete all local dependencies", emoji::WARNING).yellow()
         );
         return Ok(());
     }
@@ -43,13 +44,16 @@ pub fn remove(
             );
         }
 
-        println!("{}", "✅ Done: all packages removed".green());
+        println!(
+            "{}",
+            format!("{} Done: all packages removed", emoji::SUCCESS).green()
+        );
     } else if let Some(pkg_name) = package_name {
         remove_package(registry, pkg_name, project_dir)?;
 
         println!(
             "{}",
-            format!("✅ Done: {} removed", pkg_name.cyan()).green()
+            format!("{} Done: {} removed", emoji::SUCCESS, pkg_name.cyan()).green()
         );
     }
 
@@ -84,7 +88,11 @@ fn update_package_json(pkg_json_path: &Path, package_name: &str) -> Result<()> {
     if !pkg_json_path.exists() {
         println!(
             "{}",
-            "⚠️ Warning: package.json not found, skipping modification.".yellow()
+            format!(
+                "{} Warning: package.json not found, skipping modification.",
+                emoji::WARNING
+            )
+            .yellow()
         );
         return Ok(());
     }
@@ -160,7 +168,11 @@ fn remove_all_from_package_json(pkg_json_path: &Path) -> Result<()> {
     if !pkg_json_path.exists() {
         println!(
             "{}",
-            "⚠️ package.json not found, skipping modification.".yellow()
+            format!(
+                "{} package.json not found, skipping modification.",
+                emoji::WARNING
+            )
+            .yellow()
         );
         return Ok(());
     }

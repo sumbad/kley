@@ -1,0 +1,6 @@
+# rust-analyzer configuration
+# Uses clippy instead of cargo check for richer diagnostics
+
+[check]
+command = "clippy"
+extraArgs = ["--all-features", "--all-targets"]

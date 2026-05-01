@@ -27,34 +27,31 @@ On Windows, `normalized_path()` displays full UNC paths instead of the shortened
 ✔️ Updated \\?\C:\Users\runneradmin\AppData\Local\Temp\.tmpXXX\app-a to the latest version of my-lib
 ```
 
-## 2. Proposed Solution
+## 2. Solution
 
-Canonicalize **both** the path and the home directory inside `normalized_path()`, so `strip_prefix` compares apples to apples:
+Skip `fs::canonicalize()` on Windows via conditional compilation. On Unix it is still needed to resolve symlinks (e.g. `/var/folders` → `/private/var/folders` on macOS), but on Windows it only adds the problematic `\\?\` UNC prefix.
 
 ```rust
 pub fn normalized_path(path: &Path, home: Option<&PathBuf>) -> String {
+    #[cfg(not(windows))]
     let path = fs::canonicalize(path).unwrap_or(path.to_path_buf());
 
-    if let Some(home_dir) = home {
-        let home_canonical = fs::canonicalize(home_dir).unwrap_or_else(|_| home_dir.clone());
-        if let Ok(stripped_path) = path.strip_prefix(home_canonical) {
-            return format!("~/{}", stripped_path.display());
-        }
+    if let Some(home_dir) = home
+        && let Ok(stripped_path) = path.strip_prefix(home_dir)
+    {
+        return format!("~/{}", stripped_path.display());
     }
 
-    // On Windows, strip the UNC prefix \\?\ for cleaner output
-    let result = path.to_string_lossy().into_owned();
-    #[cfg(target_os = "windows")]
-    let result = result.strip_prefix(r"\\?\").unwrap_or(&result).to_string();
-
-    result
+    path.to_string_lossy().into_owned()
 }
 ```
 
-### Changes
+### Why this approach
 
-1. **Canonicalize `home_dir`** inside `normalized_path()` so both sides of `strip_prefix` use the same path format.
-2. **Strip UNC prefix** `\\?\` from the final output on Windows — this prefix is an internal Windows detail and should never be shown to users.
+- **No new dependencies** — avoids adding `dunce` or similar crates
+- **Minimal change** — one `#[cfg]` line instead of canonicalizing both sides + UNC stripping
+- **Correct by design** — on Windows, paths passed to `normalized_path` are already absolute (from `current_dir()` or `join()`), so canonicalize is unnecessary
+- **Preserves macOS behavior** — symlink resolution via `canonicalize` still works on Unix
 
 ## 3. Acceptance Criteria
 

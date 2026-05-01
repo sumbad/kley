@@ -1,4 +1,4 @@
-use crate::{commands::remove::remove_package, package::Package, utils::confirm};
+use crate::{commands::remove::remove_package, emoji, package::Package, utils::confirm};
 use std::{fs, path::PathBuf};
 
 use crate::registry::Registry;
@@ -8,7 +8,11 @@ use colored::*;
 pub fn unpublish(registry: &mut Registry, push: bool) -> Result<()> {
     let package = Package::get(&std::env::current_dir()?)?;
 
-    println!("🧹 Unpublishing {}...", package.json.name.cyan(),);
+    println!(
+        "{} Unpublishing {}...",
+        emoji::UNPUBLISH,
+        package.json.name.cyan(),
+    );
 
     let pkg_installations = registry.get_installations(&package.json.name).to_vec();
 
@@ -51,7 +55,12 @@ pub fn unpublish(registry: &mut Registry, push: bool) -> Result<()> {
 
     println!(
         "{}",
-        format!("✅ Done: {} unpublished", package.json.name.cyan()).green()
+        format!(
+            "{} Done: {} unpublished",
+            emoji::SUCCESS,
+            package.json.name.cyan()
+        )
+        .green()
     );
 
     Ok(())

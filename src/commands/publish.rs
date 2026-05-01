@@ -7,6 +7,7 @@ use std::path::Path;
 use tracing;
 
 use crate::commands::update::run_update;
+use crate::emoji;
 use crate::package::Package;
 use crate::registry::*;
 use crate::utils::{get_kley_home_dir, normalized_path};
@@ -16,7 +17,8 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
     let package = Package::get(&std::env::current_dir()?)?;
 
     println!(
-        "🚀 Publishing {}@{}...",
+        "{} Publishing {}@{}...",
+        emoji::PUBLISH,
         package.json.name.cyan(),
         package.json.version.magenta()
     );
@@ -114,7 +116,8 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
     registry.update_package_version(&package.json.name, &package.json.version)?;
 
     println!(
-        "📦 Package '{}' saved to registry",
+        "{} Package '{}' saved to registry",
+        emoji::PACKAGE,
         package.json.name.cyan().bold()
     );
 
@@ -141,7 +144,8 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
                 println!(
                     "{}",
                     format!(
-                        "✔️ Updated {} to the latest version of {}",
+                        "{} Updated {} to the latest version of {}",
+                        emoji::UPDATED,
                         normalized_path(&project_dir, get_kley_home_dir().ok().as_ref()).white(),
                         &package.json.name.cyan()
                     )
@@ -159,14 +163,19 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
 
         let note_msg = format!("To use it, run:\n{}\n\n{}", install_cmd, other_cmds)
             .italic()
-            .dimmed();
+            .bright_black();
 
         println!("{note_msg}");
     }
 
     println!(
         "{}",
-        format!("✅ Done: {} published", package.json.name.cyan()).green()
+        format!(
+            "{} Done: {} published",
+            emoji::SUCCESS,
+            package.json.name.cyan()
+        )
+        .green()
     );
 
     Ok(())
