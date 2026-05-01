@@ -22,6 +22,10 @@ fn styles() -> Styles {
 #[command(styles = styles())]
 #[command(version, about = "Local package manager for Node.js projects", long_about = None)]
 struct Cli {
+    /// Enable debug output (-vv for trace)
+    #[arg(short = 'v', long = "verbose", action = clap::ArgAction::Count)]
+    verbose: u8,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -63,15 +67,23 @@ enum Commands {
 }
 
 fn main() -> Result<()> {
+    let cli = Cli::parse();
+
+    // Priority: RUST_LOG env > -v flag > default (error, only println! output visible)
+    let default_level = match cli.verbose {
+        0 => "error",
+        1 => "info",
+        _ => "debug,trace",
+    };
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new(default_level));
+
     let subscriber = FmtSubscriber::builder()
-        // Set default level to INFO (info!, warn!, error!)
-        .with_max_level(tracing::Level::INFO)
-        .with_env_filter(EnvFilter::from_default_env())
+        .with_env_filter(filter)
         .finish();
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    let cli = Cli::parse();
     let project_dir = std::env::current_dir()?;
     let mut registry = Registry::new()?;
 
