@@ -159,7 +159,7 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
             "(or `kley add {}` / `kley link {}` for other workflows)",
             package.json.name, package.json.name
         )
-        .dimmed();
+        .bright_black();
 
         let note_msg = format!("To use it, run:\n{}\n\n{}", install_cmd, other_cmds)
             .italic()
