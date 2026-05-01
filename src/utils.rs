@@ -178,7 +178,7 @@ pub fn validate_version_in_registry(
                 version_msg,
             )
             .red(),
-            help.italic().dimmed()
+            help.italic().bright_black()
         );
 
         std::process::exit(1);

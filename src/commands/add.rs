@@ -28,7 +28,7 @@ pub fn add(registry: &mut Registry, package_name_version: &str, is_dev: bool) ->
         "{}\n{}",
         "Note: run `npm install` to update project's node_modules."
             .italic()
-            .dimmed(),
+            .bright_black(),
         format!("✅ Done: {} added", package_name.cyan()).green(),
     );
 
