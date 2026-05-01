@@ -110,6 +110,11 @@ pub fn confirm(prompt: ColoredString) -> bool {
 }
 
 pub fn normalized_path(path: &Path, home: Option<&PathBuf>) -> String {
+    // On Unix, canonicalize resolves symlinks (e.g. /var/folders → /private/var/folders)
+    // which is needed for strip_prefix to match paths correctly.
+    // On Windows, canonicalize adds the \\?\ UNC prefix which breaks strip_prefix
+    // and produces ugly output, so we skip it.
+    #[cfg(not(windows))]
     let path = fs::canonicalize(path).unwrap_or(path.to_path_buf());
 
     if let Some(home_dir) = home
@@ -182,7 +187,8 @@ pub fn validate_version_in_registry(
 
 #[cfg(test)]
 mod tests {
-    use super::package_name_version_parse;
+    use super::{normalized_path, package_name_version_parse};
+    use std::path::PathBuf;
 
     #[test]
     fn test_package_name_version_parsing() {
@@ -202,5 +208,42 @@ mod tests {
         assert_eq!(package_name_version_parse("a@b@c"), ("a@b", Some("c")));
         assert_eq!(package_name_version_parse(""), ("", None));
         assert_eq!(package_name_version_parse("@"), ("@", None));
+    }
+
+    #[test]
+    fn test_normalized_path_inside_home() {
+        let home = PathBuf::from("/home/user");
+        let path = PathBuf::from("/home/user/projects/app");
+        assert_eq!(normalized_path(&path, Some(&home)), "~/projects/app");
+    }
+
+    #[test]
+    fn test_normalized_path_outside_home() {
+        let home = PathBuf::from("/home/user");
+        let path = PathBuf::from("/tmp/some-project");
+        assert_eq!(normalized_path(&path, Some(&home)), "/tmp/some-project");
+    }
+
+    #[test]
+    fn test_normalized_path_no_home() {
+        let path = PathBuf::from("/tmp/some-project");
+        assert_eq!(normalized_path(&path, None), "/tmp/some-project");
+    }
+
+    #[test]
+    fn test_normalized_path_home_itself() {
+        let home = PathBuf::from("/home/user");
+        assert_eq!(normalized_path(&home, Some(&home)), "~/");
+    }
+
+    #[test]
+    fn test_normalized_path_never_contains_unc_prefix() {
+        let home = PathBuf::from(r"C:\Users\user");
+        let path = PathBuf::from(r"C:\Users\user\projects\app");
+        let result = normalized_path(&path, Some(&home));
+        assert!(
+            !result.contains(r"\\?\"),
+            "UNC prefix should never appear in output: {result}"
+        );
     }
 }
