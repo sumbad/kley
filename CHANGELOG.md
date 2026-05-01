@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.1] - 2026-05-02
+
+### Fixed
+- **Windows link command**: `kley link` no longer fails with "Access denied" (os error 5) on Windows. Falls back to junction points (`mklink /J`) when directory symlinks are not available due to missing Developer Mode or admin privileges.
+
+---
+
 ## [0.7.0] - 2026-05-01
 
 ### Added
