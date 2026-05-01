@@ -203,7 +203,7 @@ curl --proto '=https' --tlsv1.2 -LsSf https://github.com/sumbad/kley/releases/la
 ```
 ```bash
 # Windows
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/sumbad/kley/releases/latest/download/kley-installer.ps1 | iex"
+powershell -ExecutionPolicy Bypass -c "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://github.com/sumbad/kley/releases/latest/download/kley-installer.ps1 | iex"
 ```
 
 ### Manual Installation
