@@ -7,6 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::emoji;
 use crate::registry::Registry;
 
 pub static PROJECT_REGISTRY_DIR_NAME: &str = ".kley";
@@ -173,7 +174,8 @@ pub fn validate_version_in_registry(
         eprintln!(
             "{}\n{}",
             format!(
-                "❌ Error: {}{} not found in the registry",
+                "{} Error: {}{} not found in the registry",
+                emoji::ERROR,
                 package_name.cyan(),
                 version_msg,
             )

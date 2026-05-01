@@ -36,7 +36,7 @@ fn test_install_command_npm_project() {
     env.run_kley_command(&["install", "my-package"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("✅ Done: my-package installed"));
+        .stdout(predicate::str::contains("Done: my-package installed"));
 
     assert!(env.project_dir.join(".kley").join("my-package").exists());
 
@@ -65,7 +65,7 @@ fn test_install_command_pnpm_project() {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            "✅ Done: my-pnpm-package installed",
+            "Done: my-pnpm-package installed",
         ));
 
     assert!(
@@ -99,7 +99,7 @@ fn test_install_command_yarn_project() {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            "✅ Done: my-yarn-package installed",
+            "Done: my-yarn-package installed",
         ));
 
     assert!(
@@ -136,7 +136,7 @@ fn test_install_command_kley_lock_pm_override() {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            "✅ Done: my-override-package installed",
+            "Done: my-override-package installed",
         ));
 
     assert!(
