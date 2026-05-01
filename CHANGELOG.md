@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.7.0] - 2026-05-01
 
 ### Added
 - **`-v`/`--verbose` flag**: Added `-v` for info-level logging and `-vv` for debug+trace. Default output now shows only `println!` messages (errors visible via tracing).
