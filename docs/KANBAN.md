@@ -50,9 +50,9 @@ kanban
         "Future: Implement Fast Install Optimization"<br/><br/>@{ assigned: III, priority: 'High', ticket: '019-fast-install-optimization' }
 
     [In progress]
-        "Fix normalized_path UNC path on Windows"<br/><br/>@{ assigned: VI, priority: 'Low', ticket: '022-fix-normalized-path-windows-unc' }
 
     Done
+        "Fix normalized_path UNC path on Windows"<br/><br/>@{ assigned: VI, priority: 'Low', ticket: '022-fix-normalized-path-windows-unc' }
         "Implement install Command"<br/><br/>@{ assigned: III, priority: 'High', ticket: '017-implement-install-command' }
         "Implement Robust Package Manager Detection"<br/><br/>@{ assigned: III, priority: 'High', ticket: '018-robust-pm-detection' }
         "Fix `add` command to support version syntax"<br/><br/>@{ assigned: II, priority: 'Very Low' }
