@@ -10,6 +10,27 @@ use crate::{
     utils::{self, PROJECT_REGISTRY_DIR_NAME},
 };
 
+/// On Windows, npm/pnpm/yarn are `.cmd` scripts that `Command::new` cannot find directly.
+/// We must run them through `cmd /C` so the shell resolves the `.cmd` extension.
+#[cfg(windows)]
+fn create_command(program: &str, args: &[&str]) -> Command {
+    let mut cmd = Command::new("cmd");
+    cmd.arg("/C").arg(program);
+    for arg in args {
+        cmd.arg(arg);
+    }
+    cmd
+}
+
+#[cfg(not(windows))]
+fn create_command(program: &str, args: &[&str]) -> Command {
+    let mut cmd = Command::new(program);
+    for arg in args {
+        cmd.arg(arg);
+    }
+    cmd
+}
+
 pub fn install(
     registry: &mut Registry,
     package_name_version: &str,
@@ -53,12 +74,9 @@ pub fn install(
     let cmd_display = format!("{} {}", cmd_name, cmd_args.join(" "));
     println!("⏳ Running...\n{}", cmd_display.dimmed());
 
-    let status = match package.manager_type {
-        PackageManagerType::Pnpm => Command::new(&pnpm_command).args(&cmd_args).status(),
-        PackageManagerType::Yarn => Command::new(&yarn_command).args(&cmd_args).status(),
-        PackageManagerType::Npm => Command::new(&npm_command).args(&cmd_args).status(),
-    }
-    .expect("Failed to run command");
+    let status = create_command(cmd_name, &cmd_args)
+        .status()
+        .expect("Failed to run command");
 
     if !status.success() {
         eprintln!(
