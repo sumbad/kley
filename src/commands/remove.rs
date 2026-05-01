@@ -44,7 +44,10 @@ pub fn remove(
             );
         }
 
-        println!("{}", format!("{} Done: all packages removed", emoji::SUCCESS).green());
+        println!(
+            "{}",
+            format!("{} Done: all packages removed", emoji::SUCCESS).green()
+        );
     } else if let Some(pkg_name) = package_name {
         remove_package(registry, pkg_name, project_dir)?;
 
@@ -85,7 +88,11 @@ fn update_package_json(pkg_json_path: &Path, package_name: &str) -> Result<()> {
     if !pkg_json_path.exists() {
         println!(
             "{}",
-            format!("{} Warning: package.json not found, skipping modification.", emoji::WARNING).yellow()
+            format!(
+                "{} Warning: package.json not found, skipping modification.",
+                emoji::WARNING
+            )
+            .yellow()
         );
         return Ok(());
     }
@@ -161,7 +168,11 @@ fn remove_all_from_package_json(pkg_json_path: &Path) -> Result<()> {
     if !pkg_json_path.exists() {
         println!(
             "{}",
-            format!("{} package.json not found, skipping modification.", emoji::WARNING).yellow()
+            format!(
+                "{} package.json not found, skipping modification.",
+                emoji::WARNING
+            )
+            .yellow()
         );
         return Ok(());
     }

@@ -176,10 +176,10 @@ pub fn setup_kley_and_project(
 /// - Backslashes vs forward slashes
 pub fn paths_match(a: &Path, b: &Path) -> bool {
     // Try canonicalize both — resolves symlinks, UNC prefixes, short names
-    if let (Ok(ca), Ok(cb)) = (fs::canonicalize(a), fs::canonicalize(b)) {
-        if ca == cb {
-            return true;
-        }
+    if let (Ok(ca), Ok(cb)) = (fs::canonicalize(a), fs::canonicalize(b))
+        && ca == cb
+    {
+        return true;
     }
     // Fallback: string comparison with normalized separators
     let a_str = a.to_string_lossy().replace('\\', "/");

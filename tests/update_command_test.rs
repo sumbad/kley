@@ -28,9 +28,9 @@ fn test_update_single_package_success() -> Result<(), Box<dyn std::error::Error>
     cmd.arg("publish")
         .current_dir(&source_project_path)
         .env("KLEY_HOME", home_dir);
-    cmd.assert().success().stdout(predicate::str::contains(
-        "Done: source_project published",
-    ));
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Done: source_project published"));
 
     // 3. Add the source project to the target project
     let mut cmd = Command::cargo_bin("kley")?;
@@ -38,9 +38,9 @@ fn test_update_single_package_success() -> Result<(), Box<dyn std::error::Error>
         .arg("source_project")
         .current_dir(&target_project_path)
         .env("KLEY_HOME", home_dir);
-    cmd.assert().success().stdout(predicate::str::contains(
-        "Done: source_project added",
-    ));
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Done: source_project added"));
 
     // Verify initial version is installed
     let kley_path = target_project_path.join(".kley/source_project/index.js");
@@ -55,9 +55,9 @@ fn test_update_single_package_success() -> Result<(), Box<dyn std::error::Error>
     cmd.arg("publish")
         .current_dir(&source_project_path)
         .env("KLEY_HOME", home_dir);
-    cmd.assert().success().stdout(predicate::str::contains(
-        "Done: source_project published",
-    ));
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("Done: source_project published"));
 
     // 6. Run `kley update` in the target project
     let mut cmd = Command::cargo_bin("kley")?;
@@ -68,9 +68,7 @@ fn test_update_single_package_success() -> Result<(), Box<dyn std::error::Error>
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("source_project"))
-        .stdout(predicate::str::contains(
-            "Done: packages were updated",
-        ));
+        .stdout(predicate::str::contains("Done: packages were updated"));
 
     // 7. Assert that the package was updated
     assert_eq!(fs::read_to_string(&kley_path)?, "console.log('v1.1.0');");

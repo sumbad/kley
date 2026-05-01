@@ -73,7 +73,11 @@ pub fn install(
     };
 
     let cmd_display = format!("{} {}", cmd_name, cmd_args.join(" "));
-    println!("{} Running...\n{}", emoji::WAITING, cmd_display.bright_black());
+    println!(
+        "{} Running...\n{}",
+        emoji::WAITING,
+        cmd_display.bright_black()
+    );
 
     let status = create_command(cmd_name, &cmd_args)
         .status()

@@ -75,12 +75,10 @@ fn main() -> Result<()> {
         1 => "info",
         _ => "debug,trace",
     };
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(default_level));
+    let filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_level));
 
-    let subscriber = FmtSubscriber::builder()
-        .with_env_filter(filter)
-        .finish();
+    let subscriber = FmtSubscriber::builder().with_env_filter(filter).finish();
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 

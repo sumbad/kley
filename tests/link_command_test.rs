@@ -46,9 +46,7 @@ fn test_link_command_e2e() -> Result<()> {
     publish_cmd
         .assert()
         .success()
-        .stdout(predicates::str::contains(
-            "Done: test-lib published",
-        ));
+        .stdout(predicates::str::contains("Done: test-lib published"));
 
     // 3. Run the link command in the app directory
     let mut link_cmd = Command::cargo_bin("kley")?;
@@ -62,9 +60,7 @@ fn test_link_command_e2e() -> Result<()> {
     link_cmd
         .assert()
         .success()
-        .stdout(predicates::str::contains(
-            "Done: test-lib linked",
-        ));
+        .stdout(predicates::str::contains("Done: test-lib linked"));
 
     // 4. Assertions: Verify the results after the command runs
     let app_path = app_dir.path();

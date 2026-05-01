@@ -27,7 +27,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.88"
+          toolchain: stable
 
       - name: Cache dependencies
         uses: actions/cache@v4
@@ -53,7 +53,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.88"
+          toolchain: stable
           components: clippy
 
       - name: Cache dependencies
@@ -68,7 +68,7 @@ jobs:
           key: ${{ runner.os }}-cargo-clippy-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Run Clippy
-        run: cargo clippy --all-features --all-targets
+        run: cargo clippy --all-features --all-targets -- -D warnings
 
   fmt:
     name: Formatting
@@ -80,8 +80,8 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.88"
+          toolchain: stable
           components: rustfmt
 
       - name: Check formatting
-        run: cargo fmt --all -- --check || true
+        run: cargo fmt --all -- --check
