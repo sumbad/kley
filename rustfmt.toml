@@ -1,0 +1,4 @@
+# rustfmt configuration
+# Matches formatting expectations from `cargo fmt --check` in CI
+
+edition = "2024"

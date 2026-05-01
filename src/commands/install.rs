@@ -5,10 +5,32 @@ use colored::*;
 
 use crate::{
     commands::update::run_update,
+    emoji,
     package::{Package, PackageManagerType},
     registry::Registry,
     utils::{self, PROJECT_REGISTRY_DIR_NAME},
 };
+
+/// On Windows, npm/pnpm/yarn are `.cmd` scripts that `Command::new` cannot find directly.
+/// We must run them through `cmd /C` so the shell resolves the `.cmd` extension.
+#[cfg(windows)]
+fn create_command(program: &str, args: &[&str]) -> Command {
+    let mut cmd = Command::new("cmd");
+    cmd.arg("/C").arg(program);
+    for arg in args {
+        cmd.arg(arg);
+    }
+    cmd
+}
+
+#[cfg(not(windows))]
+fn create_command(program: &str, args: &[&str]) -> Command {
+    let mut cmd = Command::new(program);
+    for arg in args {
+        cmd.arg(arg);
+    }
+    cmd
+}
 
 pub fn install(
     registry: &mut Registry,
@@ -36,35 +58,37 @@ pub fn install(
     let yarn_command = std::env::var("KLEY_USE_YARN_COMMAND").unwrap_or("yarn".to_string());
 
     let (cmd_name, cmd_args): (&str, Vec<&str>) = match package.manager_type {
-        PackageManagerType::Pnpm => (&pnpm_command, vec!["add", pkg_kley_path_str, "--ignore-scripts"]),
-        PackageManagerType::Yarn => (&yarn_command, vec!["add", pkg_kley_path_str, "--ignore-scripts"]),
-        PackageManagerType::Npm => (&npm_command, vec!["install", pkg_kley_path_str, "--ignore-scripts"]),
+        PackageManagerType::Pnpm => (
+            &pnpm_command,
+            vec!["add", pkg_kley_path_str, "--ignore-scripts"],
+        ),
+        PackageManagerType::Yarn => (
+            &yarn_command,
+            vec!["add", pkg_kley_path_str, "--ignore-scripts"],
+        ),
+        PackageManagerType::Npm => (
+            &npm_command,
+            vec!["install", pkg_kley_path_str, "--ignore-scripts"],
+        ),
     };
 
     let cmd_display = format!("{} {}", cmd_name, cmd_args.join(" "));
     println!(
-        "{}",
-        format!("⏳ Running {}...", cmd_display.dimmed())
+        "{} Running...\n{}",
+        emoji::WAITING,
+        cmd_display.bright_black()
     );
 
-    let status = match package.manager_type {
-        PackageManagerType::Pnpm => Command::new(&pnpm_command)
-            .args(&cmd_args)
-            .status(),
-        PackageManagerType::Yarn => Command::new(&yarn_command)
-            .args(&cmd_args)
-            .status(),
-        PackageManagerType::Npm => Command::new(&npm_command)
-            .args(&cmd_args)
-            .status(),
-    }
-    .expect("Failed to run command");
+    let status = create_command(cmd_name, &cmd_args)
+        .status()
+        .expect("Failed to run command");
 
     if !status.success() {
         eprintln!(
             "{}",
             format!(
-                "❌ Error: {:?} command failed with status: {:?}",
+                "{} Error: {:?} command failed with status: {:?}",
+                emoji::ERROR,
                 package.manager_type,
                 status.code(),
             )
@@ -79,7 +103,7 @@ pub fn install(
 
     println!(
         "{}",
-        format!("✅ Done: {} installed", package_name.cyan()).green(),
+        format!("{} Done: {} installed", emoji::SUCCESS, package_name.cyan()).green(),
     );
 
     Ok(())

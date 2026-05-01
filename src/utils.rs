@@ -7,6 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::emoji;
 use crate::registry::Registry;
 
 pub static PROJECT_REGISTRY_DIR_NAME: &str = ".kley";
@@ -110,6 +111,11 @@ pub fn confirm(prompt: ColoredString) -> bool {
 }
 
 pub fn normalized_path(path: &Path, home: Option<&PathBuf>) -> String {
+    // On Unix, canonicalize resolves symlinks (e.g. /var/folders → /private/var/folders)
+    // which is needed for strip_prefix to match paths correctly.
+    // On Windows, canonicalize adds the \\?\ UNC prefix which breaks strip_prefix
+    // and produces ugly output, so we skip it.
+    #[cfg(not(windows))]
     let path = fs::canonicalize(path).unwrap_or(path.to_path_buf());
 
     if let Some(home_dir) = home
@@ -122,16 +128,16 @@ pub fn normalized_path(path: &Path, home: Option<&PathBuf>) -> String {
 }
 
 pub fn get_kley_home_dir() -> Result<PathBuf> {
-    std::env::var("KLEY_HOME")
-        .map(PathBuf::from)
-        .or_else(|_| dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Failed to find home directory")))
+    std::env::var("KLEY_HOME").map(PathBuf::from).or_else(|_| {
+        dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Failed to find home directory"))
+    })
 }
 
 pub fn package_name_version_parse(package_name_version: &str) -> (&str, Option<&str>) {
-    if let Some((name, version)) = package_name_version.rsplit_once('@') {
-        if !name.is_empty() {
-            return (name, Some(version));
-        }
+    if let Some((name, version)) = package_name_version.rsplit_once('@')
+        && !name.is_empty()
+    {
+        return (name, Some(version));
     }
 
     (package_name_version, None)
@@ -168,12 +174,13 @@ pub fn validate_version_in_registry(
         eprintln!(
             "{}\n{}",
             format!(
-                "❌ Error: {}{} not found in the registry",
+                "{} Error: {}{} not found in the registry",
+                emoji::ERROR,
                 package_name.cyan(),
                 version_msg,
             )
             .red(),
-            help.italic().dimmed()
+            help.italic().bright_black()
         );
 
         std::process::exit(1);
@@ -182,7 +189,8 @@ pub fn validate_version_in_registry(
 
 #[cfg(test)]
 mod tests {
-    use super::package_name_version_parse;
+    use super::{normalized_path, package_name_version_parse};
+    use std::path::PathBuf;
 
     #[test]
     fn test_package_name_version_parsing() {
@@ -199,11 +207,48 @@ mod tests {
             package_name_version_parse("@scope/pkg"),
             ("@scope/pkg", None)
         );
-        assert_eq!(
-            package_name_version_parse("a@b@c"),
-            ("a@b", Some("c"))
-        );
+        assert_eq!(package_name_version_parse("a@b@c"), ("a@b", Some("c")));
         assert_eq!(package_name_version_parse(""), ("", None));
         assert_eq!(package_name_version_parse("@"), ("@", None));
+    }
+
+    #[test]
+    fn test_normalized_path_inside_home() {
+        let home = PathBuf::from("/home/user");
+        let path = home.join("projects").join("app");
+        let result = normalized_path(&path, Some(&home));
+        assert_eq!(PathBuf::from(result), PathBuf::from("~/projects/app"));
+    }
+
+    #[test]
+    fn test_normalized_path_outside_home() {
+        let home = PathBuf::from("/home/user");
+        let path = PathBuf::from("/tmp/some-project");
+        let result = normalized_path(&path, Some(&home));
+        assert_eq!(PathBuf::from(result), path);
+    }
+
+    #[test]
+    fn test_normalized_path_no_home() {
+        let path = PathBuf::from("/tmp/some-project");
+        let result = normalized_path(&path, None);
+        assert_eq!(PathBuf::from(result), path);
+    }
+
+    #[test]
+    fn test_normalized_path_home_itself() {
+        let home = PathBuf::from("/home/user");
+        assert_eq!(normalized_path(&home, Some(&home)), "~/");
+    }
+
+    #[test]
+    fn test_normalized_path_never_contains_unc_prefix() {
+        let home = PathBuf::from(r"C:\Users\user");
+        let path = PathBuf::from(r"C:\Users\user\projects\app");
+        let result = normalized_path(&path, Some(&home));
+        assert!(
+            !result.contains(r"\\?\"),
+            "UNC prefix should never appear in output: {result}"
+        );
     }
 }
