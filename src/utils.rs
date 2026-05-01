@@ -53,8 +53,13 @@ pub fn copy_from_registry(
         .join(package_name);
 
     if project_kley_dir.exists() {
-        fs::remove_dir_all(&project_kley_dir)?;
+        tracing::debug!("copy_from_registry: removing existing dir {:?}", project_kley_dir);
+        fs::remove_dir_all(&project_kley_dir).map_err(|e| {
+            tracing::debug!("copy_from_registry: remove_dir_all failed: {e:?}");
+            e
+        })?;
     }
+    tracing::debug!("copy_from_registry: creating dir {:?}", project_kley_dir);
     fs::create_dir_all(&project_kley_dir)?;
 
     // Copy from store to local project
