@@ -58,20 +58,24 @@ pub fn copy_from_registry(
             project_kley_dir
         );
 
-        for entry in fs::read_dir(&project_kley_dir)?.filter_map(|e| e.ok()) {
+        for entry in fs::read_dir(&project_kley_dir)?.filter_map(|e| e.ok())
+        // ignore errors, it's not so matter to remove all files, below we will overwrite obsolete files anyway
+        {
             let path = entry.path();
+            let file_type = entry.file_type()?;
 
             if let Some(name) = path.file_name()
                 && name == "node_modules"
+                && file_type.is_dir()
             {
                 continue;
             }
 
-            if path.is_file() {
+            if file_type.is_file() {
                 fs::remove_file(&path)?;
             }
 
-            if path.is_dir() {
+            if file_type.is_dir() {
                 fs::remove_dir_all(&path)?;
             }
         }
