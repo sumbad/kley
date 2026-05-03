@@ -1,0 +1,90 @@
+# Ticket 023: Implement `retreat` / `restore` Commands
+
+- **Epic:** III (Streamlined Local Package Workflow)
+- **Complexity:** Medium
+- **Depends On:** #007 (remove command)
+
+## 1. Problem Statement
+
+When developing with `kley add` or `kley link`, the project's `package.json` contains `file:./.kley/<pkg>` references. Before publishing the project to a remote npm registry, these local references must be replaced with real version specifiers (e.g. `"my-lib": "^1.2.0"`). Currently this requires a manual and error-prone sequence:
+
+1. `kley remove my-lib`
+2. `npm install my-lib`
+3. Publish the project
+4. `kley add my-lib` again
+
+This is tedious and easy to forget, potentially leading to broken npm publishes with `file:` references left in `package.json`.
+
+## 2. Proposed Solution
+
+Two complementary commands that provide a temporary "swap" mechanism:
+
+### `kley retreat [<package-name>] [--all]`
+
+Temporarily replaces kley-managed local dependencies with their remote npm counterparts:
+
+1. For each kley-managed package (or the specified one):
+   a. Read the package's version from `kley.lock` (e.g. `1.2.0`).
+   b. Replace the `file:./.kley/<pkg>` entry in `package.json` with the semver range (e.g. `"^1.2.0"`).
+   c. Remove the symlink/copy from `node_modules`.
+   d. Run the package manager to install the remote version (`npm install`, `pnpm install`, etc.).
+   e. **Preserve** the `.kley/<pkg>` directory and `kley.lock` entry — they are needed for `restore`.
+2. Mark the package as "retreated" in `kley.lock` so the state is persistent.
+
+### `kley restore [<package-name>] [--all]`
+
+Reverses the retreat — puts local kley dependencies back:
+
+1. For each retreated package (or the specified one):
+   a. Restore the `file:./.kley/<pkg>` entry in `package.json`.
+   b. Re-create the symlink or copy in `node_modules`.
+   c. Remove the "retreated" marker from `kley.lock`.
+   d. Run the package manager to ensure correct state.
+
+### `kley retreat --all` / `kley restore --all`
+
+Operate on all kley-managed packages at once — most common usage pattern before/after npm publish.
+
+## 3. `kley.lock` Changes
+
+Add a `retreated` field to `PackageInfo`:
+
+```rust
+pub struct PackageInfo {
+    pub version: String,
+    #[serde(default)]
+    pub pinned: bool,
+    #[serde(default)]
+    pub retreated: bool,
+}
+```
+
+When `retreated: true`, `kley publish --push` and `kley update` will **skip** this package (it's temporarily on the remote version).
+
+## 4. Usage Examples
+
+```bash
+# Before publishing project to npm:
+kley retreat --all          # swap all local deps to remote
+npm publish                 # clean publish, no file: references
+kley restore --all          # swap back to local deps
+
+# Retreat/restore a single package:
+kley retreat my-lib
+kley restore my-lib
+
+# Check status:
+kley list                   # shows retreated packages with a marker
+```
+
+## 5. Acceptance Criteria
+
+- `kley retreat <pkg>` replaces `file:./.kley/<pkg>` in `package.json` with a semver range based on the locked version.
+- `kley retreat --all` operates on all kley-managed packages.
+- `kley restore <pkg>` puts the `file:./.kley/<pkg>` reference back.
+- `kley restore --all` restores all retreated packages.
+- After retreat, `npm install` (or equivalent) is run automatically to install remote versions.
+- After restore, the package manager is run to resolve the local reference.
+- `kley.lock` tracks the `retreated` state — surviving across sessions.
+- `kley publish --push` and `kley update` skip retreated packages.
+- The `.kley/<pkg>` directory is **not deleted** during retreat — only the `package.json` entry and `node_modules` link change.
