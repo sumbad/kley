@@ -53,18 +53,37 @@ pub fn copy_from_registry(
         .join(package_name);
 
     if project_kley_dir.exists() {
-        tracing::debug!("copy_from_registry: removing existing dir {:?}", project_kley_dir);
-        fs::remove_dir_all(&project_kley_dir).map_err(|e| {
-            tracing::debug!("copy_from_registry: remove_dir_all failed: {e:?}");
-            e
-        })?;
+        tracing::debug!(
+            "copy_from_registry: removing existing dir '{:?}' content",
+            project_kley_dir
+        );
+
+        for entry in fs::read_dir(&project_kley_dir)?.filter_map(|e| e.ok()) {
+            let path = entry.path();
+
+            if let Some(name) = path.file_name()
+                && name == "node_modules"
+            {
+                continue;
+            }
+
+            if path.is_file() {
+                fs::remove_file(&path)?;
+            }
+
+            if path.is_dir() {
+                fs::remove_dir_all(&path)?;
+            }
+        }
+    } else {
+        tracing::debug!("copy_from_registry: creating dir {:?}", project_kley_dir);
+        fs::create_dir_all(&project_kley_dir)?;
     }
-    tracing::debug!("copy_from_registry: creating dir {:?}", project_kley_dir);
-    fs::create_dir_all(&project_kley_dir)?;
 
     // Copy from store to local project
     let mut options = fs_extra::dir::CopyOptions::new();
     options.content_only = true;
+    options.overwrite = true;
     fs_extra::dir::copy(registry_dir, &project_kley_dir, &options)?;
 
     tracing::info!(
@@ -189,6 +208,275 @@ pub fn validate_version_in_registry(
         );
 
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod copy_from_registry_tests {
+    use super::*;
+    use crate::registry::Registry;
+    use std::fs;
+    use tempfile::tempdir;
+
+    /// Helper: create a package in the store (registry_dir/packages/pkg_name/)
+    fn create_store_package(
+        registry_dir: &Path,
+        pkg_name: &str,
+        pkg_version: &str,
+        extra_files: &[(&str, &str)],
+    ) {
+        let pkg_dir = registry_dir.join("packages").join(pkg_name);
+        fs::create_dir_all(&pkg_dir).unwrap();
+        fs::write(
+            pkg_dir.join("package.json"),
+            format!(
+                r#"{{"name": "{}", "version": "{}"}}"#,
+                pkg_name, pkg_version
+            ),
+        )
+        .unwrap();
+        for (path, content) in extra_files {
+            let full_path = pkg_dir.join(path);
+            if let Some(parent) = full_path.parent() {
+                fs::create_dir_all(parent).unwrap();
+            }
+            fs::write(full_path, content).unwrap();
+        }
+    }
+
+    /// Helper: simulate npm having installed dependencies into .kley/<pkg>/node_modules/
+    fn simulate_npm_deps(project_dir: &Path, pkg_name: &str) {
+        let nm_dir = project_dir
+            .join(PROJECT_REGISTRY_DIR_NAME)
+            .join(pkg_name)
+            .join("node_modules")
+            .join("some-dep");
+        fs::create_dir_all(&nm_dir).unwrap();
+        fs::write(nm_dir.join("index.js"), "// some-dep code").unwrap();
+    }
+
+    #[test]
+    fn test_copy_from_registry_preserves_node_modules_on_update() {
+        // Setup: registry with v1, project with v1 already installed + node_modules
+        let home_dir = tempdir().unwrap();
+        let mut registry = Registry::with_home_dir(home_dir.path()).unwrap();
+        registry.update_package_version("my-lib", "1.0.0").unwrap();
+
+        let project_dir = home_dir.path().join("my-project");
+        fs::create_dir_all(&project_dir).unwrap();
+
+        // Create v1 in store
+        create_store_package(
+            &registry.dir_path,
+            "my-lib",
+            "1.0.0",
+            &[("index.js", "module.exports = 'v1';")],
+        );
+
+        // First copy (simulates initial install)
+        copy_from_registry(&registry, "my-lib", &project_dir).unwrap();
+
+        // Simulate npm installing deps into .kley/my-lib/node_modules/
+        simulate_npm_deps(&project_dir, "my-lib");
+
+        // Verify node_modules exists before update
+        let nm_path = project_dir
+            .join(PROJECT_REGISTRY_DIR_NAME)
+            .join("my-lib")
+            .join("node_modules");
+        assert!(nm_path.exists(), "node_modules should exist before update");
+
+        // Update store to v2
+        fs::remove_dir_all(registry.dir_path.join("packages").join("my-lib")).unwrap();
+        create_store_package(
+            &registry.dir_path,
+            "my-lib",
+            "2.0.0",
+            &[("index.js", "module.exports = 'v2';")],
+        );
+        registry.update_package_version("my-lib", "2.0.0").unwrap();
+
+        // Second copy (simulates publish --push / update)
+        copy_from_registry(&registry, "my-lib", &project_dir).unwrap();
+
+        assert!(
+            nm_path.exists(),
+            "node_modules should be preserved after update"
+        );
+
+        // Source files should be updated
+        let index_content = fs::read_to_string(
+            project_dir
+                .join(PROJECT_REGISTRY_DIR_NAME)
+                .join("my-lib")
+                .join("index.js"),
+        )
+        .unwrap();
+        assert_eq!(index_content, "module.exports = 'v2';");
+
+        // Deps inside node_modules should be intact
+        let dep_content = fs::read_to_string(nm_path.join("some-dep/index.js")).unwrap();
+        assert_eq!(dep_content, "// some-dep code");
+    }
+
+    #[test]
+    fn test_copy_from_registry_stale_files_removed_on_update() {
+        // Setup: v1 has "old-file.js", v2 does not — old-file.js should be removed
+        let home_dir = tempdir().unwrap();
+        let mut registry = Registry::with_home_dir(home_dir.path()).unwrap();
+        registry.update_package_version("my-lib", "1.0.0").unwrap();
+
+        let project_dir = home_dir.path().join("my-project");
+        fs::create_dir_all(&project_dir).unwrap();
+
+        // v1 in store: has old-file.js
+        create_store_package(
+            &registry.dir_path,
+            "my-lib",
+            "1.0.0",
+            &[
+                ("index.js", "module.exports = 'v1';"),
+                ("old-file.js", "// should be removed in v2"),
+            ],
+        );
+
+        copy_from_registry(&registry, "my-lib", &project_dir).unwrap();
+        assert!(
+            project_dir
+                .join(PROJECT_REGISTRY_DIR_NAME)
+                .join("my-lib")
+                .join("old-file.js")
+                .exists(),
+            "old-file.js should exist in v1"
+        );
+
+        // Simulate npm deps
+        simulate_npm_deps(&project_dir, "my-lib");
+
+        // v2 in store: no old-file.js, but has new-file.js
+        fs::remove_dir_all(registry.dir_path.join("packages").join("my-lib")).unwrap();
+        create_store_package(
+            &registry.dir_path,
+            "my-lib",
+            "2.0.0",
+            &[
+                ("index.js", "module.exports = 'v2';"),
+                ("new-file.js", "// added in v2"),
+            ],
+        );
+        registry.update_package_version("my-lib", "2.0.0").unwrap();
+
+        copy_from_registry(&registry, "my-lib", &project_dir).unwrap();
+
+        // old-file.js should be gone
+        assert!(
+            !project_dir
+                .join(PROJECT_REGISTRY_DIR_NAME)
+                .join("my-lib")
+                .join("old-file.js")
+                .exists(),
+            "old-file.js should be removed in v2"
+        );
+
+        // new-file.js should exist
+        assert!(
+            project_dir
+                .join(PROJECT_REGISTRY_DIR_NAME)
+                .join("my-lib")
+                .join("new-file.js")
+                .exists(),
+            "new-file.js should exist in v2"
+        );
+
+        // Source files updated
+        let index_content = fs::read_to_string(
+            project_dir
+                .join(PROJECT_REGISTRY_DIR_NAME)
+                .join("my-lib")
+                .join("index.js"),
+        )
+        .unwrap();
+        assert_eq!(index_content, "module.exports = 'v2';");
+
+        // node_modules preserved
+        let nm_path = project_dir
+            .join(PROJECT_REGISTRY_DIR_NAME)
+            .join("my-lib")
+            .join("node_modules");
+        assert!(
+            nm_path.exists(),
+            "node_modules should be preserved after update"
+        );
+    }
+
+    #[test]
+    fn test_copy_from_registry_first_install_creates_dir() {
+        // Fresh install — no .kley/<pkg>/ exists yet
+        let home_dir = tempdir().unwrap();
+        let mut registry = Registry::with_home_dir(home_dir.path()).unwrap();
+        registry.update_package_version("my-lib", "1.0.0").unwrap();
+
+        let project_dir = home_dir.path().join("my-project");
+        fs::create_dir_all(&project_dir).unwrap();
+
+        create_store_package(
+            &registry.dir_path,
+            "my-lib",
+            "1.0.0",
+            &[("index.js", "module.exports = 'v1';")],
+        );
+
+        copy_from_registry(&registry, "my-lib", &project_dir).unwrap();
+
+        let index_content = fs::read_to_string(
+            project_dir
+                .join(PROJECT_REGISTRY_DIR_NAME)
+                .join("my-lib")
+                .join("index.js"),
+        )
+        .unwrap();
+        assert_eq!(index_content, "module.exports = 'v1';");
+    }
+
+    #[test]
+    fn test_copy_from_registry_no_node_modules_to_preserve() {
+        // Update without node_modules — should work fine
+        let home_dir = tempdir().unwrap();
+        let mut registry = Registry::with_home_dir(home_dir.path()).unwrap();
+        registry.update_package_version("my-lib", "1.0.0").unwrap();
+
+        let project_dir = home_dir.path().join("my-project");
+        fs::create_dir_all(&project_dir).unwrap();
+
+        create_store_package(
+            &registry.dir_path,
+            "my-lib",
+            "1.0.0",
+            &[("index.js", "v1")],
+        );
+
+        copy_from_registry(&registry, "my-lib", &project_dir).unwrap();
+
+        // Update without simulating npm deps (e.g. user never ran npm install)
+        fs::remove_dir_all(registry.dir_path.join("packages").join("my-lib")).unwrap();
+        create_store_package(
+            &registry.dir_path,
+            "my-lib",
+            "2.0.0",
+            &[("index.js", "v2")],
+        );
+        registry.update_package_version("my-lib", "2.0.0").unwrap();
+
+        copy_from_registry(&registry, "my-lib", &project_dir).unwrap();
+
+        let index_content = fs::read_to_string(
+            project_dir
+                .join(PROJECT_REGISTRY_DIR_NAME)
+                .join("my-lib")
+                .join("index.js"),
+        )
+        .unwrap();
+        assert_eq!(index_content, "v2");
     }
 }
 
