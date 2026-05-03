@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **`publish --push` deletes package dependencies**: Fixed a bug where `kley publish --push` would delete `.kley/<pkg>/node_modules/` in consumer projects. Now `copy_from_registry` clears the directory contents while preserving `node_modules/`, then copies updated files on top.
+
+---
+
 ## [0.7.2] - 2026-05-02
 
 ### Fixed
