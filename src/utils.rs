@@ -448,23 +448,13 @@ mod copy_from_registry_tests {
         let project_dir = home_dir.path().join("my-project");
         fs::create_dir_all(&project_dir).unwrap();
 
-        create_store_package(
-            &registry.dir_path,
-            "my-lib",
-            "1.0.0",
-            &[("index.js", "v1")],
-        );
+        create_store_package(&registry.dir_path, "my-lib", "1.0.0", &[("index.js", "v1")]);
 
         copy_from_registry(&registry, "my-lib", &project_dir).unwrap();
 
         // Update without simulating npm deps (e.g. user never ran npm install)
         fs::remove_dir_all(registry.dir_path.join("packages").join("my-lib")).unwrap();
-        create_store_package(
-            &registry.dir_path,
-            "my-lib",
-            "2.0.0",
-            &[("index.js", "v2")],
-        );
+        create_store_package(&registry.dir_path, "my-lib", "2.0.0", &[("index.js", "v2")]);
         registry.update_package_version("my-lib", "2.0.0").unwrap();
 
         copy_from_registry(&registry, "my-lib", &project_dir).unwrap();

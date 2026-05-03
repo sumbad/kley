@@ -12,21 +12,15 @@ use crate::{commands::update::run_update, emoji, registry::Registry, utils::work
 fn create_junction(source: &std::path::Path, junction: &std::path::Path) -> anyhow::Result<()> {
     use std::process::Command;
 
-    let source_str = source.to_str().ok_or_else(|| {
-        anyhow::anyhow!("Source path contains non-UTF8 characters: {:?}", source)
-    })?;
+    let source_str = source
+        .to_str()
+        .ok_or_else(|| anyhow::anyhow!("Source path contains non-UTF8 characters: {:?}", source))?;
     let junction_str = junction.to_str().ok_or_else(|| {
         anyhow::anyhow!("Junction path contains non-UTF8 characters: {:?}", junction)
     })?;
 
     let status = Command::new("cmd")
-        .args([
-            "/C",
-            "mklink",
-            "/J",
-            junction_str,
-            source_str,
-        ])
+        .args(["/C", "mklink", "/J", junction_str, source_str])
         .status()
         .expect("Failed to run cmd");
 
@@ -49,11 +43,10 @@ pub fn link(registry: &mut Registry, package_name: &str) -> Result<()> {
     let dirs = work_dirs(package_name)?;
 
     tracing::debug!("link: calling run_update...");
-    run_update(registry, package_name, &std::env::current_dir()?)
-        .map_err(|e| {
-            tracing::debug!("link: run_update failed: {e:?}");
-            e
-        })?;
+    run_update(registry, package_name, &std::env::current_dir()?).map_err(|e| {
+        tracing::debug!("link: run_update failed: {e:?}");
+        e
+    })?;
     tracing::debug!("link: run_update completed");
 
     let node_modules_dir = dirs.project_dir.join("node_modules");
@@ -86,11 +79,10 @@ pub fn link(registry: &mut Registry, package_name: &str) -> Result<()> {
             // On Windows, directory symlinks/junctions are directories,
             // so remove_file fails with Access Denied. Try both.
             tracing::debug!("link: removing existing symlink...");
-            fs::remove_file(&node_modules_pkg_dir)
-                .or_else(|e| {
-                    tracing::debug!("link: remove_file failed ({}), trying remove_dir...", e);
-                    fs::remove_dir(&node_modules_pkg_dir)
-                })?;
+            fs::remove_file(&node_modules_pkg_dir).or_else(|e| {
+                tracing::debug!("link: remove_file failed ({}), trying remove_dir...", e);
+                fs::remove_dir(&node_modules_pkg_dir)
+            })?;
             tracing::debug!("link: symlink removed");
         } else if is_file {
             fs::remove_file(&node_modules_pkg_dir)?;
@@ -116,7 +108,10 @@ pub fn link(registry: &mut Registry, package_name: &str) -> Result<()> {
         match std::os::windows::fs::symlink_dir(&dirs.project_kley_dir, &node_modules_pkg_dir) {
             Ok(()) => tracing::debug!("link: symlink_dir created"),
             Err(e) => {
-                tracing::debug!("link: symlink_dir failed ({}), falling back to junction...", e);
+                tracing::debug!(
+                    "link: symlink_dir failed ({}), falling back to junction...",
+                    e
+                );
                 create_junction(&dirs.project_kley_dir, &node_modules_pkg_dir)?;
                 tracing::debug!("link: junction created");
             }
