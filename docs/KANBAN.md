@@ -43,13 +43,18 @@ kanban
         "Implement list command"<br/><br/>@{ assigned: VI, priority: 'Low', ticket: '012-list-command' }
         "Implement locations command"<br/><br/>@{ assigned: VI, priority: 'Low' }
         "Add progress indicators"<br/><br/>@{ assigned: VI, priority: 'Low' }
+        "Implement Fast Install Optimization"<br/><br/>@{ assigned: III, priority: 'High', ticket: '028-fast-install-optimization' }
+        "Fast Reinstall - skip PM when deps unchanged"<br/><br/>@{ assigned: III, priority: 'Low', ticket: '029-fast-reinstall-skip-pm' }
 
     [Todo]
+        "Strip devDependencies from consumed packages"<br/><br/>@{ assigned: III, priority: 'Low', ticket: '019-strip-dev-dependencies' }
         "Add --dev flag to install command"<br/><br/>@{ assigned: III, priority: 'Low', ticket: '021-install-dev-flag' }
         "Implement install no args as Update All"<br/><br/>@{ assigned: III, priority: 'High', ticket: '020-install-no-args-as-update' }
-        "Future: Implement Fast Install Optimization"<br/><br/>@{ assigned: III, priority: 'High', ticket: '019-fast-install-optimization' }
+        "Implement retreat and restore commands"<br/><br/>@{ assigned: III, priority: 'High', ticket: '023-retreat-restore-commands' }
+        "Add --changed flag to publish command"<br/><br/>@{ assigned: III, priority: 'Low', ticket: '024-publish-changed-flag' }
 
     [In progress]
+        "publish --push deletes package dependencies"<br/><br/>@{ assigned: III, priority: 'High', ticket: '030-publish-push-deletes-deps' }
 
     Done
         "Fix normalized_path UNC path on Windows"<br/><br/>@{ assigned: VI, priority: 'Low', ticket: '022-fix-normalized-path-windows-unc' }
