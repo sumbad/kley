@@ -1,7 +1,7 @@
 use anyhow::{Context, Ok, Result};
 use std::{fs, path::Path};
 
-use serde::{Deserialize, Serialize, Serializer, de::DeserializeOwned};
+use serde::{Deserialize, Serialize};
 
 use crate::lockfile::Lockfile;
 
