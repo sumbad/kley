@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`install`/`add`/`update` commands**: Now strip `devDependencies` from a library's `package.json` when it is copied into a project's `.kley/` directory. This prevents the consumer from installing the library's development dependencies, reducing `node_modules` bloat and speeding up installation.
+
 ### Fixed
 - **`publish --push` deletes package dependencies**: Fixed a bug where `kley publish --push` would delete `.kley/<pkg>/node_modules/` in consumer projects. Now `copy_from_registry` clears the directory contents while preserving `node_modules/`, then copies updated files on top.
 
