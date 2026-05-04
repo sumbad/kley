@@ -72,6 +72,45 @@ impl TestEnv {
         .unwrap();
     }
 
+    /// Creates a mock package in the kley registry with specific package.json content.
+    pub fn create_mock_package_with_content(
+        &self,
+        pkg_name: &str,
+        pkg_version: &str,
+        pkg_json_content: &str,
+    ) {
+        let packages_dir = self.kley_registry.join("packages");
+        let pkg_dir = packages_dir.join(pkg_name);
+        fs::create_dir_all(&pkg_dir).unwrap();
+
+        let pkg_json_path = pkg_dir.join("package.json");
+        fs::write(pkg_json_path, pkg_json_content).unwrap();
+
+        // Update registry.json
+        let registry_path = self.kley_registry.join("registry.json");
+        let mut registry_data = if registry_path.exists() {
+            let content = fs::read_to_string(&registry_path).unwrap();
+            serde_json::from_str(&content).unwrap_or_default()
+        } else {
+            RegistryData::default()
+        };
+
+        registry_data.packages.insert(
+            pkg_name.to_string(),
+            PackageMetadata {
+                version: pkg_version.to_string(),
+                last_updated: Utc::now().to_rfc3339(),
+                installations: vec![],
+            },
+        );
+
+        fs::write(
+            &registry_path,
+            serde_json::to_string_pretty(&registry_data).unwrap(),
+        )
+        .unwrap();
+    }
+
     /// Configures the project directory for a specific package manager.
     pub fn setup_project_pm(&self, pm_type: &str) {
         // Create a basic package.json for the project if it doesn't exist

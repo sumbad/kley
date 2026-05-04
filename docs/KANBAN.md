@@ -47,13 +47,13 @@ kanban
         "Fast Reinstall - skip PM when deps unchanged"<br/><br/>@{ assigned: III, priority: 'Low', ticket: '029-fast-reinstall-skip-pm' }
 
     [Todo]
-        "Strip devDependencies from consumed packages"<br/><br/>@{ assigned: III, priority: 'Low', ticket: '019-strip-dev-dependencies' }
         "Add --dev flag to install command"<br/><br/>@{ assigned: III, priority: 'Low', ticket: '021-install-dev-flag' }
         "Implement install no args as Update All"<br/><br/>@{ assigned: III, priority: 'High', ticket: '020-install-no-args-as-update' }
         "Implement retreat and restore commands"<br/><br/>@{ assigned: III, priority: 'High', ticket: '023-retreat-restore-commands' }
         "Add --changed flag to publish command"<br/><br/>@{ assigned: III, priority: 'Low', ticket: '024-publish-changed-flag' }
 
     [In progress]
+        "Strip devDependencies from consumed packages"<br/><br/>@{ assigned: III, priority: 'Low', ticket: '019-strip-dev-dependencies' }
 
     Done
         "publish --push deletes package dependencies"<br/><br/>@{ assigned: III, priority: 'High', ticket: '030-publish-push-deletes-deps' }

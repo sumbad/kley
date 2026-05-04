@@ -1,14 +1,18 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use colored::*;
+use serde_json::Value;
 use std::{
     fs,
     io::{self, Write},
     path::{Path, PathBuf},
 };
 
-use crate::emoji;
 use crate::registry::Registry;
+use crate::{
+    emoji,
+    package::{Package, PackageJson},
+};
 
 pub static PROJECT_REGISTRY_DIR_NAME: &str = ".kley";
 
@@ -29,13 +33,39 @@ pub fn work_dirs(package_name: &str) -> Result<WorkDirs> {
     })
 }
 
+pub fn strip_dev_dependencies(package_dir: &Path) -> Result<()> {
+    if !package_dir.exists() {
+        println!(
+            "{} Warning: directory '{}' does not exists",
+            emoji::WARNING,
+            package_dir.to_string_lossy()
+        );
+
+        return Ok(());
+    }
+
+    let package_json_content = PackageJson::get_raw(package_dir)?;
+
+    let indent = detect_indent(&package_json_content);
+
+    let mut value: Value = serde_json::from_str(&package_json_content)?;
+
+    if let Some(obj) = value.as_object_mut()
+        && obj.remove("devDependencies").is_some()
+    {
+        PackageJson::save_raw(value, package_dir, &indent)?;
+    }
+
+    Ok(())
+}
+
 pub fn copy_from_registry(
     registry: &Registry,
     package_name: &str,
-    project_dir: &Path,
+    destination: &Path,
 ) -> Result<()> {
     tracing::debug!(
-        "copy_from_registry:\n package_name: {package_name}\n project_dir: {project_dir:?}"
+        "copy_from_registry:\n package_name: {package_name}\n destination: {destination:?}"
     );
 
     let registry_dir = registry.dir_path.join("packages").join(package_name);
@@ -48,17 +78,13 @@ pub fn copy_from_registry(
         );
     }
 
-    let project_kley_dir = project_dir
-        .join(PROJECT_REGISTRY_DIR_NAME)
-        .join(package_name);
-
-    if project_kley_dir.exists() {
+    if destination.exists() {
         tracing::debug!(
             "copy_from_registry: removing existing dir '{:?}' content",
-            project_kley_dir
+            destination
         );
 
-        for entry in fs::read_dir(&project_kley_dir)?.filter_map(|e| e.ok())
+        for entry in fs::read_dir(destination)?.filter_map(|e| e.ok())
         // ignore errors, it's not so matter to remove all files, below we will overwrite obsolete files anyway
         {
             let path = entry.path();
@@ -80,20 +106,20 @@ pub fn copy_from_registry(
             }
         }
     } else {
-        tracing::debug!("copy_from_registry: creating dir {:?}", project_kley_dir);
-        fs::create_dir_all(&project_kley_dir)?;
+        tracing::debug!("copy_from_registry: creating dir {:?}", destination);
+        fs::create_dir_all(destination)?;
     }
 
     // Copy from store to local project
     let mut options = fs_extra::dir::CopyOptions::new();
     options.content_only = true;
     options.overwrite = true;
-    fs_extra::dir::copy(registry_dir, &project_kley_dir, &options)?;
+    fs_extra::dir::copy(registry_dir, destination, &options)?;
 
     tracing::info!(
         "Package {} was copied from registry to {} dir",
         package_name,
-        project_dir.display()
+        destination.display()
     );
 
     Ok(())
