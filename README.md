@@ -274,6 +274,8 @@ Run this command to cleanly remove a kley-managed dependency from your project. 
 
 - Use the `--all` flag to remove all kley-managed packages from the project.
 
+> **Note:** When copying a package into your project, `kley` automatically strips its `devDependencies` from `package.json`. This keeps your `node_modules` lean and speeds up installation. The original package in the kley registry remains unchanged.
+
 ## Environment Variables
 
 | Variable | Default | Description |
