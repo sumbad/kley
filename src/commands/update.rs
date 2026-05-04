@@ -7,7 +7,7 @@ use crate::{
     emoji,
     lockfile::{Lockfile, PackageInfo},
     registry::Registry,
-    utils::copy_from_registry,
+    utils::{PROJECT_REGISTRY_DIR_NAME, copy_from_registry, strip_dev_dependencies},
 };
 
 /// Main entry point for the `update` command.
@@ -62,7 +62,13 @@ pub fn update(registry: &mut Registry, packages: &[String], project_dir: &Path) 
 pub fn run_update(registry: &mut Registry, package_name: &str, project_dir: &Path) -> Result<()> {
     tracing::debug!("run_update:\n package_name: {package_name}\n project_dir: {project_dir:?}");
 
-    copy_from_registry(registry, package_name, project_dir)?;
+    let project_kley_dir = project_dir
+        .join(PROJECT_REGISTRY_DIR_NAME)
+        .join(package_name);
+
+    copy_from_registry(registry, package_name, &project_kley_dir)?;
+
+    strip_dev_dependencies(&project_kley_dir)?;
 
     update_kley_lock(registry, package_name, project_dir)?;
 
@@ -78,8 +84,12 @@ fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path)
     } else {
         println!(
             "{}",
-            format!("⚠️ Warning: package {package_name} version not found inside registry")
-                .yellow()
+            format!(
+                "{} Warning: package {} version not found inside registry",
+                emoji::WARNING,
+                package_name
+            )
+            .yellow()
         );
         return Ok(());
     };

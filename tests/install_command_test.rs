@@ -175,3 +175,86 @@ fn test_install_command_kley_lock_pm_override() {
     assert!(pm_log_content.contains("pnpm add"));
     assert!(pm_log_content.contains("--ignore-scripts"));
 }
+
+#[test_log::test]
+fn test_install_strips_dev_dependencies() {
+    let env = TestEnv::new();
+    env.setup_project_pm("npm");
+
+    // 1. Setup package with devDependencies
+    let lib_pkg_name = "my-lib-with-dev-deps";
+    let lib_pkg_version = "1.0.0";
+    let lib_pkg_json_content = r#"{
+        "name": "my-lib-with-dev-deps",
+        "version": "1.0.0",
+        "dependencies": {
+            "prod-dep": "1.0.0"
+        },
+        "devDependencies": {
+            "jest": "27.0.0"
+        }
+    }"#;
+    env.create_mock_package_with_content(lib_pkg_name, lib_pkg_version, lib_pkg_json_content);
+
+    // 2. Setup package without devDependencies (for no-op check)
+    let no_dev_pkg_name = "my-lib-no-dev-deps";
+    let no_dev_pkg_version = "1.0.0";
+    let no_dev_pkg_json_content = r#"{
+        "name": "my-lib-no-dev-deps",
+        "version": "1.0.0",
+        "dependencies": {
+            "prod-dep": "1.0.0"
+        }
+    }"#;
+    env.create_mock_package_with_content(
+        no_dev_pkg_name,
+        no_dev_pkg_version,
+        no_dev_pkg_json_content,
+    );
+
+    // 3. Act: Install the packages
+    env.run_kley_command(&["install", lib_pkg_name])
+        .assert()
+        .success();
+    env.run_kley_command(&["install", no_dev_pkg_name])
+        .assert()
+        .success();
+
+    // 4. Assert: Check the stripped package
+    let installed_path = env.project_dir.join(".kley").join(lib_pkg_name);
+    assert!(installed_path.exists());
+
+    let installed_pkg_json_content =
+        fs::read_to_string(installed_path.join("package.json")).unwrap();
+    assert!(
+        !installed_pkg_json_content.contains("devDependencies"),
+        "devDependencies should be stripped from the installed package.json"
+    );
+    assert!(
+        installed_pkg_json_content.contains("dependencies"),
+        "dependencies should be preserved"
+    );
+
+    // 5. Assert: Check that the original package in the registry is untouched
+    let original_path = env.kley_registry.join("packages").join(lib_pkg_name);
+    let original_pkg_json_content = fs::read_to_string(original_path.join("package.json")).unwrap();
+    assert!(
+        original_pkg_json_content.contains("devDependencies"),
+        "Original package in registry should retain its devDependencies"
+    );
+
+    // 6. Assert: Check the no-op package (the one without dev deps)
+    let installed_no_dev_path = env.project_dir.join(".kley").join(no_dev_pkg_name);
+    assert!(installed_no_dev_path.exists());
+    let installed_no_dev_pkg_json_content =
+        fs::read_to_string(installed_no_dev_path.join("package.json")).unwrap();
+    assert!(
+        !installed_no_dev_pkg_json_content.contains("devDependencies"),
+        "Package with no devDependencies should not have them after install"
+    );
+    assert_eq!(
+        installed_no_dev_pkg_json_content.trim(),
+        no_dev_pkg_json_content.trim(),
+        "File content should be identical for package with no dev deps"
+    );
+}
