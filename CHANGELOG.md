@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.8.0] - 2026-05-04
 
 ### Changed
 - **`install`/`add`/`update` commands**: Now strip `devDependencies` from a library's `package.json` when it is copied into a project's `.kley/` directory. This prevents the consumer from installing the library's development dependencies, reducing `node_modules` bloat and speeding up installation.
