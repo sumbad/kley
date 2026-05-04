@@ -231,8 +231,8 @@ fn test_install_strips_dev_dependencies() {
         "devDependencies should be stripped from the installed package.json"
     );
     assert!(
-        installed_pkg_json_content.contains("dependencies"),
-        "dependencies should be preserved"
+        installed_pkg_json_content.contains("\"prod-dep\": \"1.0.0\""),
+        "production dependencies should be preserved in the installed package.json"
     );
 
     // 5. Assert: Check that the original package in the registry is untouched
