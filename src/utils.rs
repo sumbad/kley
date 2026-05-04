@@ -33,7 +33,7 @@ pub fn work_dirs(package_name: &str) -> Result<WorkDirs> {
 pub fn strip_dev_dependencies(package_dir: &Path) -> Result<()> {
     if !package_dir.exists() {
         println!(
-            "{} Warning: directory '{}' does not exists",
+            "{} Warning: directory '{}' does not exist",
             emoji::WARNING,
             package_dir.to_string_lossy()
         );
