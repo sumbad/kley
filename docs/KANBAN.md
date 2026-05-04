@@ -53,9 +53,9 @@ kanban
         "Add --changed flag to publish command"<br/><br/>@{ assigned: III, priority: 'Low', ticket: '024-publish-changed-flag' }
 
     [In progress]
-        "Strip devDependencies from consumed packages"<br/><br/>@{ assigned: III, priority: 'Low', ticket: '019-strip-dev-dependencies' }
 
     Done
+        "Strip devDependencies from consumed packages"<br/><br/>@{ assigned: III, priority: 'Low', ticket: '019-strip-dev-dependencies' }
         "publish --push deletes package dependencies"<br/><br/>@{ assigned: III, priority: 'High', ticket: '030-publish-push-deletes-deps' }
         "Fix normalized_path UNC path on Windows"<br/><br/>@{ assigned: VI, priority: 'Low', ticket: '022-fix-normalized-path-windows-unc' }
         "Implement install Command"<br/><br/>@{ assigned: III, priority: 'High', ticket: '017-implement-install-command' }
