@@ -47,7 +47,6 @@ kanban
         "Fast Reinstall - skip PM when deps unchanged"<br/><br/>@{ assigned: III, priority: 'Low', ticket: '029-fast-reinstall-skip-pm' }
 
     [Todo]
-        "Strip devDependencies from consumed packages"<br/><br/>@{ assigned: III, priority: 'Low', ticket: '019-strip-dev-dependencies' }
         "Add --dev flag to install command"<br/><br/>@{ assigned: III, priority: 'Low', ticket: '021-install-dev-flag' }
         "Implement install no args as Update All"<br/><br/>@{ assigned: III, priority: 'High', ticket: '020-install-no-args-as-update' }
         "Implement retreat and restore commands"<br/><br/>@{ assigned: III, priority: 'High', ticket: '023-retreat-restore-commands' }
@@ -56,6 +55,7 @@ kanban
     [In progress]
 
     Done
+        "Strip devDependencies from consumed packages"<br/><br/>@{ assigned: III, priority: 'Low', ticket: '019-strip-dev-dependencies' }
         "publish --push deletes package dependencies"<br/><br/>@{ assigned: III, priority: 'High', ticket: '030-publish-push-deletes-deps' }
         "Fix normalized_path UNC path on Windows"<br/><br/>@{ assigned: VI, priority: 'Low', ticket: '022-fix-normalized-path-windows-unc' }
         "Implement install Command"<br/><br/>@{ assigned: III, priority: 'High', ticket: '017-implement-install-command' }
