@@ -195,14 +195,15 @@ sequenceDiagram
 
 ### Quick Install (recommended)
 
-You can install `kley` with a single command using the installer script:
+You can install `kley` with a single command using the installer script.
 
+**Linux / macOS:**
 ```bash
-# Linux / macOS
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/sumbad/kley/releases/latest/download/kley-installer.sh | sh
 ```
+
+**Windows:**
 ```bash
-# Windows
 powershell -ExecutionPolicy Bypass -c "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://github.com/sumbad/kley/releases/latest/download/kley-installer.ps1 | iex"
 ```
 

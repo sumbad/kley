@@ -15,18 +15,18 @@ pub mod emoji {
     pub const PUBLISH: &str = "🚀";
     pub const PACKAGE: &str = "📦";
     pub const UPDATED: &str = "✔️";
-    pub const UNPUBLISH: &str = "🧹";
-    pub const WAITING: &str = "⏳";
+    pub const UNPUBLISH: &str = "➖";
+    pub const WAITING: &str = "⏱️";
 }
 
 #[cfg(windows)]
 pub mod emoji {
-    pub const SUCCESS: &str = "[OK]";
-    pub const ERROR: &str = "[ERR]";
+    pub const SUCCESS: &str = "[v]";
+    pub const ERROR: &str = "[x]";
     pub const WARNING: &str = "[!]";
-    pub const PUBLISH: &str = "[>>>]";
-    pub const PACKAGE: &str = "[PKG]";
+    pub const PUBLISH: &str = "[>]";
+    pub const PACKAGE: &str = "[P]";
     pub const UPDATED: &str = "[+]";
     pub const UNPUBLISH: &str = "[-]";
-    pub const WAITING: &str = "[...]";
+    pub const WAITING: &str = "[.]";
 }
