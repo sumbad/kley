@@ -195,14 +195,15 @@ sequenceDiagram
 
 ### Быстрая установка (рекомендуется)
 
-Вы можете установить `kley` одной командой с помощью установочного скрипта:
+Вы можете установить `kley` одной командой с помощью установочного скрипта.
 
+**Linux / macOS:**
 ```bash
-# Linux / macOS
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/sumbad/kley/releases/latest/download/kley-installer.sh | sh
 ```
+
+**Windows:**
 ```bash
-# Windows
 powershell -ExecutionPolicy Bypass -c "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://github.com/sumbad/kley/releases/latest/download/kley-installer.ps1 | iex"
 ```
 
