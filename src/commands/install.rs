@@ -6,6 +6,7 @@ use colored::*;
 use crate::{
     commands::update::run_update,
     emoji,
+    lockfile::Lockfile,
     package::{Package, PackageManagerType},
     registry::Registry,
     utils::{self, PROJECT_REGISTRY_DIR_NAME},
@@ -34,6 +35,31 @@ fn create_command(program: &str, args: &[&str]) -> Command {
 
 pub fn install(
     registry: &mut Registry,
+    package_name_version: Option<&str>,
+    project_dir: &Path,
+) -> Result<()> {
+    match package_name_version {
+        Some(pkg_name_version) => {
+            install_package(registry, pkg_name_version, project_dir)?;
+
+            println!(
+                "{}",
+                format!(
+                    "{} Done: {} installed",
+                    emoji::SUCCESS,
+                    pkg_name_version.cyan()
+                )
+                .green(),
+            );
+        }
+        None => install_all(registry, project_dir)?,
+    }
+
+    Ok(())
+}
+
+fn install_package(
+    registry: &mut Registry,
     package_name_version: &str,
     project_dir: &Path,
 ) -> Result<()> {
@@ -43,7 +69,7 @@ pub fn install(
 
     run_update(registry, package_name, project_dir)?;
 
-    let package = Package::get(&std::env::current_dir()?)?;
+    let package = Package::get(project_dir)?;
 
     let pkg_kley_path = project_dir
         .join(PROJECT_REGISTRY_DIR_NAME)
@@ -101,9 +127,44 @@ pub fn install(
 
     registry.add_package_installation(package_name, project_dir)?;
 
+    Ok(())
+}
+
+fn install_all(registry: &mut Registry, project_dir: &Path) -> Result<()> {
+    // If no packages are specified, install all packages in kley.lock
+    let lockfile = if let Some(lockfile) = Lockfile::get(project_dir) {
+        lockfile
+    } else {
+        println!(
+            "{}",
+            format!(
+                "{} Warning: No packages to install. kley.lock not found.",
+                emoji::WARNING
+            )
+            .yellow()
+        );
+        return Ok(());
+    };
+
+    if lockfile.packages.is_empty() {
+        println!(
+            "{}",
+            format!("{} Warning: No packages found to install.", emoji::WARNING).yellow()
+        );
+        return Ok(());
+    }
+
+    for (package_name, package_info) in lockfile.packages {
+        install_package(
+            registry,
+            &format!("{}@{}", package_name, package_info.version),
+            project_dir,
+        )?;
+    }
+
     println!(
         "{}",
-        format!("{} Done: {} installed", emoji::SUCCESS, package_name.cyan()).green(),
+        format!("{} Done: all packages installed", emoji::SUCCESS).green()
     );
 
     Ok(())
