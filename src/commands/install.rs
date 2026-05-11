@@ -58,6 +58,8 @@ pub fn install(
     Ok(())
 }
 
+/// Core install logic — copies package, delegates to PM, updates registry.
+/// Terminal output is limited to the PM command being run.
 fn install_package(
     registry: &mut Registry,
     package_name_version: &str,
@@ -131,7 +133,6 @@ fn install_package(
 }
 
 fn install_all(registry: &mut Registry, project_dir: &Path) -> Result<()> {
-    // If no packages are specified, install all packages in kley.lock
     let lockfile = if let Some(lockfile) = Lockfile::get(project_dir) {
         lockfile
     } else {
@@ -154,12 +155,20 @@ fn install_all(registry: &mut Registry, project_dir: &Path) -> Result<()> {
         return Ok(());
     }
 
+    println!("{}", "Install...".green().dimmed());
     for (package_name, package_info) in lockfile.packages {
         install_package(
             registry,
             &format!("{}@{}", package_name, package_info.version),
             project_dir,
         )?;
+
+        println!(
+            "{}",
+            format!("   {} {}", emoji::UPDATED, package_name)
+                .green()
+                .dimmed()
+        );
     }
 
     println!(
