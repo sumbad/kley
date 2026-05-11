@@ -109,7 +109,7 @@ fn install_package(
 
     let status = create_command(cmd_name, &cmd_args)
         .status()
-        .expect("Failed to run command");
+        .map_err(|e| anyhow::anyhow!("Failed to run {:?}: {}", cmd_name, e))?;
 
     if !status.success() {
         eprintln!(
@@ -123,8 +123,11 @@ fn install_package(
             .red(),
         );
 
-        // TODO: change to return Error for supporting RAII destructors
-        std::process::exit(1);
+        anyhow::bail!(
+            "Package manager {:?} failed with status: {:?}",
+            package.manager_type,
+            status.code(),
+        );
     }
 
     registry.add_package_installation(package_name, project_dir)?;
