@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.9.0] - 2026-05-11
 
 ### Added
 - **`kley install` without arguments**: Running `kley install` (or `kley i`) with no package name now installs all packages listed in `kley.lock`. For each package, it performs a full install cycle: copies files from the registry to `.kley/`, delegates to the native package manager (npm/pnpm/yarn), and updates `kley.lock`. This mirrors the behavior of `npm install` which refreshes `node_modules` based on `package.json`.
