@@ -35,7 +35,6 @@ config:
 
 kanban
     Todo
-        "Install no args as Update All"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-19' }
         "Add --dev flag to install command"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-20' }
         "Implement retreat and restore commands"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-21' }
         "Add --changed flag to publish command"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-22' }
@@ -43,6 +42,7 @@ kanban
         "Fast Reinstall - skip PM when deps unchanged"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-27' }
 
     In Progress
+        "Install no args as Update All"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-19' }
 
     Done
         "I. Dependency audit home to dirs"<br/><br/>@{ assigned: 🧩, priority: 'Low' }
