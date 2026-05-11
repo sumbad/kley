@@ -243,9 +243,11 @@ Run this command in the directory of a published package to remove it from the k
 - By default, it performs a "soft" unpublish, removing the package from the store but leaving your projects intact until the next install.
 - Use the `--push` flag to perform a "hard" unpublish, which also removes the package from all projects that use it.
 
-### 3. `kley install <package-name>` (alias `i`)
+### 3. `kley install [package-name]` (alias `i`)
 A universal command that combines `add` and the native package manager installation. It automatically detects whether your project uses `npm`, `pnpm`, or `yarn`, copies the package to `.kley/`, updates `kley.lock`, and delegates the installation to the appropriate package manager — all in one go.
 
+- **With a package name**: `kley install <package-name>` installs the specified package from the local registry.
+- **Without a package name**: `kley install` installs all packages listed in `kley.lock`. This is useful for restoring all local dependencies, similar to how `npm install` refreshes `node_modules` based on `package.json`.
 - Supports `npm`, `pnpm`, and `yarn` out of the box.
 - To explicitly specify the package manager, set the `packageManager` value in `package.json` or `kley.lock`.
 - **Lifecycle scripts** (`preinstall`, `install`, `postinstall`) are **disabled by default** (`--ignore-scripts`) for safety. This prevents arbitrary code execution during install. If a package requires lifecycle scripts to function (e.g., native modules), run the package manager manually.
