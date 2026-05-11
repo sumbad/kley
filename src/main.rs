@@ -45,7 +45,10 @@ enum Commands {
     },
     /// Install a package from the registry to the current project
     #[command(visible_alias = "i")]
-    Install { name: String },
+    Install {
+        /// Package name to install. If omitted, installs all packages from kley.lock
+        name: Option<String>,
+    },
     /// Link a package from the registry to the current project
     Link { name: String },
     /// Remove a package from the current project
@@ -90,7 +93,7 @@ fn main() -> Result<()> {
         Commands::Unpublish { push } => commands::unpublish::unpublish(&mut registry, *push)?,
         Commands::Add { name, dev } => commands::add::add(&mut registry, name, *dev)?,
         Commands::Install { name } => {
-            commands::install::install(&mut registry, name, &project_dir)?
+            commands::install::install(&mut registry, name.as_deref(), &project_dir)?
         }
         Commands::Link { name } => commands::link::link(&mut registry, name)?,
         Commands::Remove { name, all } => {

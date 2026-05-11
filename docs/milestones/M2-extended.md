@@ -10,8 +10,8 @@ workspaces), automatically track changes (watch), configure behavior via
 .kleyrc, use lifecycle scripts, and run diagnostic commands (check, list,
 clean).
 
-### Progress: 0/10
-<progress value="0" max="10"></progress>
+### Progress: 0/11
+<progress value="0" max="11"></progress>
 
 
 ```mermaid
@@ -45,6 +45,7 @@ kanban
         "Lifecycle scripts"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-23' }
         "kleyrc config"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-24' }
         "Check command"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-25' }
+        "Support multiple versions in registry"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-31' }
 
     In Progress
 

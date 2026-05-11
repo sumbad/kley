@@ -1,5 +1,6 @@
 mod common;
 
+use kley::package::PackageJson;
 use predicates::prelude::*;
 use std::fs;
 
@@ -257,4 +258,158 @@ fn test_install_strips_dev_dependencies() {
         no_dev_pkg_json_content.trim(),
         "File content should be identical for package with no dev deps"
     );
+}
+
+#[test_log::test]
+fn test_install_no_args_updates_all_packages() -> Result<(), Box<dyn std::error::Error>> {
+    // Arrange: install 2 packages at v1.0.0, then publish v2.0.0 to registry
+    let env = TestEnv::new();
+    env.setup_project_pm("npm");
+
+    // Create packages in registry at v1.0.0 with source files
+    env.create_mock_registry_package("pkg-a", "1.0.0");
+    env.create_mock_registry_package("pkg-b", "1.0.0");
+    fs::write(
+        env.kley_registry
+            .join("packages")
+            .join("pkg-a")
+            .join("index.js"),
+        "// pkg-a v1",
+    )
+    .unwrap();
+    fs::write(
+        env.kley_registry
+            .join("packages")
+            .join("pkg-b")
+            .join("index.js"),
+        "// pkg-b v1",
+    )
+    .unwrap();
+
+    // Install both packages initially
+    env.run_kley_command(&["install", "pkg-a"])
+        .assert()
+        .success();
+    env.run_kley_command(&["install", "pkg-b"])
+        .assert()
+        .success();
+
+    // Verify initial state: both at v1
+    assert_eq!(
+        fs::read_to_string(env.project_dir.join(".kley").join("pkg-a").join("index.js")).unwrap(),
+        "// pkg-a v1"
+    );
+    assert_eq!(
+        fs::read_to_string(env.project_dir.join(".kley").join("pkg-b").join("index.js")).unwrap(),
+        "// pkg-b v1"
+    );
+
+    let pkg_json_a = PackageJson::get(&env.project_dir.join(".kley").join("pkg-a"))?;
+
+    assert_eq!(pkg_json_a.version, "1.0.0");
+
+    let pkg_json_b = PackageJson::get(&env.project_dir.join(".kley").join("pkg-b"))?;
+    assert_eq!(pkg_json_b.version, "1.0.0");
+
+    // Update registry to v2.0.0 with new content
+    env.create_mock_registry_package("pkg-a", "2.0.0");
+    env.create_mock_registry_package("pkg-b", "2.0.0");
+    fs::write(
+        env.kley_registry
+            .join("packages")
+            .join("pkg-a")
+            .join("index.js"),
+        "// pkg-a v2",
+    )
+    .unwrap();
+
+    fs::write(
+        env.kley_registry
+            .join("packages")
+            .join("pkg-b")
+            .join("index.js"),
+        "// pkg-b v2",
+    )
+    .unwrap();
+
+    env.create_kley_lock(r#"{"packageManager": "npm", "packages": {"pkg-a": {"version": "2.0.0"}, "pkg-b": {"version": "2.0.0"}}}"#);
+
+    // Capture pm.log before no-args install (should not change after)
+    let pm_log_before = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+
+    // Act: run `kley install` with no args — should update all packages
+    env.run_kley_command(&["install"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Done"));
+
+    // Assert: both packages updated to v2.0.0
+    assert_eq!(
+        fs::read_to_string(env.project_dir.join(".kley").join("pkg-a").join("index.js")).unwrap(),
+        "// pkg-a v2"
+    );
+    assert_eq!(
+        fs::read_to_string(env.project_dir.join(".kley").join("pkg-b").join("index.js")).unwrap(),
+        "// pkg-b v2"
+    );
+
+    let pkg_json_a = PackageJson::get(&env.project_dir.join(".kley").join("pkg-a"))?;
+    assert_eq!(pkg_json_a.version, "2.0.0");
+
+    let pkg_json_b = PackageJson::get(&env.project_dir.join(".kley").join("pkg-b"))?;
+    assert_eq!(pkg_json_b.version, "2.0.0");
+
+    // Assert: kley.lock reflects v2.0.0 for both packages
+    let lock: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(env.project_dir.join("kley.lock")).unwrap())
+            .unwrap();
+    assert_eq!(lock["packages"]["pkg-a"]["version"], "2.0.0");
+    assert_eq!(lock["packages"]["pkg-b"]["version"], "2.0.0");
+
+    // Assert: PM call during no-args install
+    let pm_log_after = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+
+    assert_ne!(
+        pm_log_before, pm_log_after,
+        "PM should be called during `kley install` with no args"
+    );
+
+    let new_calls = pm_log_after.lines().count() - pm_log_before.lines().count();
+    assert_eq!(new_calls, 2, "PM should be called once per package");
+
+    Ok(())
+}
+
+#[test_log::test]
+fn test_install_no_args_no_lockfile_warns() {
+    // Arrange: project with no kley.lock at all
+    let env = TestEnv::new();
+    env.setup_project_pm("npm");
+
+    // Act: `kley install` with no args — nothing to update
+    env.run_kley_command(&["install"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Warning"));
+
+    // Assert: no PM call, no .kley directory created
+    assert!(!env.project_dir.join("pm.log").exists());
+    assert!(!env.project_dir.join(".kley").exists());
+}
+
+#[test_log::test]
+fn test_install_no_args_empty_lockfile_warns() {
+    // Arrange: project with empty kley.lock
+    let env = TestEnv::new();
+    env.setup_project_pm("npm");
+    env.create_kley_lock(r#"{"packages": {}}"#);
+
+    // Act: `kley install` with no args — no packages to update
+    env.run_kley_command(&["install"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Warning"));
+
+    // Assert: no PM call, no .kley directory created
+    assert!(!env.project_dir.join("pm.log").exists());
 }
