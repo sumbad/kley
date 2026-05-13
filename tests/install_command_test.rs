@@ -608,8 +608,7 @@ fn test_install_no_args_preserves_dev_and_prod_deps() -> Result<(), Box<dyn std:
 
     // Pre-populate package.json with prod-pkg in dependencies, dev-pkg in devDependencies
     let pkg_json_path = env.project_dir.join("package.json");
-    let pkg_json_content = format!(
-        r#"{{
+    let pkg_json_content = r#"{{
   "name": "my-project",
   "version": "1.0.0",
   "dependencies": {{
@@ -618,9 +617,9 @@ fn test_install_no_args_preserves_dev_and_prod_deps() -> Result<(), Box<dyn std:
   "devDependencies": {{
     "dev-pkg": "file:.kley/dev-pkg"
   }}
-}}"#
-    );
-    fs::write(&pkg_json_path, &pkg_json_content)?;
+}}"#;
+
+    fs::write(&pkg_json_path, pkg_json_content)?;
 
     // Create kley.lock referencing both packages
     env.create_kley_lock(
@@ -668,4 +667,17 @@ fn test_install_no_args_preserves_dev_and_prod_deps() -> Result<(), Box<dyn std:
     );
 
     Ok(())
+}
+
+#[test_log::test]
+fn test_install_dev_flag_without_package_name_fails() {
+    let env = TestEnv::new();
+    env.setup_project_pm("npm");
+
+    env.run_kley_command(&["install", "--dev"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "--dev flag requires a package name",
+        ));
 }
