@@ -54,7 +54,15 @@ pub fn install(
                 .green(),
             );
         }
-        None => install_all(registry, project_dir)?,
+        None => {
+            if dev {
+                anyhow::bail!(
+                    "--dev flag requires a package name. Usage: kley install --dev <package>"
+                );
+            }
+
+            install_all(registry, project_dir)?
+        }
     }
 
     Ok(())

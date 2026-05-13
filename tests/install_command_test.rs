@@ -526,10 +526,9 @@ fn test_install_dev_flag_yarn() {
 
     // PM was called with --dev
     let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
-    // yarn mock recognizes --dev, but we just check the log contains it
     assert!(
-        pm_log.contains("--dev") || pm_log.contains("-D"),
-        "yarn should be called with --dev or -D. pm.log:\n{}",
+        pm_log.contains("--dev"),
+        "yarn should be called with --dev. pm.log:\n{}",
         pm_log
     );
 
@@ -571,8 +570,7 @@ fn test_install_without_dev_goes_to_dependencies() {
         .success();
 
     // package.json should have the dep in dependencies, NOT devDependencies
-    let pkg_json =
-        fs::read_to_string(env.project_dir.join("package.json")).unwrap();
+    let pkg_json = fs::read_to_string(env.project_dir.join("package.json")).unwrap();
     let pkg: serde_json::Value = serde_json::from_str(&pkg_json).unwrap();
 
     assert!(
@@ -586,8 +584,7 @@ fn test_install_without_dev_goes_to_dependencies() {
         pkg_json
     );
     assert!(
-        pkg.get("devDependencies").is_none()
-            || pkg["devDependencies"].get("prod-pkg").is_none(),
+        pkg.get("devDependencies").is_none() || pkg["devDependencies"].get("prod-pkg").is_none(),
         "prod-pkg should NOT appear in devDependencies. Content:\n{}",
         pkg_json
     );
@@ -599,4 +596,76 @@ fn test_install_without_dev_goes_to_dependencies() {
         "npm should NOT be called with --save-dev or -D for regular install. pm.log:\n{}",
         pm_log
     );
+}
+
+#[test_log::test]
+fn test_install_no_args_preserves_dev_and_prod_deps() -> Result<(), Box<dyn std::error::Error>> {
+    // Arrange: project with one prod dep and one dev dep in package.json + kley.lock
+    let env = TestEnv::new();
+    env.create_mock_registry_package("prod-pkg", "1.0.0");
+    env.create_mock_registry_package("dev-pkg", "1.0.0");
+    env.setup_project_pm("npm");
+
+    // Pre-populate package.json with prod-pkg in dependencies, dev-pkg in devDependencies
+    let pkg_json_path = env.project_dir.join("package.json");
+    let pkg_json_content = format!(
+        r#"{{
+  "name": "my-project",
+  "version": "1.0.0",
+  "dependencies": {{
+    "prod-pkg": "file:.kley/prod-pkg"
+  }},
+  "devDependencies": {{
+    "dev-pkg": "file:.kley/dev-pkg"
+  }}
+}}"#
+    );
+    fs::write(&pkg_json_path, &pkg_json_content)?;
+
+    // Create kley.lock referencing both packages
+    env.create_kley_lock(
+        r#"{"packageManager": "npm", "packages": {"prod-pkg": {"version": "1.0.0"}, "dev-pkg": {"version": "1.0.0"}}}"#,
+    );
+
+    // Act: `kley install` with no args — should detect dev status from package.json
+    env.run_kley_command(&["install"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Done"));
+
+    // Assert: both packages installed
+    assert!(env.project_dir.join(".kley").join("prod-pkg").exists());
+    assert!(env.project_dir.join(".kley").join("dev-pkg").exists());
+
+    // Assert: PM was called twice — once WITHOUT --save-dev (prod-pkg), once WITH --save-dev (dev-pkg)
+    let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    let lines: Vec<&str> = pm_log.lines().collect();
+    assert_eq!(
+        lines.len(),
+        2,
+        "PM should be called once per package. pm.log:\n{}",
+        pm_log
+    );
+
+    let prod_call = lines
+        .iter()
+        .find(|l| l.contains("prod-pkg"))
+        .unwrap_or_else(|| panic!("No PM call for prod-pkg. pm.log:\n{}", pm_log));
+    let dev_call = lines
+        .iter()
+        .find(|l| l.contains("dev-pkg"))
+        .unwrap_or_else(|| panic!("No PM call for dev-pkg. pm.log:\n{}", pm_log));
+
+    assert!(
+        !prod_call.contains("--save-dev") && !prod_call.contains("-D"),
+        "prod-pkg should be installed WITHOUT dev flag. Call: {}",
+        prod_call
+    );
+    assert!(
+        dev_call.contains("--save-dev"),
+        "dev-pkg should be installed WITH --save-dev. Call: {}",
+        dev_call
+    );
+
+    Ok(())
 }
