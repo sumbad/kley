@@ -18,6 +18,9 @@ pub struct PackageJson {
     pub package_manager: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub dependencies: Option<serde_json::Value>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub dev_dependencies: Option<serde_json::Value>,
 }
 

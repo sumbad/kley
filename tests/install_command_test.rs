@@ -2,6 +2,7 @@ mod common;
 
 use kley::package::PackageJson;
 use predicates::prelude::*;
+use serde_json::json;
 use std::fs;
 
 use common::TestEnv;
@@ -412,4 +413,190 @@ fn test_install_no_args_empty_lockfile_warns() {
 
     // Assert: no PM call, no .kley directory created
     assert!(!env.project_dir.join("pm.log").exists());
+}
+
+// ─── f-20: --dev flag tests ─────────────────────────────────────────
+
+/// Checks that package.json contains a file: dependency in devDependencies.
+fn assert_pkg_json_has_dev_dep(pkg_name: &str, project_dir: &std::path::Path) {
+    let package_json = PackageJson::get(project_dir).unwrap();
+    let dev_dependencies = package_json.dev_dependencies.clone().unwrap_or(json!({}));
+    assert!(
+        package_json.dev_dependencies.is_some(),
+        "package.json should have devDependencies section. Content:\n{:?}",
+        package_json
+    );
+    assert!(
+        dev_dependencies.get(pkg_name).is_some(),
+        "devDependencies should contain '{}'. Content:\n{:?}",
+        pkg_name,
+        &package_json
+    );
+
+    let kley_path = project_dir.join(".kley").join(pkg_name);
+    let expected_path = kley_path.to_string_lossy().replace('\\', "/");
+
+    assert!(
+        dev_dependencies
+            .get(pkg_name)
+            .unwrap_or(&json!(""))
+            .as_str()
+            .unwrap()
+            .contains(&expected_path),
+        "devDependencies['{}'] should contain path '{}'. Content:\n{:?}",
+        pkg_name,
+        expected_path,
+        package_json,
+    );
+}
+
+#[test_log::test]
+fn test_install_dev_flag_npm() -> Result<(), Box<dyn std::error::Error>> {
+    let pkg_name = "dev-pkg-npm";
+    let env = TestEnv::new();
+    env.create_mock_registry_package(pkg_name, "1.0.0");
+    env.setup_project_pm("npm");
+
+    env.run_kley_command(&["install", "--dev", pkg_name])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Done: dev-pkg-npm installed"));
+
+    // Package copied to .kley
+    assert!(env.project_dir.join(".kley").join(pkg_name).exists());
+
+    // kley.lock updated
+    let mut lock_content = fs::read_to_string(env.project_dir.join("kley.lock")).unwrap();
+    lock_content.retain(|c| !c.is_whitespace());
+    assert!(lock_content.contains(r#""dev-pkg-npm":{"version":"1.0.0"}"#));
+
+    // PM was called with --save-dev
+    let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert!(
+        pm_log.contains("--save-dev"),
+        "npm should be called with --save-dev. pm.log:\n{}",
+        pm_log
+    );
+    assert!(
+        pm_log.contains("--ignore-scripts"),
+        "npm should be called with --ignore-scripts. pm.log:\n{}",
+        pm_log
+    );
+
+    // package.json has the dep in devDependencies
+    assert_pkg_json_has_dev_dep(pkg_name, &env.project_dir);
+
+    Ok(())
+}
+
+#[test_log::test]
+fn test_install_dev_flag_pnpm() {
+    let pkg_name = "dev-pkg-pnpm";
+    let env = TestEnv::new();
+    env.create_mock_registry_package(pkg_name, "1.0.0");
+    env.setup_project_pm("pnpm");
+
+    env.run_kley_command(&["install", "--dev", "dev-pkg-pnpm"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Done: dev-pkg-pnpm installed"));
+
+    // PM was called with -D
+    let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert!(
+        pm_log.contains("-D"),
+        "pnpm should be called with -D. pm.log:\n{}",
+        pm_log
+    );
+
+    // package.json has the dep in devDependencies
+    assert_pkg_json_has_dev_dep(pkg_name, &env.project_dir);
+}
+//
+#[test_log::test]
+fn test_install_dev_flag_yarn() {
+    let env = TestEnv::new();
+    env.create_mock_registry_package("dev-pkg-yarn", "1.0.0");
+    env.setup_project_pm("yarn");
+
+    env.run_kley_command(&["install", "--dev", "dev-pkg-yarn"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Done: dev-pkg-yarn installed"));
+
+    // PM was called with --dev
+    let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    // yarn mock recognizes --dev, but we just check the log contains it
+    assert!(
+        pm_log.contains("--dev") || pm_log.contains("-D"),
+        "yarn should be called with --dev or -D. pm.log:\n{}",
+        pm_log
+    );
+
+    // package.json has the dep in devDependencies
+    assert_pkg_json_has_dev_dep("dev-pkg-yarn", &env.project_dir);
+}
+
+#[test_log::test]
+fn test_install_short_d_flag() {
+    let env = TestEnv::new();
+    env.create_mock_registry_package("dev-pkg-short", "1.0.0");
+    env.setup_project_pm("npm");
+
+    env.run_kley_command(&["install", "-D", "dev-pkg-short"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Done: dev-pkg-short installed"));
+
+    // Same behavior as --dev: npm gets --save-dev
+    let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert!(
+        pm_log.contains("--save-dev"),
+        "npm should be called with --save-dev. pm.log:\n{}",
+        pm_log
+    );
+
+    // package.json has the dep in devDependencies
+    assert_pkg_json_has_dev_dep("dev-pkg-short", &env.project_dir);
+}
+
+#[test_log::test]
+fn test_install_without_dev_goes_to_dependencies() {
+    let env = TestEnv::new();
+    env.create_mock_registry_package("prod-pkg", "1.0.0");
+    env.setup_project_pm("npm");
+
+    env.run_kley_command(&["install", "prod-pkg"])
+        .assert()
+        .success();
+
+    // package.json should have the dep in dependencies, NOT devDependencies
+    let pkg_json =
+        fs::read_to_string(env.project_dir.join("package.json")).unwrap();
+    let pkg: serde_json::Value = serde_json::from_str(&pkg_json).unwrap();
+
+    assert!(
+        pkg.get("dependencies").is_some(),
+        "package.json should have dependencies section. Content:\n{}",
+        pkg_json
+    );
+    assert!(
+        pkg["dependencies"].get("prod-pkg").is_some(),
+        "dependencies should contain 'prod-pkg'. Content:\n{}",
+        pkg_json
+    );
+    assert!(
+        pkg.get("devDependencies").is_none()
+            || pkg["devDependencies"].get("prod-pkg").is_none(),
+        "prod-pkg should NOT appear in devDependencies. Content:\n{}",
+        pkg_json
+    );
+
+    // PM should NOT have received --save-dev
+    let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert!(
+        !pm_log.contains("--save-dev") && !pm_log.contains("-D"),
+        "npm should NOT be called with --save-dev or -D for regular install. pm.log:\n{}",
+        pm_log
+    );
 }
