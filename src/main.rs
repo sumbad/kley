@@ -41,7 +41,7 @@ enum Commands {
     Add {
         name: String,
         /// Install as devDependency
-        #[arg(long, short='D')]
+        #[arg(long, short = 'D')]
         dev: bool,
     },
     /// Install a package from the registry to the current project
@@ -50,7 +50,7 @@ enum Commands {
         /// Package name to install. If omitted, installs all packages from kley.lock
         name: Option<String>,
         /// Install as devDependency
-        #[arg(long, short='D')]
+        #[arg(long, short = 'D')]
         dev: bool,
     },
     /// Link a package from the registry to the current project
