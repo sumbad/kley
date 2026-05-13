@@ -247,12 +247,11 @@ Run this command in the directory of a published package to remove it from the k
 A universal command that combines `add` and the native package manager installation. It automatically detects whether your project uses `npm`, `pnpm`, or `yarn`, copies the package to `.kley/`, updates `kley.lock`, and delegates the installation to the appropriate package manager — all in one go.
 
 - **With a package name**: `kley install <package-name>` installs the specified package from the local registry.
-- **Without a package name**: `kley install` installs all packages listed in `kley.lock`. This is useful for restoring all local dependencies, similar to how `npm install` refreshes `node_modules` based on `package.json`.
+- **Without a package name**: `kley install` installs all packages listed in `kley.lock`. This is useful for restoring all local dependencies, similar to how `npm install` refreshes `node_modules` based on `package.json`. Packages already in `devDependencies` are automatically installed with the appropriate dev flag.
+- Use the `--dev` or `-D` flag to install a package as a `devDependency`: `kley install --dev <package-name>`.
 - Supports `npm`, `pnpm`, and `yarn` out of the box.
 - To explicitly specify the package manager, set the `packageManager` value in `package.json` or `kley.lock`.
 - **Lifecycle scripts** (`preinstall`, `install`, `postinstall`) are **disabled by default** (`--ignore-scripts`) for safety. This prevents arbitrary code execution during install. If a package requires lifecycle scripts to function (e.g., native modules), run the package manager manually.
-
-> **Note:** If you need to add a package as a dev dependency (`--dev`), use `kley add --dev` instead and run the package manager manually.
 
 ### 4. `kley add <package-name>`
 Run this command in the project where you want to use your local package. Kley copies the package into a local `./.kley/` directory, then automatically updates your `package.json` and `kley.lock`.
