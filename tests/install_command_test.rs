@@ -608,16 +608,16 @@ fn test_install_no_args_preserves_dev_and_prod_deps() -> Result<(), Box<dyn std:
 
     // Pre-populate package.json with prod-pkg in dependencies, dev-pkg in devDependencies
     let pkg_json_path = env.project_dir.join("package.json");
-    let pkg_json_content = r#"{{
+    let pkg_json_content = r#"{
   "name": "my-project",
   "version": "1.0.0",
-  "dependencies": {{
+  "dependencies": {
     "prod-pkg": "file:.kley/prod-pkg"
-  }},
-  "devDependencies": {{
+  },
+  "devDependencies": {
     "dev-pkg": "file:.kley/dev-pkg"
-  }}
-}}"#;
+  }
+}"#;
 
     fs::write(&pkg_json_path, pkg_json_content)?;
 
