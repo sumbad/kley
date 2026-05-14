@@ -2,12 +2,13 @@ use std::{path::Path, process::Command};
 
 use anyhow::Result;
 use colored::*;
+use serde_json::json;
 
 use crate::{
     commands::update::run_update,
     emoji,
     lockfile::Lockfile,
-    package::{Package, PackageManagerType},
+    package::{Package, PackageJson, PackageManagerType},
     registry::Registry,
     utils::{self, PROJECT_REGISTRY_DIR_NAME},
 };
@@ -37,10 +38,11 @@ pub fn install(
     registry: &mut Registry,
     package_name_version: Option<&str>,
     project_dir: &Path,
+    dev: bool,
 ) -> Result<()> {
     match package_name_version {
         Some(pkg_name_version) => {
-            install_package(registry, pkg_name_version, project_dir)?;
+            install_package(registry, pkg_name_version, project_dir, dev)?;
 
             println!(
                 "{}",
@@ -52,7 +54,15 @@ pub fn install(
                 .green(),
             );
         }
-        None => install_all(registry, project_dir)?,
+        None => {
+            if dev {
+                anyhow::bail!(
+                    "--dev flag requires a package name. Usage: kley install --dev <package>"
+                );
+            }
+
+            install_all(registry, project_dir)?
+        }
     }
 
     Ok(())
@@ -64,6 +74,7 @@ fn install_package(
     registry: &mut Registry,
     package_name_version: &str,
     project_dir: &Path,
+    dev: bool,
 ) -> Result<()> {
     let (package_name, package_version) = utils::package_name_version_parse(package_name_version);
 
@@ -88,15 +99,39 @@ fn install_package(
     let (cmd_name, cmd_args): (&str, Vec<&str>) = match package.manager_type {
         PackageManagerType::Pnpm => (
             &pnpm_command,
-            vec!["add", pkg_kley_path_str, "--ignore-scripts"],
+            vec![
+                Some("add"),
+                Some(pkg_kley_path_str),
+                Some("--ignore-scripts"),
+                dev.then_some("-D"),
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<&str>>(),
         ),
         PackageManagerType::Yarn => (
             &yarn_command,
-            vec!["add", pkg_kley_path_str, "--ignore-scripts"],
+            vec![
+                Some("add"),
+                Some(pkg_kley_path_str),
+                Some("--ignore-scripts"),
+                dev.then_some("--dev"),
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<&str>>(),
         ),
         PackageManagerType::Npm => (
             &npm_command,
-            vec!["install", pkg_kley_path_str, "--ignore-scripts"],
+            vec![
+                Some("install"),
+                Some(pkg_kley_path_str),
+                Some("--ignore-scripts"),
+                dev.then_some("--save-dev"),
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<&str>>(),
         ),
     };
 
@@ -158,12 +193,16 @@ fn install_all(registry: &mut Registry, project_dir: &Path) -> Result<()> {
         return Ok(());
     }
 
+    let package_json = PackageJson::get(project_dir)?;
+    let dev_dependencies = package_json.dev_dependencies.unwrap_or(json!({}));
+
     println!("{}", "Install...".green().dimmed());
     for (package_name, package_info) in lockfile.packages {
         install_package(
             registry,
             &format!("{}@{}", package_name, package_info.version),
             project_dir,
+            dev_dependencies.get(&package_name).is_some(),
         )?;
 
         println!(
