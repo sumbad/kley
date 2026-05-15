@@ -10,8 +10,8 @@ into a project (as a dependency or dev-dependency), update all packages with a
 single command, and cleanly remove them. The tool is ready for everyday use in
 the basic workflow.
 
-### Progress: 25/30
-<progress value="25" max="30"></progress>
+### Progress: 26/30
+<progress value="26" max="30"></progress>
 
 
 ```mermaid
@@ -35,15 +35,15 @@ config:
 
 kanban
     Todo
-        "Implement retreat and restore commands"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-21' }
-        "Add --changed flag to publish command"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-22' }
+        "Rework link: direct symlink to source"<br/><br/>@{ assigned: 🧩, priority: 'Very High', ticket: 'f-32' }
         "Fast Install Optimization"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-26' }
         "Fast Reinstall - skip PM when deps unchanged"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-27' }
+        "Add --no-save flag to install command"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-33' }
 
     In Progress
-        "Add --dev flag to install command"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-20' }
 
     Done
+        "Add --dev flag to install command"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-20' }
         "Install no args as Update All"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-19' }
         "I. Dependency audit home to dirs"<br/><br/>@{ assigned: 🧩, priority: 'Low' }
         "I. Use ignore crate for filtering"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-2' }
