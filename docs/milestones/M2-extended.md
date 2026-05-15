@@ -10,8 +10,8 @@ workspaces), automatically track changes (watch), configure behavior via
 .kleyrc, use lifecycle scripts, and run diagnostic commands (check, list,
 clean).
 
-### Progress: 0/11
-<progress value="0" max="11"></progress>
+### Progress: 0/13
+<progress value="0" max="13"></progress>
 
 
 ```mermaid
@@ -35,6 +35,8 @@ config:
 
 kanban
     Todo
+        "Implement retreat and restore commands"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-21' }
+        "Add --changed flag to publish command"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-22' }
         "Implement watch command"<br/><br/>@{ assigned: 🧩, priority: 'Very High', ticket: 'f-4' }
         "Enhance kley.lock with version pinning"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-15' }
         "Implement clean command"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-13' }
