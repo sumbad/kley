@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{collections::BTreeMap, path::Path};
 
 use anyhow::Result;
 use colored::Colorize;
@@ -99,6 +99,8 @@ fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path)
     // Insert or update package info
     let package_info = PackageInfo {
         version: version.to_string(),
+        dependencies: BTreeMap::new(),
+        peer_dependencies: BTreeMap::new(),
     };
 
     lockfile
