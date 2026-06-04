@@ -681,3 +681,28 @@ fn test_install_dev_flag_without_package_name_fails() {
             "--dev flag requires a package name",
         ));
 }
+
+#[test_log::test]
+fn test_dependencies_snapshotting() {
+    let env = TestEnv::new();
+    env.create_mock_package_with_content(
+        "my-package",
+        "1.0.0",
+        r#"{"name": "my-package", "version": "1.0.0", "dependencies": {"left-pad": "^1.0.0"}, "peerDependencies": {"react": "^18.0.0"}}"#,
+    );
+    env.setup_project_pm("npm");
+
+    env.run_kley_command(&["install", "my-package"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Done: my-package installed"));
+
+    assert!(env.project_dir.join(".kley").join("my-package").exists());
+
+    let kley_lock_content = fs::read_to_string(env.project_dir.join("kley.lock")).unwrap();
+    let lock: serde_json::Value = serde_json::from_str(&kley_lock_content).unwrap();
+    let info = &lock["packages"]["my-package"];
+
+    assert_eq!(info["dependencies"]["left-pad"], "^1.0.0");
+    assert_eq!(info["peerDependencies"]["react"], "^18.0.0");
+}

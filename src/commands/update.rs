@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, path::Path};
+use std::path::Path;
 
 use anyhow::Result;
 use colored::Colorize;
@@ -6,6 +6,7 @@ use colored::Colorize;
 use crate::{
     emoji,
     lockfile::{Lockfile, PackageInfo},
+    package::PackageJson,
     registry::Registry,
     utils::{PROJECT_REGISTRY_DIR_NAME, copy_from_registry, strip_dev_dependencies},
 };
@@ -96,11 +97,13 @@ fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path)
 
     let mut lockfile = Lockfile::new(project_dir);
 
+    let package_json = PackageJson::get(&registry.get_pkg_dir(package_name))?;
+
     // Insert or update package info
     let package_info = PackageInfo {
         version: version.to_string(),
-        dependencies: BTreeMap::new(),
-        peer_dependencies: BTreeMap::new(),
+        dependencies: package_json.dependencies,
+        peer_dependencies: package_json.peer_dependencies,
     };
 
     lockfile
@@ -118,7 +121,7 @@ mod kley_lock_tests {
     use std::{fs, io::Write};
     use tempfile::tempdir;
 
-    #[test]
+    #[test_log::test]
     fn test_create_new_kley_lock() -> Result<()> {
         let dir = tempdir()?;
         let project_dir = dir.path();
@@ -127,12 +130,15 @@ mod kley_lock_tests {
         let mut registry = Registry::with_home_dir(tmp_home_dir.path())?;
 
         let package_name = "test-lib";
-        // Create a dummy package.json in a dummy source path
-        let source_path = project_dir.join(package_name);
+        // The snapshot is read from the package.json in the registry store
+        let source_path = registry.get_pkg_dir(package_name);
         fs::create_dir_all(&source_path)?;
         let pkg_json_path = source_path.join("package.json");
         let mut file = fs::File::create(pkg_json_path)?;
-        write!(file, r#"{{"version": "1.2.3"}}"#)?;
+        write!(
+            file,
+            r#"{{"name": "test-lib", "version": "1.2.3", "dependencies": {{"left-pad": "^1.0.0"}}, "peerDependencies": {{"react": "^18.0.0"}}}}"#
+        )?;
 
         registry.update_package_version(package_name, "1.2.3")?;
 
@@ -141,7 +147,10 @@ mod kley_lock_tests {
         let lock_content = fs::read_to_string(project_dir.join("kley.lock"))?;
         let lockfile: Lockfile = serde_json::from_str(&lock_content)?;
 
-        assert_eq!(lockfile.packages.get("test-lib").unwrap().version, "1.2.3");
+        let info = lockfile.packages.get("test-lib").unwrap();
+        assert_eq!(info.version, "1.2.3");
+        assert_eq!(info.dependencies.get("left-pad").unwrap(), "^1.0.0");
+        assert_eq!(info.peer_dependencies.get("react").unwrap(), "^18.0.0");
 
         Ok(())
     }
@@ -155,12 +164,12 @@ mod kley_lock_tests {
         let mut registry = Registry::with_home_dir(tmp_home_dir.path())?;
 
         let package_name = "test-lib";
-        // Create a dummy source package
-        let source_path = project_dir.join(package_name);
+        // The snapshot is read from the package.json in the registry store
+        let source_path = registry.get_pkg_dir(package_name);
         fs::create_dir_all(&source_path)?;
         let pkg_json_path = source_path.join("package.json");
         let mut file = fs::File::create(pkg_json_path)?;
-        write!(file, r#"{{"version": "2.0.0"}}"#)?;
+        write!(file, r#"{{"name": "test-lib", "version": "2.0.0"}}"#)?;
 
         // Create an existing kley.lock in the project dir
         let lock_path = project_dir.join("kley.lock");
