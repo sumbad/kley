@@ -8,6 +8,7 @@ use std::{
 };
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct PackageInfo {
     pub version: String,
     /// Snapshot of dependencies at last PM install, used for fast reinstall check
