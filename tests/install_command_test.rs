@@ -682,6 +682,7 @@ fn test_install_dev_flag_without_package_name_fails() {
         ));
 }
 
+// ─── f-27: Fast reinstall tests ─────────────────────────────────────────
 #[test_log::test]
 fn test_dependencies_snapshotting() {
     let env = TestEnv::new();
@@ -705,4 +706,65 @@ fn test_dependencies_snapshotting() {
 
     assert_eq!(info["dependencies"]["left-pad"], "^1.0.0");
     assert_eq!(info["peerDependencies"]["react"], "^18.0.0");
+}
+
+/// Case C (happy fast path): node_modules/<pkg> is a directory or doesn't exist,
+/// dependencies unchanged. PM should be skipped, files copied directly.
+#[test_log::test]
+fn test_fast_path_case_c_skips_pm_when_deps_unchanged() {
+    let env = TestEnv::new();
+    let pkg_name = "fast-pkg";
+    let pkg_json =
+        r#"{"name": "fast-pkg", "version": "1.0.0", "dependencies": {"lodash": "^4.0.0"}}"#;
+
+    env.create_mock_package_with_content(pkg_name, "1.0.0", pkg_json);
+    env.setup_project_pm("npm");
+
+    // 1. First install — slow path, PM is called, snapshot saved
+    env.run_kley_command(&["install", pkg_name])
+        .assert()
+        .success();
+
+    let pm_log_after_first = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert!(
+        pm_log_after_first.contains("npm install"),
+        "First install should call PM"
+    );
+
+    // Verify snapshot was saved
+    let lock: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(env.project_dir.join("kley.lock")).unwrap())
+            .unwrap();
+    assert_eq!(
+        lock["packages"][pkg_name]["dependencies"]["lodash"], "^4.0.0",
+        "Snapshot should be saved after first install"
+    );
+
+    // 2. Update source file in registry (simulating kley publish with code change, same deps)
+    let registry_pkg_dir = env.kley_registry.join("packages").join(pkg_name);
+    fs::write(registry_pkg_dir.join("index.js"), "// v2 code").unwrap();
+
+    // 3. Second install — fast path should trigger, PM NOT called
+    env.run_kley_command(&["install", pkg_name])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Done: fast-pkg installed"));
+
+    let pm_log_after_second = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    let pm_calls_count = pm_log_after_second.lines().count();
+
+    assert_eq!(
+        pm_calls_count, 1,
+        "PM should NOT be called on second install when deps unchanged. pm.log:\n{}",
+        pm_log_after_second
+    );
+
+    // 4. Verify the updated file was copied to node_modules
+    let node_modules_pkg = env.project_dir.join("node_modules").join(pkg_name);
+    let index_content = fs::read_to_string(node_modules_pkg.join("index.js")).unwrap();
+
+    assert_eq!(
+        index_content, "// v2 code",
+        "Updated source should be copied to node_modules"
+    );
 }

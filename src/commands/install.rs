@@ -80,14 +80,48 @@ fn install_package(
 
     utils::validate_version_in_registry(registry, package_name, package_version);
 
-    run_update(registry, package_name, project_dir)?;
-
     let package = Package::get(project_dir)?;
 
     let pkg_kley_path = project_dir
         .join(PROJECT_REGISTRY_DIR_NAME)
         .join(package_name);
 
+    let deps_path = project_dir.join("node_modules").join(package_name);
+
+    let deps_snapshot = package
+        .lockfile
+        .as_ref()
+        .and_then(|it| it.packages.get(package_name));
+
+    run_update(registry, package_name, project_dir)?;
+
+    let installed_pkg_json = PackageJson::get(&pkg_kley_path)?;
+
+    let is_same_deps = if let Some(info) = deps_snapshot {
+        info.dependencies == installed_pkg_json.dependencies
+            && info.peer_dependencies == installed_pkg_json.peer_dependencies
+    } else {
+        false
+    };
+
+    if is_same_deps {
+        if deps_path.exists() && !deps_path.is_symlink() {
+            let mut options = fs_extra::dir::CopyOptions::new();
+            options.overwrite = true;
+            options.content_only = true;
+
+            fs_extra::dir::copy(&pkg_kley_path, &deps_path, &options)?;
+        }
+    } else {
+        pm_install_command(&pkg_kley_path, &package, dev)?;
+    }
+
+    registry.add_package_installation(package_name, project_dir)?;
+
+    Ok(())
+}
+
+fn pm_install_command(pkg_kley_path: &Path, package: &Package, dev: bool) -> Result<()> {
     let pkg_kley_path_str = pkg_kley_path
         .to_str()
         .ok_or_else(|| anyhow::anyhow!("Path contains non-UTF8 characters: {:?}", pkg_kley_path))?;
@@ -164,8 +198,6 @@ fn install_package(
             status.code(),
         );
     }
-
-    registry.add_package_installation(package_name, project_dir)?;
 
     Ok(())
 }
