@@ -1,5 +1,5 @@
 use anyhow::{Context, Ok, Result};
-use std::{fs, path::Path};
+use std::{collections::BTreeMap, fs, path::Path};
 
 use serde::{Deserialize, Serialize};
 
@@ -19,6 +19,12 @@ pub struct PackageJson {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dev_dependencies: Option<serde_json::Value>,
+
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub dependencies: BTreeMap<String, String>,
+
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub peer_dependencies: BTreeMap<String, String>,
 }
 
 #[derive(Debug, PartialEq)]
