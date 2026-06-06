@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.10.0] - 2026-06-06
 
 ### Added
 - **`kley install --dev` / `-D` flag**: Added `--dev` (alias `-D`) flag to the `install` command, consistent with `kley add --dev` and the conventions of `npm install --save-dev`, `pnpm add -D`, and `yarn add --dev`. When used with a package name, the package is installed as a `devDependency` via the native package manager. When running `kley install` without arguments, the dev status of each package is auto-detected from `package.json`.
