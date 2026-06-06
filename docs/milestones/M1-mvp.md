@@ -37,12 +37,12 @@ kanban
     Todo
         "Rework link: direct symlink to source"<br/><br/>@{ assigned: 🧩, priority: 'Very High', ticket: 'f-32' }
         "Fast Install Optimization"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-26' }
-        "Fast Reinstall - skip PM when deps unchanged"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-27' }
         "Add --no-save flag to install command"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-33' }
 
     In Progress
 
     Done
+        "Fast Reinstall - skip PM when deps unchanged"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-27' }
         "Add --dev flag to install command"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-20' }
         "Install no args as Update All"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-19' }
         "I. Dependency audit home to dirs"<br/><br/>@{ assigned: 🧩, priority: 'Low' }
