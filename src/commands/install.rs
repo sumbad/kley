@@ -39,10 +39,11 @@ pub fn install(
     package_name_version: Option<&str>,
     project_dir: &Path,
     dev: bool,
+    no_save: bool,
 ) -> Result<()> {
     match package_name_version {
         Some(pkg_name_version) => {
-            install_package(registry, pkg_name_version, project_dir, dev)?;
+            install_package(registry, pkg_name_version, project_dir, dev, no_save)?;
 
             println!(
                 "{}",
@@ -61,7 +62,7 @@ pub fn install(
                 );
             }
 
-            install_all(registry, project_dir)?
+            install_all(registry, project_dir, no_save)?
         }
     }
 
@@ -75,6 +76,7 @@ fn install_package(
     package_name_version: &str,
     project_dir: &Path,
     dev: bool,
+    no_save: bool,
 ) -> Result<()> {
     let (package_name, package_version) = utils::package_name_version_parse(package_name_version);
 
@@ -117,7 +119,7 @@ fn install_package(
 
             // Case B: symlink points to an unknown location — fall back to PM
             tracing::info!("Destination is an unknown symlink, falling back to PM");
-            pm_install_command(&pkg_kley_path, &package, dev)?;
+            pm_install_command(&pkg_kley_path, &package, dev, no_save)?;
             return Ok(());
         }
 
@@ -137,12 +139,17 @@ fn install_package(
     }
 
     // Slow path: no snapshot, deps changed, or node_modules/<pkg> doesn't exist
-    pm_install_command(&pkg_kley_path, &package, dev)?;
+    pm_install_command(&pkg_kley_path, &package, dev, no_save)?;
 
     Ok(())
 }
 
-fn pm_install_command(pkg_kley_path: &Path, package: &Package, dev: bool) -> Result<()> {
+fn pm_install_command(
+    pkg_kley_path: &Path,
+    package: &Package,
+    dev: bool,
+    no_save: bool,
+) -> Result<()> {
     let pkg_kley_path_str = pkg_kley_path
         .to_str()
         .ok_or_else(|| anyhow::anyhow!("Path contains non-UTF8 characters: {:?}", pkg_kley_path))?;
@@ -152,6 +159,19 @@ fn pm_install_command(pkg_kley_path: &Path, package: &Package, dev: bool) -> Res
     let yarn_command = std::env::var("KLEY_USE_YARN_COMMAND").unwrap_or("yarn".to_string());
 
     let (cmd_name, cmd_args): (&str, Vec<&str>) = match package.manager_type {
+        PackageManagerType::Npm => (
+            &npm_command,
+            vec![
+                Some("install"),
+                Some(pkg_kley_path_str),
+                Some("--ignore-scripts"),
+                dev.then_some("--save-dev"),
+                no_save.then_some("--no-save"),
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<&str>>(),
+        ),
         PackageManagerType::Pnpm => (
             &pnpm_command,
             vec![
@@ -159,6 +179,7 @@ fn pm_install_command(pkg_kley_path: &Path, package: &Package, dev: bool) -> Res
                 Some(pkg_kley_path_str),
                 Some("--ignore-scripts"),
                 dev.then_some("-D"),
+                no_save.then_some("--save=false"),
             ]
             .into_iter()
             .flatten()
@@ -171,18 +192,9 @@ fn pm_install_command(pkg_kley_path: &Path, package: &Package, dev: bool) -> Res
                 Some(pkg_kley_path_str),
                 Some("--ignore-scripts"),
                 dev.then_some("--dev"),
-            ]
-            .into_iter()
-            .flatten()
-            .collect::<Vec<&str>>(),
-        ),
-        PackageManagerType::Npm => (
-            &npm_command,
-            vec![
-                Some("install"),
-                Some(pkg_kley_path_str),
-                Some("--ignore-scripts"),
-                dev.then_some("--save-dev"),
+                // Yarn v1 has no --no-save equivalent.
+                // The package.json modification will happen regardless.
+                // This is documented as a known limitation.
             ]
             .into_iter()
             .flatten()
@@ -223,7 +235,7 @@ fn pm_install_command(pkg_kley_path: &Path, package: &Package, dev: bool) -> Res
     Ok(())
 }
 
-fn install_all(registry: &mut Registry, project_dir: &Path) -> Result<()> {
+fn install_all(registry: &mut Registry, project_dir: &Path, no_save: bool) -> Result<()> {
     let lockfile = if let Some(lockfile) = Lockfile::get(project_dir) {
         lockfile
     } else {
@@ -256,6 +268,7 @@ fn install_all(registry: &mut Registry, project_dir: &Path) -> Result<()> {
             &format!("{}@{}", package_name, package_info.version),
             project_dir,
             dev_dependencies.get(&package_name).is_some(),
+            no_save,
         )?;
 
         println!(

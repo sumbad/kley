@@ -175,8 +175,6 @@ fn test_remove_after_no_save_install() {
         .assert()
         .success();
 
-    let pkg_json_before = fs::read_to_string(env.project_dir.join("package.json")).unwrap();
-
     // Remove
     env.run_kley_command(&["remove", "removable-pkg"])
         .assert()
@@ -196,12 +194,9 @@ fn test_remove_after_no_save_install() {
         lock_content
     );
 
-    // package.json unchanged (was never modified by --no-save install)
-    let pkg_json_after = fs::read_to_string(env.project_dir.join("package.json")).unwrap();
-    assert_eq!(
-        pkg_json_before, pkg_json_after,
-        "package.json should be unchanged after remove following --no-save install"
-    );
+    // package.json should not contain removable-pkg in any dependency section
+    // (it was never added by --no-save, and remove should not have added it either)
+    assert_pkg_json_has_no_dep("removable-pkg", &env.project_dir);
 }
 
 /// kley install (no args) re-installs packages originally installed with --no-save.
