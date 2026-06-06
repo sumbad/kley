@@ -10,7 +10,7 @@ use crate::{
     lockfile::Lockfile,
     package::{Package, PackageJson, PackageManagerType},
     registry::Registry,
-    utils::{self, PROJECT_REGISTRY_DIR_NAME},
+    utils::{self, PROJECT_REGISTRY_DIR_NAME, get_kley_home_dir, normalized_path},
 };
 
 /// On Windows, npm/pnpm/yarn are `.cmd` scripts that `Command::new` cannot find directly.
@@ -94,6 +94,7 @@ fn install_package(
         .and_then(|it| it.packages.get(package_name));
 
     run_update(registry, package_name, project_dir)?;
+    registry.add_package_installation(package_name, project_dir)?;
 
     let installed_pkg_json = PackageJson::get(&pkg_kley_path)?;
 
@@ -104,19 +105,34 @@ fn install_package(
         false
     };
 
-    if is_same_deps {
-        if deps_path.exists() && !deps_path.is_symlink() {
-            let mut options = fs_extra::dir::CopyOptions::new();
-            options.overwrite = true;
-            options.content_only = true;
+    // Symlink
+    if is_same_deps && deps_path.is_symlink() {
+        let link_target = std::fs::read_link(&deps_path)?;
 
-            fs_extra::dir::copy(&pkg_kley_path, &deps_path, &options)?;
+        if normalized_path(&link_target, None) == normalized_path(&pkg_kley_path, None) {
+            tracing::info!("Destination is a correct symlink. Fast path complete.");
+
+            return Ok(());
+        } else {
+            tracing::info!("Destination is an unknown symlink. Falling back to slow path.");
+            pm_install_command(&pkg_kley_path, &package, dev)?;
+
+            return Ok(());
         }
-    } else {
-        pm_install_command(&pkg_kley_path, &package, dev)?;
     }
 
-    registry.add_package_installation(package_name, project_dir)?;
+    // Copy folder
+    if is_same_deps && deps_path.exists() {
+        let mut options = fs_extra::dir::CopyOptions::new();
+        options.overwrite = true;
+        options.content_only = true;
+
+        fs_extra::dir::copy(&pkg_kley_path, &deps_path, &options)?;
+
+        return Ok(());
+    }
+
+    pm_install_command(&pkg_kley_path, &package, dev)?;
 
     Ok(())
 }
