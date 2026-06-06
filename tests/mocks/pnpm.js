@@ -20,7 +20,7 @@ for (let i = 1; i < args.length; i++) {
   const arg = args[i];
   if (arg === '-D' || arg === '--save-dev') {
     mode = 'devDependencies';
-  } else if (arg === '--no-save') {
+  } else if (arg === '--no-save' || arg === '--save=false') {
     mode = 'none';
   } else if (arg.startsWith('-')) {
     // skip other flags
