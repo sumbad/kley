@@ -10,7 +10,7 @@ use crate::{
     lockfile::Lockfile,
     package::{Package, PackageJson, PackageManagerType},
     registry::Registry,
-    utils::{self, PROJECT_REGISTRY_DIR_NAME, get_kley_home_dir, normalized_path},
+    utils::{self, PROJECT_REGISTRY_DIR_NAME, normalized_path},
 };
 
 /// On Windows, npm/pnpm/yarn are `.cmd` scripts that `Command::new` cannot find directly.
@@ -105,33 +105,38 @@ fn install_package(
         false
     };
 
-    // Symlink
-    if is_same_deps && deps_path.is_symlink() {
-        let link_target = std::fs::read_link(&deps_path)?;
+    if is_same_deps {
+        if deps_path.is_symlink() {
+            let link_target = std::fs::read_link(&deps_path)?;
 
-        if normalized_path(&link_target, None) == normalized_path(&pkg_kley_path, None) {
-            tracing::info!("Destination is a correct symlink. Fast path complete.");
+            if normalized_path(&link_target, None) == normalized_path(&pkg_kley_path, None) {
+                // Case A: symlink already points to .kley/<pkg> — nothing to do
+                tracing::info!("Fast path Case A: correct symlink, nothing to do");
+                return Ok(());
+            }
 
-            return Ok(());
-        } else {
-            tracing::info!("Destination is an unknown symlink. Falling back to slow path.");
+            // Case B: symlink points to an unknown location — fall back to PM
+            tracing::info!("Destination is an unknown symlink, falling back to PM");
             pm_install_command(&pkg_kley_path, &package, dev)?;
-
             return Ok(());
         }
+
+        if deps_path.exists() {
+            // Case C: regular directory — copy directly, skip PM
+            tracing::info!("Destination directory exists, copying directly to node_modules");
+            let mut options = fs_extra::dir::CopyOptions::new();
+            options.overwrite = true;
+            options.content_only = true;
+            fs_extra::dir::copy(&pkg_kley_path, &deps_path, &options)?;
+            return Ok(());
+        }
+
+        // deps_path does not exist — fall through to PM (slow path),
+        // so that the PM registers the file: dependency in package.json
+        tracing::info!("Destination directory node_modules/<pkg> absent, falling back to PM");
     }
 
-    // Copy folder
-    if is_same_deps && deps_path.exists() {
-        let mut options = fs_extra::dir::CopyOptions::new();
-        options.overwrite = true;
-        options.content_only = true;
-
-        fs_extra::dir::copy(&pkg_kley_path, &deps_path, &options)?;
-
-        return Ok(());
-    }
-
+    // Slow path: no snapshot, deps changed, or node_modules/<pkg> doesn't exist
     pm_install_command(&pkg_kley_path, &package, dev)?;
 
     Ok(())

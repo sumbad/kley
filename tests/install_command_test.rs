@@ -612,8 +612,17 @@ fn test_install_without_dev_goes_to_dependencies() {
 fn test_install_no_args_preserves_dev_and_prod_deps() -> Result<(), Box<dyn std::error::Error>> {
     // Arrange: project with one prod dep and one dev dep in package.json + kley.lock
     let env = TestEnv::new();
-    env.create_mock_registry_package("prod-pkg", "1.0.0");
-    env.create_mock_registry_package("dev-pkg", "1.0.0");
+    // Packages have a real dependency so slow path is triggered (snapshot is empty, deps differ)
+    env.create_mock_package_with_content(
+        "prod-pkg",
+        "1.0.0",
+        r#"{"name": "prod-pkg", "version": "1.0.0", "dependencies": {"lodash": "^4.0.0"}}"#,
+    );
+    env.create_mock_package_with_content(
+        "dev-pkg",
+        "1.0.0",
+        r#"{"name": "dev-pkg", "version": "1.0.0", "dependencies": {"lodash": "^4.0.0"}}"#,
+    );
     env.setup_project_pm("npm");
 
     // Pre-populate package.json with prod-pkg in dependencies, dev-pkg in devDependencies
