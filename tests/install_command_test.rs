@@ -9,6 +9,15 @@ use common::TestEnv;
 
 ///  RUST_LOG=debug cargo test --test install_command_test -- --nocapture
 ///
+///```
+///  let output = env.run_kley_command(&["install", pkg_name])
+///     .output()
+///     .unwrap();
+/// tracing::info!("=== STDERR ===\n{}", String::from_utf8_lossy(&output.stderr));
+/// tracing::info!("=== STDOUT ===\n{}", String::from_utf8_lossy(&output.stdout));
+/// assert!(output.status.success());
+///```
+///
 /// Checks that package.json contains a file: dependency pointing to .kley/<pkg_name>.
 /// This is platform-independent: normalizes both the actual content and the expected
 /// path to use forward slashes before comparison.
@@ -335,9 +344,6 @@ fn test_install_no_args_updates_all_packages() -> Result<(), Box<dyn std::error:
 
     env.create_kley_lock(r#"{"packageManager": "npm", "packages": {"pkg-a": {"version": "2.0.0"}, "pkg-b": {"version": "2.0.0"}}}"#);
 
-    // Capture pm.log before no-args install (should not change after)
-    let pm_log_before = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
-
     // Act: run `kley install` with no args — should update all packages
     env.run_kley_command(&["install"])
         .assert()
@@ -367,16 +373,20 @@ fn test_install_no_args_updates_all_packages() -> Result<(), Box<dyn std::error:
     assert_eq!(lock["packages"]["pkg-a"]["version"], "2.0.0");
     assert_eq!(lock["packages"]["pkg-b"]["version"], "2.0.0");
 
-    // Assert: PM call during no-args install
-    let pm_log_after = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    // Assert: files were updated in node_modules (fast path copies directly)
+    let node_modules_a = env.project_dir.join("node_modules").join("pkg-a").join("index.js");
+    let node_modules_b = env.project_dir.join("node_modules").join("pkg-b").join("index.js");
 
-    assert_ne!(
-        pm_log_before, pm_log_after,
-        "PM should be called during `kley install` with no args"
+    assert_eq!(
+        fs::read_to_string(&node_modules_a).unwrap(),
+        "// pkg-a v2",
+        "pkg-a should be updated in node_modules"
     );
-
-    let new_calls = pm_log_after.lines().count() - pm_log_before.lines().count();
-    assert_eq!(new_calls, 2, "PM should be called once per package");
+    assert_eq!(
+        fs::read_to_string(&node_modules_b).unwrap(),
+        "// pkg-b v2",
+        "pkg-b should be updated in node_modules"
+    );
 
     Ok(())
 }
@@ -766,5 +776,147 @@ fn test_fast_path_case_c_skips_pm_when_deps_unchanged() {
     assert_eq!(
         index_content, "// v2 code",
         "Updated source should be copied to node_modules"
+    );
+}
+
+/// Case A: node_modules/<pkg> is a symlink pointing to .kley/<pkg>.
+/// Fast path should do nothing — the symlink is already correct.
+#[test_log::test]
+#[cfg(unix)]
+fn test_fast_path_case_a_symlink_to_kley_cache() {
+    use std::os::unix::fs::symlink;
+
+    let env = TestEnv::new();
+    let pkg_name = "symlink-pkg";
+    let pkg_json =
+        r#"{"name": "symlink-pkg", "version": "1.0.0", "dependencies": {"lodash": "^4.0.0"}}"#;
+
+    env.create_mock_package_with_content(pkg_name, "1.0.0", pkg_json);
+    env.setup_project_pm("npm");
+
+    // 1. First install — slow path, PM is called, snapshot saved
+    env.run_kley_command(&["install", pkg_name])
+        .assert()
+        .success();
+
+    let pm_log_after_first = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert_eq!(
+        pm_log_after_first.lines().count(),
+        1,
+        "First install should call PM once"
+    );
+
+    // 2. Manually create symlink: node_modules/<pkg> -> .kley/<pkg>
+    //    (simulating what modern npm does or what kley link creates)
+    let node_modules = env.project_dir.join("node_modules");
+    let node_modules_pkg = node_modules.join(pkg_name);
+    let kley_cache_pkg = env.project_dir.join(".kley").join(pkg_name);
+
+    // Remove existing directory created by mock npm
+    if node_modules_pkg.exists() {
+        fs::remove_dir_all(&node_modules_pkg).unwrap();
+    }
+    fs::create_dir_all(&node_modules).unwrap();
+
+    // Create symlink
+    symlink(&kley_cache_pkg, &node_modules_pkg).unwrap();
+    assert!(node_modules_pkg.is_symlink(), "Should be a symlink");
+
+    // 3. Update source in registry
+    let registry_pkg_dir = env.kley_registry.join("packages").join(pkg_name);
+    fs::write(registry_pkg_dir.join("index.js"), "// v2 code").unwrap();
+
+    // 4. Second install — fast path Case A: symlink to .kley, do nothing
+    env.run_kley_command(&["install", pkg_name])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Done: symlink-pkg installed"));
+
+    // PM should NOT be called again
+    let pm_log_after_second = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert_eq!(
+        pm_log_after_second.lines().count(),
+        1,
+        "PM should NOT be called when symlink points to .kley cache. pm.log:\n{}",
+        pm_log_after_second
+    );
+
+    // Symlink should still exist and point to .kley
+    assert!(
+        node_modules_pkg.is_symlink(),
+        "Symlink should still exist after install"
+    );
+
+    // The updated file should be accessible via symlink (since .kley was updated)
+    let index_content = fs::read_to_string(node_modules_pkg.join("index.js")).unwrap();
+    assert_eq!(
+        index_content, "// v2 code",
+        "Updated source should be accessible via symlink"
+    );
+}
+
+/// Case B: node_modules/<pkg> is a symlink pointing to an unknown location.
+/// Should fall back to slow path (run PM).
+#[test_log::test]
+#[cfg(unix)]
+fn test_fast_path_case_b_symlink_to_unknown_falls_back_to_pm() {
+    use std::os::unix::fs::symlink;
+
+    let env = TestEnv::new();
+    let pkg_name = "unknown-symlink-pkg";
+    let pkg_json = r#"{"name": "unknown-symlink-pkg", "version": "1.0.0", "dependencies": {"lodash": "^4.0.0"}}"#;
+
+    env.create_mock_package_with_content(pkg_name, "1.0.0", pkg_json);
+    env.setup_project_pm("npm");
+
+    // 1. First install — slow path
+    env.run_kley_command(&["install", pkg_name])
+        .assert()
+        .success();
+
+    let pm_log_after_first = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert_eq!(
+        pm_log_after_first.lines().count(),
+        1,
+        "First install should call PM once"
+    );
+
+    // 2. Manually create symlink to an external location (simulating npm link)
+    let node_modules = env.project_dir.join("node_modules");
+    let node_modules_pkg = node_modules.join(pkg_name);
+
+    // Create external directory (somewhere else, not .kley)
+    let external_dir = env.temp_dir.path().join("external-packages").join(pkg_name);
+    fs::create_dir_all(&external_dir).unwrap();
+    fs::write(external_dir.join("package.json"), pkg_json).unwrap();
+    fs::write(external_dir.join("index.js"), "// external").unwrap();
+
+    // Remove existing directory and create symlink to external
+    if node_modules_pkg.exists() {
+        fs::remove_dir_all(&node_modules_pkg).unwrap();
+    }
+    symlink(&external_dir, &node_modules_pkg).unwrap();
+    assert!(node_modules_pkg.is_symlink(), "Should be a symlink");
+
+    // Verify symlink points to external, not .kley
+    let link_target = fs::read_link(&node_modules_pkg).unwrap();
+    assert!(
+        !link_target.to_string_lossy().contains(".kley"),
+        "Symlink should point to external location, not .kley"
+    );
+
+    // 3. Second install — should fall back to slow path because symlink is unknown
+    env.run_kley_command(&["install", pkg_name])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Done: unknown-symlink-pkg installed"));
+
+    // PM SHOULD be called again (slow path fallback)
+    let pm_log_after_second = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert_eq!(
+        pm_log_after_second.lines().count(),
+        2,
+        "PM SHOULD be called when symlink points to unknown location. pm.log:\n{}",
+        pm_log_after_second
     );
 }
