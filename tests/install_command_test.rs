@@ -374,8 +374,16 @@ fn test_install_no_args_updates_all_packages() -> Result<(), Box<dyn std::error:
     assert_eq!(lock["packages"]["pkg-b"]["version"], "2.0.0");
 
     // Assert: files were updated in node_modules (fast path copies directly)
-    let node_modules_a = env.project_dir.join("node_modules").join("pkg-a").join("index.js");
-    let node_modules_b = env.project_dir.join("node_modules").join("pkg-b").join("index.js");
+    let node_modules_a = env
+        .project_dir
+        .join("node_modules")
+        .join("pkg-a")
+        .join("index.js");
+    let node_modules_b = env
+        .project_dir
+        .join("node_modules")
+        .join("pkg-b")
+        .join("index.js");
 
     assert_eq!(
         fs::read_to_string(&node_modules_a).unwrap(),
@@ -918,7 +926,9 @@ fn test_fast_path_case_b_symlink_to_unknown_falls_back_to_pm() {
     env.run_kley_command(&["install", pkg_name])
         .assert()
         .success()
-        .stdout(predicate::str::contains("Done: unknown-symlink-pkg installed"));
+        .stdout(predicate::str::contains(
+            "Done: unknown-symlink-pkg installed",
+        ));
 
     // PM SHOULD be called again (slow path fallback)
     let pm_log_after_second = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
