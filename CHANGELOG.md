@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fast reinstall (skip PM when dependencies unchanged)**: `kley install <pkg>` now detects when a package's `dependencies` and `peerDependencies` have not changed since the last install and skips the native package manager call entirely. Instead, files are copied directly from `.kley/<pkg>` to `node_modules/<pkg>`. This significantly speeds up iterative development workflows where only source code changes between publishes. Three sub-cases are handled:
   - **Symlink to `.kley/<pkg>`** (e.g. created by `kley link` or modern npm): no action needed, files are already up-to-date via the symlink.
   - **Symlink to an unknown location** (e.g. `npm link`): falls back to the package manager for safety.
-  - **Regular directory or absent**: files are copied directly, no PM invocation.
+  - **Regular directory**: files are copied directly from `.kley/<pkg>` to `node_modules/<pkg>`, no PM invocation.
+  - **Absent (`node_modules/<pkg>` missing)**: absent → slow path (PM), so the package manager can register the `file:` dependency in `package.json`.
   A snapshot of `dependencies` and `peerDependencies` is stored in `kley.lock` after each package manager install and used for comparison on subsequent runs.
 
 ---
