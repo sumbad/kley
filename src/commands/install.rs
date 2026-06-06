@@ -10,7 +10,7 @@ use crate::{
     lockfile::Lockfile,
     package::{Package, PackageJson, PackageManagerType},
     registry::Registry,
-    utils::{self, PROJECT_REGISTRY_DIR_NAME},
+    utils::{self, PROJECT_REGISTRY_DIR_NAME, normalized_path},
 };
 
 /// On Windows, npm/pnpm/yarn are `.cmd` scripts that `Command::new` cannot find directly.
@@ -80,14 +80,69 @@ fn install_package(
 
     utils::validate_version_in_registry(registry, package_name, package_version);
 
-    run_update(registry, package_name, project_dir)?;
-
     let package = Package::get(project_dir)?;
 
     let pkg_kley_path = project_dir
         .join(PROJECT_REGISTRY_DIR_NAME)
         .join(package_name);
 
+    let deps_path = project_dir.join("node_modules").join(package_name);
+
+    let deps_snapshot = package
+        .lockfile
+        .as_ref()
+        .and_then(|it| it.packages.get(package_name));
+
+    run_update(registry, package_name, project_dir)?;
+    registry.add_package_installation(package_name, project_dir)?;
+
+    let installed_pkg_json = PackageJson::get(&pkg_kley_path)?;
+
+    let is_same_deps = if let Some(info) = deps_snapshot {
+        info.dependencies == installed_pkg_json.dependencies
+            && info.peer_dependencies == installed_pkg_json.peer_dependencies
+    } else {
+        false
+    };
+
+    if is_same_deps {
+        if deps_path.is_symlink() {
+            let link_target = std::fs::read_link(&deps_path)?;
+
+            if normalized_path(&link_target, None) == normalized_path(&pkg_kley_path, None) {
+                // Case A: symlink already points to .kley/<pkg> — nothing to do
+                tracing::info!("Fast path Case A: correct symlink, nothing to do");
+                return Ok(());
+            }
+
+            // Case B: symlink points to an unknown location — fall back to PM
+            tracing::info!("Destination is an unknown symlink, falling back to PM");
+            pm_install_command(&pkg_kley_path, &package, dev)?;
+            return Ok(());
+        }
+
+        if deps_path.exists() {
+            // Case C: regular directory — copy directly, skip PM
+            tracing::info!("Destination directory exists, copying directly to node_modules");
+            let mut options = fs_extra::dir::CopyOptions::new();
+            options.overwrite = true;
+            options.content_only = true;
+            fs_extra::dir::copy(&pkg_kley_path, &deps_path, &options)?;
+            return Ok(());
+        }
+
+        // deps_path does not exist — fall through to PM (slow path),
+        // so that the PM registers the file: dependency in package.json
+        tracing::info!("Destination directory node_modules/<pkg> absent, falling back to PM");
+    }
+
+    // Slow path: no snapshot, deps changed, or node_modules/<pkg> doesn't exist
+    pm_install_command(&pkg_kley_path, &package, dev)?;
+
+    Ok(())
+}
+
+fn pm_install_command(pkg_kley_path: &Path, package: &Package, dev: bool) -> Result<()> {
     let pkg_kley_path_str = pkg_kley_path
         .to_str()
         .ok_or_else(|| anyhow::anyhow!("Path contains non-UTF8 characters: {:?}", pkg_kley_path))?;
@@ -164,8 +219,6 @@ fn install_package(
             status.code(),
         );
     }
-
-    registry.add_package_installation(package_name, project_dir)?;
 
     Ok(())
 }

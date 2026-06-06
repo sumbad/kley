@@ -8,8 +8,15 @@ use std::{
 };
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct PackageInfo {
     pub version: String,
+    /// Snapshot of dependencies at last PM install, used for fast reinstall check
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub dependencies: BTreeMap<String, String>,
+    /// Snapshot of peer dependencies at last PM install, used for fast reinstall check
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub peer_dependencies: BTreeMap<String, String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
