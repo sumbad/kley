@@ -36,9 +36,9 @@ config:
 kanban
     Todo
         "Rework link: direct symlink to source"<br/><br/>@{ assigned: 🧩, priority: 'Very High', ticket: 'f-32' }
-        "Skip PM for dependency-less packages"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-26' }
 
     In Progress
+        "Skip PM for dependency-less packages"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-26' }
 
     Done
         "Add --no-save flag to install command"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-33' }
