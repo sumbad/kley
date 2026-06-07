@@ -52,6 +52,8 @@ enum Commands {
         /// Install as devDependency
         #[arg(long, short = 'D')]
         dev: bool,
+        #[arg(long)]
+        no_save: bool,
     },
     /// Link a package from the registry to the current project
     Link { name: String },
@@ -96,9 +98,13 @@ fn main() -> Result<()> {
         Commands::Publish { push } => commands::publish::publish(&mut registry, *push)?,
         Commands::Unpublish { push } => commands::unpublish::unpublish(&mut registry, *push)?,
         Commands::Add { name, dev } => commands::add::add(&mut registry, name, *dev)?,
-        Commands::Install { name, dev } => {
-            commands::install::install(&mut registry, name.as_deref(), &project_dir, *dev)?
-        }
+        Commands::Install { name, dev, no_save } => commands::install::install(
+            &mut registry,
+            name.as_deref(),
+            &project_dir,
+            *dev,
+            *no_save,
+        )?,
         Commands::Link { name } => commands::link::link(&mut registry, name)?,
         Commands::Remove { name, all } => {
             commands::remove::remove(&mut registry, name, *all, &project_dir)?
