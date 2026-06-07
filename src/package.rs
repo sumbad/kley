@@ -141,8 +141,6 @@ impl PackageJson {
 
     /// Modifies package.json to add or update a dependency.
     pub fn update_package_json(project_dir: &Path, package_name: &str, is_dev: bool) -> Result<()> {
-        let pkg_json_path = project_dir.join(PACKAGE_JSON_FILE_NAME);
-
         let content = match PackageJson::get_raw(project_dir) {
             Result::Err(error) => {
                 println!(
@@ -197,7 +195,7 @@ impl PackageJson {
             }
         }
 
-        PackageJson::save_raw(value, &pkg_json_path, &indent)?;
+        PackageJson::save_raw(value, project_dir, &indent)?;
 
         Ok(())
     }

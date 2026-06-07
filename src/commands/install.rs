@@ -5,7 +5,7 @@ use colored::*;
 use serde_json::json;
 
 use crate::{
-    commands::update::run_update,
+    commands::{link::create_symlink, update::run_update},
     emoji,
     lockfile::Lockfile,
     package::{Package, PackageJson, PackageManagerType},
@@ -148,10 +148,15 @@ fn install_package(
         tracing::info!("Package has no dependencies, skipping package manager");
 
         if !no_save {
-            
+            PackageJson::update_package_json(project_dir, package_name, dev)?;
         }
-    }
 
+        let node_modules_path = project_dir.join("node_modules");
+        std::fs::create_dir_all(&node_modules_path)?;
+
+        let target_path = node_modules_path.join(package_name);
+        create_symlink(&pkg_kley_path, &target_path)?;
+    }
 
     Ok(())
 }
