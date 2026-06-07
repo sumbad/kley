@@ -566,7 +566,9 @@ fn test_install_short_d_flag() {
         .stdout(predicate::str::contains("Done: dev-pkg-short installed"));
 
     // Same behavior as --dev: npm gets --save-dev
-    let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    let pm_log = fs::read_to_string(env.project_dir.join("pm.log"))
+        .map_err(|err| format!("Failed read pm.log due to: {}", err))
+        .unwrap();
     assert!(
         pm_log.contains("--save-dev"),
         "npm should be called with --save-dev. pm.log:\n{}",
@@ -709,7 +711,6 @@ fn test_install_dev_flag_without_package_name_fails() {
         ));
 }
 
-
 // ─── f-26: Skip PM for dependency-less packages ───────────────────────
 
 #[test_log::test]
@@ -726,7 +727,9 @@ fn test_fast_path_no_deps_skips_pm() {
     env.run_kley_command(&["install", pkg_name])
         .assert()
         .success()
-        .stdout(predicate::str::contains("Package has no dependencies, skipping package manager."))
+        .stdout(predicate::str::contains(
+            "Package has no dependencies, skipping package manager.",
+        ))
         .stdout(predicate::str::contains("Done: pkg-no-deps installed"));
 
     // Assert: PM was NOT called
@@ -742,7 +745,11 @@ fn test_fast_path_no_deps_skips_pm() {
 
     // Assert: node_modules/<pkg> is a symlink to .kley/<pkg>
     let node_modules_pkg = env.project_dir.join("node_modules").join(pkg_name);
-    assert!(node_modules_pkg.is_symlink(), "node_modules/{} should be a symlink", pkg_name);
+    assert!(
+        node_modules_pkg.is_symlink(),
+        "node_modules/{} should be a symlink",
+        pkg_name
+    );
     let link_target = fs::read_link(&node_modules_pkg).unwrap();
     let kley_cache_pkg = env.project_dir.join(".kley").join(pkg_name);
     assert_eq!(link_target, kley_cache_pkg);
@@ -762,7 +769,9 @@ fn test_fast_path_no_deps_dev_flag() {
     env.run_kley_command(&["install", "-D", pkg_name])
         .assert()
         .success()
-        .stdout(predicate::str::contains("Package has no dependencies, skipping package manager."));
+        .stdout(predicate::str::contains(
+            "Package has no dependencies, skipping package manager.",
+        ));
 
     assert!(!env.project_dir.join("pm.log").exists());
     assert_pkg_json_has_dev_dep(pkg_name, &env.project_dir);
@@ -783,17 +792,25 @@ fn test_fast_path_no_deps_no_save() {
     env.run_kley_command(&["install", "--no-save", pkg_name])
         .assert()
         .success()
-        .stdout(predicate::str::contains("Package has no dependencies, skipping package manager."));
+        .stdout(predicate::str::contains(
+            "Package has no dependencies, skipping package manager.",
+        ));
 
     assert!(!env.project_dir.join("pm.log").exists());
-    
+
     // Assert: package.json is unchanged
     let current_pkg_json = fs::read_to_string(env.project_dir.join("package.json")).unwrap();
-    assert_eq!(original_pkg_json, current_pkg_json, "package.json should not be modified with --no-save");
+    assert_eq!(
+        original_pkg_json, current_pkg_json,
+        "package.json should not be modified with --no-save"
+    );
 
     // Assert: symlink is still created
     let node_modules_pkg = env.project_dir.join("node_modules").join(pkg_name);
-    assert!(node_modules_pkg.is_symlink(), "symlink should still be created with --no-save");
+    assert!(
+        node_modules_pkg.is_symlink(),
+        "symlink should still be created with --no-save"
+    );
 }
 
 #[test_log::test]
