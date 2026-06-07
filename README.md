@@ -249,6 +249,7 @@ A universal command that combines `add` and the native package manager installat
 - **With a package name**: `kley install <package-name>` installs the specified package from the local registry.
 - **Without a package name**: `kley install` installs all packages listed in `kley.lock`. This is useful for restoring all local dependencies, similar to how `npm install` refreshes `node_modules` based on `package.json`. Packages already in `devDependencies` are automatically installed with the appropriate dev flag.
 - Use the `--dev` or `-D` flag to install a package as a `devDependency`: `kley install --dev <package-name>`.
+- Use the `--no-save` flag to install a package into `node_modules/` and update `kley.lock` **without modifying `package.json`**. This is useful for temporary testing and also works with `kley install --no-save` (no package name) to restore all packages from `kley.lock`. Note: Yarn v1 does not support this flag natively and will still modify `package.json`.
 - Supports `npm`, `pnpm`, and `yarn` out of the box.
 - To explicitly specify the package manager, set the `packageManager` value in `package.json` or `kley.lock`.
 - **Fast reinstall**: When a package's `dependencies` and `peerDependencies` haven't changed since the last install, `kley` skips the package manager entirely and copies files directly to `node_modules/<pkg>`. This makes iterative workflows (repeated `kley publish` → `kley install`) significantly faster.
