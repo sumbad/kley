@@ -709,7 +709,133 @@ fn test_install_dev_flag_without_package_name_fails() {
         ));
 }
 
-// ─── f-27: Fast reinstall tests ─────────────────────────────────────────
+
+// ─── f-26: Skip PM for dependency-less packages ───────────────────────
+
+#[test_log::test]
+fn test_fast_path_no_deps_skips_pm() {
+    let env = TestEnv::new();
+    let pkg_name = "pkg-no-deps";
+    env.create_mock_package_with_content(
+        pkg_name,
+        "1.0.0",
+        r#"{"name": "pkg-no-deps", "version": "1.0.0"}"#,
+    );
+    env.setup_project_pm("npm");
+
+    env.run_kley_command(&["install", pkg_name])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Package has no dependencies, skipping package manager."))
+        .stdout(predicate::str::contains("Done: pkg-no-deps installed"));
+
+    // Assert: PM was NOT called
+    assert!(
+        !env.project_dir.join("pm.log").exists(),
+        "pm.log should not exist for dependency-less install"
+    );
+
+    // Assert: package.json is updated correctly
+    let project_pkg_json_content =
+        fs::read_to_string(env.project_dir.join("package.json")).unwrap();
+    assert_pkg_json_has_file_dep(&project_pkg_json_content, pkg_name, &env.project_dir);
+
+    // Assert: node_modules/<pkg> is a symlink to .kley/<pkg>
+    let node_modules_pkg = env.project_dir.join("node_modules").join(pkg_name);
+    assert!(node_modules_pkg.is_symlink(), "node_modules/{} should be a symlink", pkg_name);
+    let link_target = fs::read_link(&node_modules_pkg).unwrap();
+    let kley_cache_pkg = env.project_dir.join(".kley").join(pkg_name);
+    assert_eq!(link_target, kley_cache_pkg);
+}
+
+#[test_log::test]
+fn test_fast_path_no_deps_dev_flag() {
+    let env = TestEnv::new();
+    let pkg_name = "pkg-no-deps-dev";
+    env.create_mock_package_with_content(
+        pkg_name,
+        "1.0.0",
+        r#"{"name": "pkg-no-deps-dev", "version": "1.0.0"}"#,
+    );
+    env.setup_project_pm("npm");
+
+    env.run_kley_command(&["install", "-D", pkg_name])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Package has no dependencies, skipping package manager."));
+
+    assert!(!env.project_dir.join("pm.log").exists());
+    assert_pkg_json_has_dev_dep(pkg_name, &env.project_dir);
+}
+
+#[test_log::test]
+fn test_fast_path_no_deps_no_save() {
+    let env = TestEnv::new();
+    let pkg_name = "pkg-no-deps-no-save";
+    env.create_mock_package_with_content(
+        pkg_name,
+        "1.0.0",
+        r#"{"name": "pkg-no-deps-no-save", "version": "1.0.0"}"#,
+    );
+    env.setup_project_pm("npm");
+    let original_pkg_json = fs::read_to_string(env.project_dir.join("package.json")).unwrap();
+
+    env.run_kley_command(&["install", "--no-save", pkg_name])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Package has no dependencies, skipping package manager."));
+
+    assert!(!env.project_dir.join("pm.log").exists());
+    
+    // Assert: package.json is unchanged
+    let current_pkg_json = fs::read_to_string(env.project_dir.join("package.json")).unwrap();
+    assert_eq!(original_pkg_json, current_pkg_json, "package.json should not be modified with --no-save");
+
+    // Assert: symlink is still created
+    let node_modules_pkg = env.project_dir.join("node_modules").join(pkg_name);
+    assert!(node_modules_pkg.is_symlink(), "symlink should still be created with --no-save");
+}
+
+#[test_log::test]
+fn test_slow_path_with_deps_calls_pm() {
+    let env = TestEnv::new();
+    let pkg_name = "pkg-with-deps";
+    env.create_mock_package_with_content(
+        pkg_name,
+        "1.0.0",
+        r#"{"name": "pkg-with-deps", "version": "1.0.0", "dependencies": {"lodash": "1.0.0"}}"#,
+    );
+    env.setup_project_pm("npm");
+
+    env.run_kley_command(&["install", pkg_name])
+        .assert()
+        .success();
+
+    // Assert: PM WAS called
+    let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert!(pm_log.contains("npm install"));
+}
+
+#[test_log::test]
+fn test_slow_path_with_peer_deps_calls_pm() {
+    let env = TestEnv::new();
+    let pkg_name = "pkg-with-peer-deps";
+    env.create_mock_package_with_content(
+        pkg_name,
+        "1.0.0",
+        r#"{"name": "pkg-with-peer-deps", "version": "1.0.0", "peerDependencies": {"react": "18.0.0"}}"#,
+    );
+    env.setup_project_pm("npm");
+
+    env.run_kley_command(&["install", pkg_name])
+        .assert()
+        .success();
+
+    // Assert: PM WAS called
+    let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert!(pm_log.contains("npm install"));
+}
+
 #[test_log::test]
 fn test_dependencies_snapshotting() {
     let env = TestEnv::new();

@@ -138,8 +138,20 @@ fn install_package(
         tracing::info!("Destination directory node_modules/<pkg> absent, falling back to PM");
     }
 
-    // Slow path: no snapshot, deps changed, or node_modules/<pkg> doesn't exist
-    pm_install_command(&pkg_kley_path, &package, dev, no_save)?;
+    let has_dependencies = !installed_pkg_json.dependencies.is_empty()
+        || !installed_pkg_json.peer_dependencies.is_empty();
+
+    if has_dependencies {
+        // Slow path: no snapshot, deps changed, or node_modules/<pkg> doesn't exist
+        pm_install_command(&pkg_kley_path, &package, dev, no_save)?;
+    } else {
+        tracing::info!("Package has no dependencies, skipping package manager");
+
+        if !no_save {
+            
+        }
+    }
+
 
     Ok(())
 }
