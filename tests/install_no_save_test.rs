@@ -135,6 +135,32 @@ fn test_install_no_save_yarn_modifies_package_json() {
         "yarn should NOT receive --no-save or --save=false. pm.log:\n{}",
         pm_log
     );
+
+    // Assert that package.json WAS modified, as Yarn v1 does not support --no-save
+    let pkg_json_path = env.project_dir.join("package.json");
+    let pkg_json_content = fs::read_to_string(&pkg_json_path).unwrap();
+    let pkg: serde_json::Value =
+        serde_json::from_str(&pkg_json_content).expect("Failed to parse package.json");
+
+    let deps = pkg
+        .get("dependencies")
+        .and_then(|d| d.as_object())
+        .expect("dependencies object not found in package.json");
+
+    let dep_entry = deps
+        .get("no-save-yarn-pkg")
+        .and_then(|v| v.as_str())
+        .expect("'no-save-yarn-pkg' not found in dependencies");
+
+    // Yarn resolves to an absolute file: URI. We must compare canonical paths.
+    let actual_path = std::path::PathBuf::from(dep_entry.strip_prefix("file:").unwrap());
+    let expected_path = env.project_dir.join(".kley/no-save-yarn-pkg");
+
+    assert_eq!(
+        actual_path.canonicalize().unwrap(),
+        expected_path.canonicalize().unwrap(),
+        "package.json should point to the correct canonical path for the dependency"
+    );
 }
 
 /// --no-save combined with -D: npm receives both --no-save and --save-dev.
@@ -150,11 +176,16 @@ fn test_install_no_save_with_dev_flag_npm() {
         .success()
         .stdout(predicate::str::contains("Done: no-save-dev-pkg installed"));
 
-    // PM receives --no-save
+    // PM receives --no-save and a dev flag
     let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
     assert!(
         pm_log.contains("--no-save"),
         "npm should receive --no-save. pm.log:\n{}",
+        pm_log
+    );
+    assert!(
+        pm_log.contains("--save-dev") || pm_log.contains("-D"),
+        "npm should also receive a dev flag. pm.log:\n{}",
         pm_log
     );
 
@@ -230,9 +261,12 @@ fn test_install_no_args_reinstalls_no_save_packages() {
         .success()
         .stdout(predicate::str::contains("Done"));
 
-    // Package should be back in .kley
+    // Package should be reinstalled into node_modules
     assert!(
-        env.project_dir.join(".kley").join("reinstall-pkg").exists(),
-        ".kley/reinstall-pkg should be reinstalled"
+        env.project_dir
+            .join("node_modules")
+            .join("reinstall-pkg")
+            .exists(),
+        "Package 'reinstall-pkg' should be reinstalled into node_modules"
     );
 }
