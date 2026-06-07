@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **`kley install --no-save` flag**: Added `--no-save` flag to the `install` command. When specified, the package is installed into `node_modules/` and `kley.lock` is updated normally, but `package.json` is left untouched. This is useful for temporarily testing a local package without creating noise in version control. The flag is forwarded to the native package manager as `--no-save` (npm) or `--save=false` (pnpm). Yarn v1 does not support an equivalent flag natively — `package.json` will still be modified when using Yarn v1 (documented limitation). `kley remove` works correctly after a `--no-save` install and skips the `package.json` modification step since no entry was ever added. `kley install` (no args) also accepts `--no-save` to apply the flag to all packages restored from `kley.lock`.
+- **`kley install --no-save` flag**: Added a `--no-save` flag to `kley install` for temporarily installing packages without modifying `package.json`.
 
 ---
 
