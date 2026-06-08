@@ -1,11 +1,9 @@
-use colored::*;
-
 use anyhow::{Context, Ok, Result};
 use std::{collections::BTreeMap, fs, path::Path};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{emoji, lockfile::Lockfile, utils::detect_indent};
+use crate::{lockfile::Lockfile, utils::detect_indent};
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -139,30 +137,20 @@ impl PackageJson {
         Ok(())
     }
 
-    /// Modifies package.json to add or update a dependency.
-    pub fn update_package_json(project_dir: &Path, package_name: &str, is_dev: bool) -> Result<()> {
-        let content = match PackageJson::get_raw(project_dir) {
-            Result::Err(error) => {
-                println!(
-                    "{}",
-                    format!(
-                        "{} Warning: {}, skipping modification.",
-                        emoji::WARNING,
-                        error
-                    )
-                    .yellow()
-                );
-                return Ok(());
-            }
-            Result::Ok(value) => value,
-        };
+    /// Modifies package.json in a dir to add or update a dependency
+    pub fn update_dependency(
+        project_dir: &Path,
+        dependency_name: &str,
+        is_dev: bool,
+    ) -> Result<()> {
+        let content = PackageJson::get_raw(project_dir)?;
 
         let indent = detect_indent(&content);
 
         let mut value: serde_json::Value =
             serde_json::from_str(&content).context("Failed to parse package.json")?;
 
-        let dep_path = format!("file:.kley/{}", package_name);
+        let dep_path = format!("file:.kley/{}", dependency_name);
         let dep_keys = ["dependencies", "devDependencies", "peerDependencies"];
         let mut updated = false;
 
@@ -171,7 +159,7 @@ impl PackageJson {
                 if let Some(dep) = obj
                     .get_mut(*key)
                     .and_then(|d| d.as_object_mut())
-                    .and_then(|d| d.get_mut(package_name))
+                    .and_then(|d| d.get_mut(dependency_name))
                 {
                     *dep = serde_json::Value::String(dep_path.clone());
                     updated = true;
@@ -189,7 +177,7 @@ impl PackageJson {
                     obj.insert(target_key.to_string(), serde_json::json!({}));
                 }
                 obj[target_key].as_object_mut().unwrap().insert(
-                    package_name.to_string(),
+                    dependency_name.to_string(),
                     serde_json::Value::String(dep_path),
                 );
             }
@@ -218,7 +206,7 @@ mod tests {
         fs::write(tmp.path().join("package.json"), initial_content)?;
         let dir = tmp.path();
 
-        PackageJson::update_package_json(dir, "my-local-lib", false)?;
+        PackageJson::update_dependency(dir, "my-local-lib", false)?;
 
         let updated_content = fs::read_to_string(dir.join("package.json"))?;
         let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
@@ -242,7 +230,7 @@ mod tests {
         fs::write(tmp.path().join("package.json"), initial_content)?;
         let dir = tmp.path();
 
-        PackageJson::update_package_json(dir, "my-local-lib", true)?;
+        PackageJson::update_dependency(dir, "my-local-lib", true)?;
 
         let updated_content = fs::read_to_string(dir.join("package.json"))?;
         let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
@@ -268,7 +256,7 @@ mod tests {
         fs::write(tmp.path().join("package.json"), initial_content)?;
         let dir = tmp.path();
 
-        PackageJson::update_package_json(dir, "my-local-lib", false)?;
+        PackageJson::update_dependency(dir, "my-local-lib", false)?;
 
         let updated_content = fs::read_to_string(dir.join("package.json"))?;
         let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
@@ -291,7 +279,7 @@ mod tests {
         fs::write(tmp.path().join("package.json"), initial_content)?;
         let dir = tmp.path();
 
-        PackageJson::update_package_json(dir, "my-local-lib", false)?;
+        PackageJson::update_dependency(dir, "my-local-lib", false)?;
 
         let updated_content = fs::read_to_string(dir.join("package.json"))?;
         let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
@@ -314,7 +302,7 @@ mod tests {
         fs::write(tmp.path().join("package.json"), initial_content)?;
         let dir = tmp.path();
 
-        PackageJson::update_package_json(dir, "my-local-lib", true)?;
+        PackageJson::update_dependency(dir, "my-local-lib", true)?;
 
         let updated_content = fs::read_to_string(dir.join("package.json"))?;
         let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;

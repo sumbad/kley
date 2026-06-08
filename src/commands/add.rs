@@ -18,7 +18,7 @@ pub fn add(registry: &mut Registry, package_name_version: &str, is_dev: bool) ->
     run_update(registry, package_name, &std::env::current_dir()?)?;
 
     // --- Automate package.json modification ---
-    PackageJson::update_package_json(&dirs.project_dir, package_name, is_dev)?;
+    PackageJson::update_dependency(&dirs.project_dir, package_name, is_dev)?;
 
     registry.add_package_installation(package_name, &dirs.project_dir)?;
 

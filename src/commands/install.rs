@@ -148,7 +148,7 @@ fn install_package(
         println!("Package has no dependencies, skipping package manager");
 
         if !no_save {
-            PackageJson::update_package_json(project_dir, package_name, dev)?;
+            PackageJson::update_dependency(project_dir, package_name, dev)?;
         }
 
         let node_modules_path = project_dir.join("node_modules");
