@@ -33,7 +33,13 @@ fn assert_pkg_json_has_no_dep(pkg_name: &str, project_dir: &std::path::Path) {
 #[test_log::test]
 fn test_install_no_save_npm() {
     let env = TestEnv::new();
-    env.create_mock_registry_package("no-save-pkg", "1.0.0");
+    // Package needs a dependency so it takes the PM (slow) path where --no-save is forwarded;
+    // a dependency-less package would take the no-deps fast path and skip the PM entirely (f-26).
+    env.create_mock_package_with_content(
+        "no-save-pkg",
+        "1.0.0",
+        r#"{"name": "no-save-pkg", "version": "1.0.0", "dependencies": {"fake-dep": "1.0.0"}}"#,
+    );
     env.setup_project_pm("npm");
 
     env.run_kley_command(&["install", "no-save-pkg", "--no-save"])
@@ -48,7 +54,7 @@ fn test_install_no_save_npm() {
     let mut lock_content = fs::read_to_string(env.project_dir.join("kley.lock")).unwrap();
     lock_content.retain(|c| !c.is_whitespace());
     assert!(
-        lock_content.contains(r#""no-save-pkg":{"version":"1.0.0"}"#),
+        lock_content.contains(r#""no-save-pkg":{"version":"1.0.0""#),
         "kley.lock should be updated. Content:\n{}",
         lock_content
     );
@@ -69,7 +75,11 @@ fn test_install_no_save_npm() {
 #[test_log::test]
 fn test_install_no_save_pnpm() {
     let env = TestEnv::new();
-    env.create_mock_registry_package("no-save-pnpm-pkg", "1.0.0");
+    env.create_mock_package_with_content(
+        "no-save-pnpm-pkg",
+        "1.0.0",
+        r#"{"name": "no-save-pnpm-pkg", "version": "1.0.0", "dependencies": {"fake-dep": "1.0.0"}}"#,
+    );
     env.setup_project_pm("pnpm");
 
     env.run_kley_command(&["install", "no-save-pnpm-pkg", "--no-save"])
@@ -89,7 +99,7 @@ fn test_install_no_save_pnpm() {
     let mut lock_content = fs::read_to_string(env.project_dir.join("kley.lock")).unwrap();
     lock_content.retain(|c| !c.is_whitespace());
     assert!(
-        lock_content.contains(r#""no-save-pnpm-pkg":{"version":"1.0.0"}"#),
+        lock_content.contains(r#""no-save-pnpm-pkg":{"version":"1.0.0""#),
         "kley.lock should be updated. Content:\n{}",
         lock_content
     );
@@ -111,7 +121,11 @@ fn test_install_no_save_pnpm() {
 #[test_log::test]
 fn test_install_no_save_yarn_modifies_package_json() {
     let env = TestEnv::new();
-    env.create_mock_registry_package("no-save-yarn-pkg", "1.0.0");
+    env.create_mock_package_with_content(
+        "no-save-yarn-pkg",
+        "1.0.0",
+        r#"{"name": "no-save-yarn-pkg", "version": "1.0.0", "dependencies": {"fake-dep": "1.0.0"}}"#,
+    );
     env.setup_project_pm("yarn");
 
     env.run_kley_command(&["install", "no-save-yarn-pkg", "--no-save"])
@@ -123,7 +137,7 @@ fn test_install_no_save_yarn_modifies_package_json() {
     let mut lock_content = fs::read_to_string(env.project_dir.join("kley.lock")).unwrap();
     lock_content.retain(|c| !c.is_whitespace());
     assert!(
-        lock_content.contains(r#""no-save-yarn-pkg":{"version":"1.0.0"}"#),
+        lock_content.contains(r#""no-save-yarn-pkg":{"version":"1.0.0""#),
         "kley.lock should be updated. Content:\n{}",
         lock_content
     );
@@ -152,14 +166,11 @@ fn test_install_no_save_yarn_modifies_package_json() {
         .and_then(|v| v.as_str())
         .expect("'no-save-yarn-pkg' not found in dependencies");
 
-    // Yarn resolves to an absolute file: URI. We must compare canonical paths.
-    let actual_path = std::path::PathBuf::from(dep_entry.strip_prefix("file:").unwrap());
-    let expected_path = env.project_dir.join(".kley/no-save-yarn-pkg");
-
+    // pm_install_command passes a relative `.kley/<pkg>` path to the PM, so yarn records
+    // a relative `file:` entry (consistent with `kley add`).
     assert_eq!(
-        actual_path.canonicalize().unwrap(),
-        expected_path.canonicalize().unwrap(),
-        "package.json should point to the correct canonical path for the dependency"
+        dep_entry, "file:.kley/no-save-yarn-pkg",
+        "package.json should point to the relative .kley path for the dependency"
     );
 }
 
@@ -168,7 +179,11 @@ fn test_install_no_save_yarn_modifies_package_json() {
 #[test_log::test]
 fn test_install_no_save_with_dev_flag_npm() {
     let env = TestEnv::new();
-    env.create_mock_registry_package("no-save-dev-pkg", "1.0.0");
+    env.create_mock_package_with_content(
+        "no-save-dev-pkg",
+        "1.0.0",
+        r#"{"name": "no-save-dev-pkg", "version": "1.0.0", "dependencies": {"fake-dep": "1.0.0"}}"#,
+    );
     env.setup_project_pm("npm");
 
     env.run_kley_command(&["install", "no-save-dev-pkg", "--no-save", "-D"])

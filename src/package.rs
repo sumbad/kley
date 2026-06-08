@@ -205,8 +205,7 @@ impl PackageJson {
 mod tests {
     use super::*;
     use std::fs;
-    use std::io::Write;
-    use tempfile::NamedTempFile;
+    use tempfile::tempdir;
 
     #[test]
     fn test_add_new_dependency() -> Result<()> {
@@ -215,13 +214,13 @@ mod tests {
   "version": "1.0.0",
   "dependencies": {}
 }"#;
-        let mut file = NamedTempFile::new()?;
-        write!(file, "{}", initial_content)?;
-        let dir = file.path().parent().unwrap();
+        let tmp = tempdir()?;
+        fs::write(tmp.path().join("package.json"), initial_content)?;
+        let dir = tmp.path();
 
         PackageJson::update_package_json(dir, "my-local-lib", false)?;
 
-        let updated_content = fs::read_to_string(file.path())?;
+        let updated_content = fs::read_to_string(dir.join("package.json"))?;
         let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
 
         assert_eq!(
@@ -239,13 +238,13 @@ mod tests {
   "version": "1.0.0",
   "devDependencies": {}
 }"#;
-        let mut file = NamedTempFile::new()?;
-        write!(file, "{}", initial_content)?;
-        let dir = file.path().parent().unwrap();
+        let tmp = tempdir()?;
+        fs::write(tmp.path().join("package.json"), initial_content)?;
+        let dir = tmp.path();
 
         PackageJson::update_package_json(dir, "my-local-lib", true)?;
 
-        let updated_content = fs::read_to_string(file.path())?;
+        let updated_content = fs::read_to_string(dir.join("package.json"))?;
         let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
 
         assert_eq!(
@@ -265,13 +264,13 @@ mod tests {
     "my-local-lib": "1.0.0"
   }
 }"#;
-        let mut file = NamedTempFile::new()?;
-        write!(file, "{}", initial_content)?;
-        let dir = file.path().parent().unwrap();
+        let tmp = tempdir()?;
+        fs::write(tmp.path().join("package.json"), initial_content)?;
+        let dir = tmp.path();
 
         PackageJson::update_package_json(dir, "my-local-lib", false)?;
 
-        let updated_content = fs::read_to_string(file.path())?;
+        let updated_content = fs::read_to_string(dir.join("package.json"))?;
         let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
 
         assert_eq!(
@@ -288,13 +287,13 @@ mod tests {
   "name": "test-project",
   "version": "1.0.0"
 }"#;
-        let mut file = NamedTempFile::new()?;
-        write!(file, "{}", initial_content)?;
-        let dir = file.path().parent().unwrap();
+        let tmp = tempdir()?;
+        fs::write(tmp.path().join("package.json"), initial_content)?;
+        let dir = tmp.path();
 
         PackageJson::update_package_json(dir, "my-local-lib", false)?;
 
-        let updated_content = fs::read_to_string(file.path())?;
+        let updated_content = fs::read_to_string(dir.join("package.json"))?;
         let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
 
         assert_eq!(
@@ -311,13 +310,13 @@ mod tests {
   "name": "test-project",
   "version": "1.0.0"
 }"#;
-        let mut file = NamedTempFile::new()?;
-        write!(file, "{}", initial_content)?;
-        let dir = file.path().parent().unwrap();
+        let tmp = tempdir()?;
+        fs::write(tmp.path().join("package.json"), initial_content)?;
+        let dir = tmp.path();
 
         PackageJson::update_package_json(dir, "my-local-lib", true)?;
 
-        let updated_content = fs::read_to_string(file.path())?;
+        let updated_content = fs::read_to_string(dir.join("package.json"))?;
         let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
 
         assert_eq!(
