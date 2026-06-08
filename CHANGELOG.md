@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **`kley install --no-save` flag**: Added a `--no-save` flag to `kley install` for temporarily installing packages without modifying `package.json`.
+- **Faster install for dependency-less packages**: `kley install <pkg>` now detects when a package has no `dependencies` and `peerDependencies` and installs it by creating a direct symlink to `node_modules/<pkg>` instead of invoking the native package manager. This significantly speeds up installation for simple, dependency-free local packages.
+
+### Changed
+- **Refactored `package.json` and symlink logic**: Extracted logic for updating `package.json` and creating symlinks into reusable functions to support the new installation fast path and improve code modularity.
 
 ---
 
