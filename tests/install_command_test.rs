@@ -1,6 +1,6 @@
 mod common;
 
-use kley::package::PackageJson;
+use kley::{package::PackageJson, utils::normalized_path};
 use predicates::prelude::*;
 use serde_json::json;
 use std::fs;
@@ -21,14 +21,8 @@ use common::TestEnv;
 /// Checks that package.json contains a file: dependency pointing to .kley/<pkg_name>.
 /// This is platform-independent: normalizes both the actual content and the expected
 /// path to use forward slashes before comparison.
-fn assert_pkg_json_has_file_dep(
-    pkg_json_content: &str,
-    pkg_name: &str,
-    project_dir: &std::path::Path,
-) {
-    let kley_path = project_dir.join(".kley").join(pkg_name);
-    // Normalize expected path to forward slashes (matching what mock scripts write)
-    let expected_path = kley_path.to_string_lossy().replace('\\', "/");
+fn assert_pkg_json_has_file_dep(pkg_json_content: &str, pkg_name: &str) {
+    let expected_path = format!("file:.kley/{}", pkg_name);
     let expected_prefix = format!(r#""{}": "file:"#, pkg_name);
     assert!(
         pkg_json_content.contains(&expected_prefix),
@@ -47,7 +41,11 @@ fn assert_pkg_json_has_file_dep(
 #[test_log::test]
 fn test_install_command_npm_project() {
     let env = TestEnv::new();
-    env.create_mock_registry_package("my-package", "1.0.0");
+    env.create_mock_package_with_content(
+        "my-package",
+        "1.0.0",
+        r#"{"name": "my-package", "version": "1.0.0", "dependencies": {"fake-dep": "1.0.0"}}"#,
+    );
     env.setup_project_pm("npm");
 
     env.run_kley_command(&["install", "my-package"])
@@ -60,12 +58,13 @@ fn test_install_command_npm_project() {
     let mut kley_lock_content = fs::read_to_string(env.project_dir.join("kley.lock")).unwrap();
 
     kley_lock_content.retain(|c| !c.is_whitespace());
-    assert!(kley_lock_content.contains(r#""my-package":{"version":"1.0.0"}"#));
+    // Note: no trailing `}` — a package with deps also snapshots "dependencies" into the entry (f-27)
+    assert!(kley_lock_content.contains(r#""my-package":{"version":"1.0.0""#));
 
     let project_pkg_json_content =
         fs::read_to_string(env.project_dir.join("package.json")).unwrap();
 
-    assert_pkg_json_has_file_dep(&project_pkg_json_content, "my-package", &env.project_dir);
+    assert_pkg_json_has_file_dep(&project_pkg_json_content, "my-package");
 
     let pm_log_content = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
     assert!(pm_log_content.contains("npm install"));
@@ -75,7 +74,11 @@ fn test_install_command_npm_project() {
 #[test]
 fn test_install_command_pnpm_project() {
     let env = TestEnv::new();
-    env.create_mock_registry_package("my-pnpm-package", "2.0.0");
+    env.create_mock_package_with_content(
+        "my-pnpm-package",
+        "2.0.0",
+        r#"{"name": "my-pnpm-package", "version": "2.0.0", "dependencies": {"fake-dep": "1.0.0"}}"#,
+    );
     env.setup_project_pm("pnpm");
 
     env.run_kley_command(&["install", "my-pnpm-package"])
@@ -92,16 +95,12 @@ fn test_install_command_pnpm_project() {
 
     let mut kley_lock_content = fs::read_to_string(env.project_dir.join("kley.lock")).unwrap();
     kley_lock_content.retain(|c| !c.is_whitespace());
-    assert!(kley_lock_content.contains(r#""my-pnpm-package":{"version":"2.0.0"}"#));
+    assert!(kley_lock_content.contains(r#""my-pnpm-package":{"version":"2.0.0""#));
 
     let project_pkg_json_content =
         fs::read_to_string(env.project_dir.join("package.json")).unwrap();
 
-    assert_pkg_json_has_file_dep(
-        &project_pkg_json_content,
-        "my-pnpm-package",
-        &env.project_dir,
-    );
+    assert_pkg_json_has_file_dep(&project_pkg_json_content, "my-pnpm-package");
 
     let pm_log_content = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
     assert!(pm_log_content.contains("pnpm add"));
@@ -111,7 +110,11 @@ fn test_install_command_pnpm_project() {
 #[test]
 fn test_install_command_yarn_project() {
     let env = TestEnv::new();
-    env.create_mock_registry_package("my-yarn-package", "3.0.0");
+    env.create_mock_package_with_content(
+        "my-yarn-package",
+        "3.0.0",
+        r#"{"name": "my-yarn-package", "version": "3.0.0", "dependencies": {"fake-dep": "1.0.0"}}"#,
+    );
     env.setup_project_pm("yarn");
 
     env.run_kley_command(&["install", "my-yarn-package"])
@@ -128,16 +131,12 @@ fn test_install_command_yarn_project() {
 
     let mut kley_lock_content = fs::read_to_string(env.project_dir.join("kley.lock")).unwrap();
     kley_lock_content.retain(|c| !c.is_whitespace());
-    assert!(kley_lock_content.contains(r#""my-yarn-package":{"version":"3.0.0"}"#));
+    assert!(kley_lock_content.contains(r#""my-yarn-package":{"version":"3.0.0""#));
 
     let project_pkg_json_content =
         fs::read_to_string(env.project_dir.join("package.json")).unwrap();
 
-    assert_pkg_json_has_file_dep(
-        &project_pkg_json_content,
-        "my-yarn-package",
-        &env.project_dir,
-    );
+    assert_pkg_json_has_file_dep(&project_pkg_json_content, "my-yarn-package");
 
     let pm_log_content = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
     assert!(pm_log_content.contains("yarn add"));
@@ -147,7 +146,11 @@ fn test_install_command_yarn_project() {
 #[test]
 fn test_install_command_kley_lock_pm_override() {
     let env = TestEnv::new();
-    env.create_mock_registry_package("my-override-package", "4.0.0");
+    env.create_mock_package_with_content(
+        "my-override-package",
+        "4.0.0",
+        r#"{"name": "my-override-package", "version": "4.0.0", "dependencies": {"fake-dep": "1.0.0"}}"#,
+    );
     env.setup_project_pm("npm"); // Project has npm lockfile
 
     // Create kley.lock to override to pnpm
@@ -170,17 +173,13 @@ fn test_install_command_kley_lock_pm_override() {
     let mut kley_lock_content = fs::read_to_string(env.project_dir.join("kley.lock")).unwrap();
     kley_lock_content.retain(|c| !c.is_whitespace());
 
-    assert!(kley_lock_content.contains(r#""my-override-package":{"version":"4.0.0"}"#));
+    assert!(kley_lock_content.contains(r#""my-override-package":{"version":"4.0.0""#));
     assert!(kley_lock_content.contains(r#""packageManager":"pnpm""#)); // kley.lock should retain its PM setting
 
     let project_pkg_json_content =
         fs::read_to_string(env.project_dir.join("package.json")).unwrap();
 
-    assert_pkg_json_has_file_dep(
-        &project_pkg_json_content,
-        "my-override-package",
-        &env.project_dir,
-    );
+    assert_pkg_json_has_file_dep(&project_pkg_json_content, "my-override-package");
 
     let pm_log_content = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
     assert!(pm_log_content.contains("pnpm add"));
@@ -277,8 +276,16 @@ fn test_install_no_args_updates_all_packages() -> Result<(), Box<dyn std::error:
     env.setup_project_pm("npm");
 
     // Create packages in registry at v1.0.0 with source files
-    env.create_mock_registry_package("pkg-a", "1.0.0");
-    env.create_mock_registry_package("pkg-b", "1.0.0");
+    env.create_mock_package_with_content(
+        "pkg-a",
+        "1.0.0",
+        r#"{"name": "pkg-a", "version": "1.0.0", "dependencies": {"fake": "1.0.0"}}"#,
+    );
+    env.create_mock_package_with_content(
+        "pkg-b",
+        "1.0.0",
+        r#"{"name": "pkg-b", "version": "1.0.0", "dependencies": {"fake": "1.0.0"}}"#,
+    );
     fs::write(
         env.kley_registry
             .join("packages")
@@ -315,15 +322,21 @@ fn test_install_no_args_updates_all_packages() -> Result<(), Box<dyn std::error:
     );
 
     let pkg_json_a = PackageJson::get(&env.project_dir.join(".kley").join("pkg-a"))?;
-
     assert_eq!(pkg_json_a.version, "1.0.0");
-
     let pkg_json_b = PackageJson::get(&env.project_dir.join(".kley").join("pkg-b"))?;
     assert_eq!(pkg_json_b.version, "1.0.0");
 
     // Update registry to v2.0.0 with new content
-    env.create_mock_registry_package("pkg-a", "2.0.0");
-    env.create_mock_registry_package("pkg-b", "2.0.0");
+    env.create_mock_package_with_content(
+        "pkg-a",
+        "2.0.0",
+        r#"{"name": "pkg-a", "version": "2.0.0", "dependencies": {"fake": "1.0.0"}}"#,
+    );
+    env.create_mock_package_with_content(
+        "pkg-b",
+        "2.0.0",
+        r#"{"name": "pkg-b", "version": "2.0.0", "dependencies": {"fake": "1.0.0"}}"#,
+    );
     fs::write(
         env.kley_registry
             .join("packages")
@@ -332,7 +345,6 @@ fn test_install_no_args_updates_all_packages() -> Result<(), Box<dyn std::error:
         "// pkg-a v2",
     )
     .unwrap();
-
     fs::write(
         env.kley_registry
             .join("packages")
@@ -362,7 +374,6 @@ fn test_install_no_args_updates_all_packages() -> Result<(), Box<dyn std::error:
 
     let pkg_json_a = PackageJson::get(&env.project_dir.join(".kley").join("pkg-a"))?;
     assert_eq!(pkg_json_a.version, "2.0.0");
-
     let pkg_json_b = PackageJson::get(&env.project_dir.join(".kley").join("pkg-b"))?;
     assert_eq!(pkg_json_b.version, "2.0.0");
 
@@ -451,8 +462,7 @@ fn assert_pkg_json_has_dev_dep(pkg_name: &str, project_dir: &std::path::Path) {
         &package_json
     );
 
-    let kley_path = project_dir.join(".kley").join(pkg_name);
-    let expected_path = kley_path.to_string_lossy().replace('\\', "/");
+    let expected_path = format!("file:.kley/{}", pkg_name);
 
     assert!(
         dev_dependencies
@@ -472,7 +482,11 @@ fn assert_pkg_json_has_dev_dep(pkg_name: &str, project_dir: &std::path::Path) {
 fn test_install_dev_flag_npm() -> Result<(), Box<dyn std::error::Error>> {
     let pkg_name = "dev-pkg-npm";
     let env = TestEnv::new();
-    env.create_mock_registry_package(pkg_name, "1.0.0");
+    env.create_mock_package_with_content(
+        pkg_name,
+        "1.0.0",
+        r#"{"name": "dev-pkg-npm", "version": "1.0.0", "dependencies": {"fake-dep": "1.0.0"}}"#,
+    );
     env.setup_project_pm("npm");
 
     env.run_kley_command(&["install", "--dev", pkg_name])
@@ -486,7 +500,7 @@ fn test_install_dev_flag_npm() -> Result<(), Box<dyn std::error::Error>> {
     // kley.lock updated
     let mut lock_content = fs::read_to_string(env.project_dir.join("kley.lock")).unwrap();
     lock_content.retain(|c| !c.is_whitespace());
-    assert!(lock_content.contains(r#""dev-pkg-npm":{"version":"1.0.0"}"#));
+    assert!(lock_content.contains(r#""dev-pkg-npm":{"version":"1.0.0""#));
 
     // PM was called with --save-dev
     let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
@@ -511,7 +525,11 @@ fn test_install_dev_flag_npm() -> Result<(), Box<dyn std::error::Error>> {
 fn test_install_dev_flag_pnpm() {
     let pkg_name = "dev-pkg-pnpm";
     let env = TestEnv::new();
-    env.create_mock_registry_package(pkg_name, "1.0.0");
+    env.create_mock_package_with_content(
+        pkg_name,
+        "1.0.0",
+        r#"{"name": "dev-pkg-pnpm", "version": "1.0.0", "dependencies": {"fake-dep": "1.0.0"}}"#,
+    );
     env.setup_project_pm("pnpm");
 
     env.run_kley_command(&["install", "--dev", "dev-pkg-pnpm"])
@@ -530,11 +548,15 @@ fn test_install_dev_flag_pnpm() {
     // package.json has the dep in devDependencies
     assert_pkg_json_has_dev_dep(pkg_name, &env.project_dir);
 }
-//
+
 #[test_log::test]
 fn test_install_dev_flag_yarn() {
     let env = TestEnv::new();
-    env.create_mock_registry_package("dev-pkg-yarn", "1.0.0");
+    env.create_mock_package_with_content(
+        "dev-pkg-yarn",
+        "1.0.0",
+        r#"{"name": "dev-pkg-yarn", "version": "1.0.0", "dependencies": {"fake-dep": "1.0.0"}}"#,
+    );
     env.setup_project_pm("yarn");
 
     env.run_kley_command(&["install", "--dev", "dev-pkg-yarn"])
@@ -557,7 +579,11 @@ fn test_install_dev_flag_yarn() {
 #[test_log::test]
 fn test_install_short_d_flag() {
     let env = TestEnv::new();
-    env.create_mock_registry_package("dev-pkg-short", "1.0.0");
+    env.create_mock_package_with_content(
+        "dev-pkg-short",
+        "1.0.0",
+        r#"{"name": "dev-pkg-short", "version": "1.0.0", "dependencies": {"fake-dep": "1.0.0"}}"#,
+    );
     env.setup_project_pm("npm");
 
     env.run_kley_command(&["install", "-D", "dev-pkg-short"])
@@ -580,7 +606,11 @@ fn test_install_short_d_flag() {
 #[test_log::test]
 fn test_install_without_dev_goes_to_dependencies() {
     let env = TestEnv::new();
-    env.create_mock_registry_package("prod-pkg", "1.0.0");
+    env.create_mock_package_with_content(
+        "prod-pkg",
+        "1.0.0",
+        r#"{"name": "prod-pkg", "version": "1.0.0", "dependencies": {"fake-dep": "1.0.0"}}"#,
+    );
     env.setup_project_pm("npm");
 
     env.run_kley_command(&["install", "prod-pkg"])
@@ -709,7 +739,149 @@ fn test_install_dev_flag_without_package_name_fails() {
         ));
 }
 
-// ─── f-27: Fast reinstall tests ─────────────────────────────────────────
+// ─── f-26: Skip PM for dependency-less packages ───────────────────────
+
+#[test_log::test]
+fn test_fast_path_no_deps_skips_pm() {
+    let env = TestEnv::new();
+    let pkg_name = "pkg-no-deps";
+    env.create_mock_package_with_content(
+        pkg_name,
+        "1.0.0",
+        r#"{"name": "pkg-no-deps", "version": "1.0.0"}"#,
+    );
+    env.setup_project_pm("npm");
+
+    env.run_kley_command(&["install", pkg_name])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Package has no dependencies, skipping package manager",
+        ))
+        .stdout(predicate::str::contains("Done: pkg-no-deps installed"));
+
+    // Assert: PM was NOT called
+    assert!(
+        !env.project_dir.join("pm.log").exists(),
+        "pm.log should not exist for dependency-less install"
+    );
+
+    // Assert: package.json is updated correctly
+    let project_pkg_json_content =
+        fs::read_to_string(env.project_dir.join("package.json")).unwrap();
+    assert_pkg_json_has_file_dep(&project_pkg_json_content, pkg_name);
+
+    // Assert: node_modules/<pkg> is a symlink to .kley/<pkg>
+    let node_modules_pkg = env.project_dir.join("node_modules").join(pkg_name);
+    assert!(
+        node_modules_pkg.is_symlink(),
+        "node_modules/{} should be a symlink",
+        pkg_name
+    );
+
+    let link_target = normalized_path(&fs::read_link(&node_modules_pkg).unwrap(), None);
+    let kley_cache_pkg = normalized_path(&env.project_dir.join(".kley").join(pkg_name), None);
+    assert_eq!(link_target, kley_cache_pkg);
+}
+
+#[test_log::test]
+fn test_fast_path_no_deps_dev_flag() {
+    let env = TestEnv::new();
+    let pkg_name = "pkg-no-deps-dev";
+    env.create_mock_package_with_content(
+        pkg_name,
+        "1.0.0",
+        r#"{"name": "pkg-no-deps-dev", "version": "1.0.0"}"#,
+    );
+    env.setup_project_pm("npm");
+
+    env.run_kley_command(&["install", "-D", pkg_name])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Package has no dependencies, skipping package manager",
+        ));
+
+    assert!(!env.project_dir.join("pm.log").exists());
+    assert_pkg_json_has_dev_dep(pkg_name, &env.project_dir);
+}
+
+#[test_log::test]
+fn test_fast_path_no_deps_no_save() {
+    let env = TestEnv::new();
+    let pkg_name = "pkg-no-deps-no-save";
+    env.create_mock_package_with_content(
+        pkg_name,
+        "1.0.0",
+        r#"{"name": "pkg-no-deps-no-save", "version": "1.0.0"}"#,
+    );
+    env.setup_project_pm("npm");
+    let original_pkg_json = fs::read_to_string(env.project_dir.join("package.json")).unwrap();
+
+    env.run_kley_command(&["install", "--no-save", pkg_name])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Package has no dependencies, skipping package manager",
+        ));
+
+    assert!(!env.project_dir.join("pm.log").exists());
+
+    // Assert: package.json is unchanged
+    let current_pkg_json = fs::read_to_string(env.project_dir.join("package.json")).unwrap();
+    assert_eq!(
+        original_pkg_json, current_pkg_json,
+        "package.json should not be modified with --no-save"
+    );
+
+    // Assert: symlink is still created
+    let node_modules_pkg = env.project_dir.join("node_modules").join(pkg_name);
+    assert!(
+        node_modules_pkg.is_symlink(),
+        "symlink should still be created with --no-save"
+    );
+}
+
+#[test_log::test]
+fn test_slow_path_with_deps_calls_pm() {
+    let env = TestEnv::new();
+    let pkg_name = "pkg-with-deps";
+    env.create_mock_package_with_content(
+        pkg_name,
+        "1.0.0",
+        r#"{"name": "pkg-with-deps", "version": "1.0.0", "dependencies": {"lodash": "1.0.0"}}"#,
+    );
+    env.setup_project_pm("npm");
+
+    env.run_kley_command(&["install", pkg_name])
+        .assert()
+        .success();
+
+    // Assert: PM WAS called
+    let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert!(pm_log.contains("npm install"));
+}
+
+#[test_log::test]
+fn test_slow_path_with_peer_deps_calls_pm() {
+    let env = TestEnv::new();
+    let pkg_name = "pkg-with-peer-deps";
+    env.create_mock_package_with_content(
+        pkg_name,
+        "1.0.0",
+        r#"{"name": "pkg-with-peer-deps", "version": "1.0.0", "peerDependencies": {"react": "18.0.0"}}"#,
+    );
+    env.setup_project_pm("npm");
+
+    env.run_kley_command(&["install", pkg_name])
+        .assert()
+        .success();
+
+    // Assert: PM WAS called
+    let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert!(pm_log.contains("npm install"));
+}
+
 #[test_log::test]
 fn test_dependencies_snapshotting() {
     let env = TestEnv::new();

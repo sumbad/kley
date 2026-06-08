@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, fs, path::Path};
 
 use serde::{Deserialize, Serialize};
 
-use crate::lockfile::Lockfile;
+use crate::{lockfile::Lockfile, utils::detect_indent};
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -66,13 +66,11 @@ impl Package {
         if let Some(lf) = lockfile
             && let Some(lf_pm) = &lf.package_manager
             && !lf_pm.is_empty()
-        // packageManager exists inside kley.lock and is not empty
         {
             tracing::debug!("Detected package manager from kley.lock: {}", lf_pm);
             return Package::translate_pm_type(lf_pm);
         }
 
-        // packageManager exists inside package.json and is not empty
         if let Some(json_pm) = &package_json.package_manager
             && !json_pm.is_empty()
         {
@@ -127,14 +125,192 @@ impl PackageJson {
     }
 
     pub fn save_raw<T: Serialize>(value: T, dir: &Path, indent: &str) -> Result<()> {
-        let mut buf = Vec::new();
+        let mut buff = Vec::new();
         let formatter = serde_json::ser::PrettyFormatter::with_indent(indent.as_bytes());
-        let mut ser = serde_json::Serializer::with_formatter(&mut buf, formatter);
+        let mut ser = serde_json::Serializer::with_formatter(&mut buff, formatter);
         value.serialize(&mut ser)?;
 
-        fs::write(dir.join(PACKAGE_JSON_FILE_NAME), buf)?;
+        fs::write(dir.join(PACKAGE_JSON_FILE_NAME), buff)?;
 
         tracing::info!("package.json has been updated");
+
+        Ok(())
+    }
+
+    /// Modifies package.json in a dir to add or update a dependency
+    pub fn update_dependency(
+        project_dir: &Path,
+        dependency_name: &str,
+        is_dev: bool,
+    ) -> Result<()> {
+        let content = PackageJson::get_raw(project_dir)?;
+
+        let indent = detect_indent(&content);
+
+        let mut value: serde_json::Value =
+            serde_json::from_str(&content).context("Failed to parse package.json")?;
+
+        let dep_path = format!("file:.kley/{}", dependency_name);
+        let dep_keys = ["dependencies", "devDependencies", "peerDependencies"];
+        let mut updated = false;
+
+        if let Some(obj) = value.as_object_mut() {
+            for key in &dep_keys {
+                if let Some(dep) = obj
+                    .get_mut(*key)
+                    .and_then(|d| d.as_object_mut())
+                    .and_then(|d| d.get_mut(dependency_name))
+                {
+                    *dep = serde_json::Value::String(dep_path.clone());
+                    updated = true;
+                    break;
+                }
+            }
+
+            if !updated {
+                let target_key = if is_dev {
+                    "devDependencies"
+                } else {
+                    "dependencies"
+                };
+                if !obj.contains_key(target_key) {
+                    obj.insert(target_key.to_string(), serde_json::json!({}));
+                }
+                obj[target_key].as_object_mut().unwrap().insert(
+                    dependency_name.to_string(),
+                    serde_json::Value::String(dep_path),
+                );
+            }
+        }
+
+        PackageJson::save_raw(value, project_dir, &indent)?;
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_add_new_dependency() -> Result<()> {
+        let initial_content = r#"{
+  "name": "test-project",
+  "version": "1.0.0",
+  "dependencies": {}
+}"#;
+        let tmp = tempdir()?;
+        fs::write(tmp.path().join("package.json"), initial_content)?;
+        let dir = tmp.path();
+
+        PackageJson::update_dependency(dir, "my-local-lib", false)?;
+
+        let updated_content = fs::read_to_string(dir.join("package.json"))?;
+        let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
+
+        assert_eq!(
+            updated_json["dependencies"]["my-local-lib"],
+            "file:.kley/my-local-lib"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_add_new_dev_dependency() -> Result<()> {
+        let initial_content = r#"{
+  "name": "test-project",
+  "version": "1.0.0",
+  "devDependencies": {}
+}"#;
+        let tmp = tempdir()?;
+        fs::write(tmp.path().join("package.json"), initial_content)?;
+        let dir = tmp.path();
+
+        PackageJson::update_dependency(dir, "my-local-lib", true)?;
+
+        let updated_content = fs::read_to_string(dir.join("package.json"))?;
+        let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
+
+        assert_eq!(
+            updated_json["devDependencies"]["my-local-lib"],
+            "file:.kley/my-local-lib"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_update_existing_dependency() -> Result<()> {
+        let initial_content = r#"{
+  "name": "test-project",
+  "version": "1.0.0",
+  "dependencies": {
+    "my-local-lib": "1.0.0"
+  }
+}"#;
+        let tmp = tempdir()?;
+        fs::write(tmp.path().join("package.json"), initial_content)?;
+        let dir = tmp.path();
+
+        PackageJson::update_dependency(dir, "my-local-lib", false)?;
+
+        let updated_content = fs::read_to_string(dir.join("package.json"))?;
+        let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
+
+        assert_eq!(
+            updated_json["dependencies"]["my-local-lib"],
+            "file:.kley/my-local-lib"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_create_dependencies_section() -> Result<()> {
+        let initial_content = r#"{
+  "name": "test-project",
+  "version": "1.0.0"
+}"#;
+        let tmp = tempdir()?;
+        fs::write(tmp.path().join("package.json"), initial_content)?;
+        let dir = tmp.path();
+
+        PackageJson::update_dependency(dir, "my-local-lib", false)?;
+
+        let updated_content = fs::read_to_string(dir.join("package.json"))?;
+        let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
+
+        assert_eq!(
+            updated_json["dependencies"]["my-local-lib"],
+            "file:.kley/my-local-lib"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_create_dev_dependencies_section() -> Result<()> {
+        let initial_content = r#"{
+  "name": "test-project",
+  "version": "1.0.0"
+}"#;
+        let tmp = tempdir()?;
+        fs::write(tmp.path().join("package.json"), initial_content)?;
+        let dir = tmp.path();
+
+        PackageJson::update_dependency(dir, "my-local-lib", true)?;
+
+        let updated_content = fs::read_to_string(dir.join("package.json"))?;
+        let updated_json: serde_json::Value = serde_json::from_str(&updated_content)?;
+
+        assert_eq!(
+            updated_json["devDependencies"]["my-local-lib"],
+            "file:.kley/my-local-lib"
+        );
 
         Ok(())
     }

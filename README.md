@@ -253,6 +253,7 @@ A universal command that combines `add` and the native package manager installat
 - Supports `npm`, `pnpm`, and `yarn` out of the box.
 - To explicitly specify the package manager, set the `packageManager` value in `package.json` or `kley.lock`.
 - **Fast reinstall**: When a package's `dependencies` and `peerDependencies` haven't changed since the last install, `kley` skips the package manager entirely and copies files directly to `node_modules/<pkg>`. This makes iterative workflows (repeated `kley publish` → `kley install`) significantly faster.
+- **Faster install for dependency-less packages**: When a package has no `dependencies` and `peerDependencies`, `kley` skips the package manager entirely and creates a direct symlink to `node_modules/<pkg>`. This is even faster than the normal "fast reinstall" and is ideal for simple utility packages or components.
 - **Lifecycle scripts** (`preinstall`, `install`, `postinstall`) are **disabled by default** (`--ignore-scripts`) for safety. This prevents arbitrary code execution during install. If a package requires lifecycle scripts to function (e.g., native modules), run the package manager manually.
 
 ### 4. `kley add <package-name>`
