@@ -1,6 +1,6 @@
 use anyhow::Result;
 use colored::*;
-use std::fs;
+use std::{fs, path::Path};
 
 use crate::{commands::update::run_update, emoji, registry::Registry, utils::work_dirs};
 
@@ -63,60 +63,7 @@ pub fn link(registry: &mut Registry, package_name: &str) -> Result<()> {
     fs::create_dir_all(&node_modules_dir)?;
     tracing::debug!("link: ensured node_modules dir exists");
 
-    if node_modules_pkg_dir.exists() {
-        let is_symlink = node_modules_pkg_dir.is_symlink();
-        let is_file = node_modules_pkg_dir.is_file();
-        let is_dir = node_modules_pkg_dir.is_dir();
-        tracing::debug!(
-            "link: node_modules_pkg_dir exists, is_symlink={}, is_file={}, is_dir={}",
-            is_symlink,
-            is_file,
-            is_dir,
-        );
-
-        if is_symlink {
-            // On Unix, symlinks are files and remove_file works.
-            // On Windows, directory symlinks/junctions are directories,
-            // so remove_file fails with Access Denied. Try both.
-            tracing::debug!("link: removing existing symlink...");
-            fs::remove_file(&node_modules_pkg_dir).or_else(|e| {
-                tracing::debug!("link: remove_file failed ({}), trying remove_dir...", e);
-                fs::remove_dir(&node_modules_pkg_dir)
-            })?;
-            tracing::debug!("link: symlink removed");
-        } else if is_file {
-            fs::remove_file(&node_modules_pkg_dir)?;
-            tracing::debug!("link: file removed");
-        } else {
-            fs::remove_dir_all(&node_modules_pkg_dir)?;
-            tracing::debug!("link: directory removed");
-        }
-    } else {
-        tracing::debug!("link: node_modules_pkg_dir does not exist, nothing to remove");
-    }
-
-    #[cfg(unix)]
-    {
-        tracing::debug!("link: creating unix symlink...");
-        std::os::unix::fs::symlink(&dirs.project_kley_dir, &node_modules_pkg_dir)?;
-        tracing::debug!("link: unix symlink created");
-    }
-
-    #[cfg(windows)]
-    {
-        tracing::debug!("link: attempting symlink_dir on Windows...");
-        match std::os::windows::fs::symlink_dir(&dirs.project_kley_dir, &node_modules_pkg_dir) {
-            Ok(()) => tracing::debug!("link: symlink_dir created"),
-            Err(e) => {
-                tracing::debug!(
-                    "link: symlink_dir failed ({}), falling back to junction...",
-                    e
-                );
-                create_junction(&dirs.project_kley_dir, &node_modules_pkg_dir)?;
-                tracing::debug!("link: junction created");
-            }
-        }
-    }
+    create_symlink(&dirs.project_kley_dir, &node_modules_pkg_dir)?;
 
     // Add to registry
     registry.add_package_installation(package_name, &dirs.project_dir)?;
@@ -131,6 +78,65 @@ pub fn link(registry: &mut Registry, package_name: &str) -> Result<()> {
         .bright_black(),
         format!("{} Done: {} linked", emoji::SUCCESS, package_name.cyan()).green(),
     );
+
+    Ok(())
+}
+
+pub fn create_symlink(source_path: &Path, target_path: &Path) -> Result<()> {
+    if target_path.exists() {
+        let is_symlink = target_path.is_symlink();
+        let is_file = target_path.is_file();
+        let is_dir = target_path.is_dir();
+        tracing::debug!(
+            "link: target_path exists, is_symlink={}, is_file={}, is_dir={}",
+            is_symlink,
+            is_file,
+            is_dir,
+        );
+
+        if is_symlink {
+            // On Unix, symlinks are files and remove_file works.
+            // On Windows, directory symlinks/junctions are directories,
+            // so remove_file fails with Access Denied. Try both.
+            tracing::debug!("link: removing existing symlink...");
+            fs::remove_file(target_path).or_else(|e| {
+                tracing::debug!("link: remove_file failed ({}), trying remove_dir...", e);
+                fs::remove_dir(target_path)
+            })?;
+            tracing::debug!("link: symlink removed");
+        } else if is_file {
+            fs::remove_file(target_path)?;
+            tracing::debug!("link: file removed");
+        } else {
+            fs::remove_dir_all(target_path)?;
+            tracing::debug!("link: directory removed");
+        }
+    } else {
+        tracing::debug!("link: target_path does not exist, nothing to remove");
+    }
+
+    #[cfg(unix)]
+    {
+        tracing::debug!("link: creating unix symlink...");
+        std::os::unix::fs::symlink(source_path, target_path)?;
+        tracing::debug!("link: unix symlink created");
+    }
+
+    #[cfg(windows)]
+    {
+        tracing::debug!("link: attempting symlink_dir on Windows...");
+        match std::os::windows::fs::symlink_dir(source_path, target_path) {
+            Ok(()) => tracing::debug!("link: symlink_dir created"),
+            Err(e) => {
+                tracing::debug!(
+                    "link: symlink_dir failed ({}), falling back to junction...",
+                    e
+                );
+                create_junction(source_path, target_path)?;
+                tracing::debug!("link: junction created");
+            }
+        }
+    }
 
     Ok(())
 }

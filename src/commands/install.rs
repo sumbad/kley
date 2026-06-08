@@ -5,7 +5,7 @@ use colored::*;
 use serde_json::json;
 
 use crate::{
-    commands::update::run_update,
+    commands::{link::create_symlink, update::run_update},
     emoji,
     lockfile::Lockfile,
     package::{Package, PackageJson, PackageManagerType},
@@ -82,7 +82,7 @@ fn install_package(
 
     utils::validate_version_in_registry(registry, package_name, package_version);
 
-    let package = Package::get(project_dir)?;
+    let project_package = Package::get(project_dir)?;
 
     let pkg_kley_path = project_dir
         .join(PROJECT_REGISTRY_DIR_NAME)
@@ -90,7 +90,7 @@ fn install_package(
 
     let deps_path = project_dir.join("node_modules").join(package_name);
 
-    let deps_snapshot = package
+    let deps_snapshot = project_package
         .lockfile
         .as_ref()
         .and_then(|it| it.packages.get(package_name));
@@ -119,7 +119,7 @@ fn install_package(
 
             // Case B: symlink points to an unknown location — fall back to PM
             tracing::info!("Destination is an unknown symlink, falling back to PM");
-            pm_install_command(&pkg_kley_path, &package, dev, no_save)?;
+            pm_install_command(package_name, &project_package, dev, no_save)?;
             return Ok(());
         }
 
@@ -138,32 +138,47 @@ fn install_package(
         tracing::info!("Destination directory node_modules/<pkg> absent, falling back to PM");
     }
 
-    // Slow path: no snapshot, deps changed, or node_modules/<pkg> doesn't exist
-    pm_install_command(&pkg_kley_path, &package, dev, no_save)?;
+    let has_dependencies = !installed_pkg_json.dependencies.is_empty()
+        || !installed_pkg_json.peer_dependencies.is_empty();
+
+    if has_dependencies {
+        // Slow path: no snapshot, deps changed, or node_modules/<pkg> doesn't exist
+        pm_install_command(package_name, &project_package, dev, no_save)?;
+    } else {
+        println!("Package has no dependencies, skipping package manager");
+
+        if !no_save {
+            PackageJson::update_dependency(project_dir, package_name, dev)?;
+        }
+
+        let node_modules_path = project_dir.join("node_modules");
+        std::fs::create_dir_all(&node_modules_path)?;
+
+        let target_path = node_modules_path.join(package_name);
+        create_symlink(&pkg_kley_path, &target_path)?;
+    }
 
     Ok(())
 }
 
 fn pm_install_command(
-    pkg_kley_path: &Path,
-    package: &Package,
+    package_name: &str,
+    project_package: &Package,
     dev: bool,
     no_save: bool,
 ) -> Result<()> {
-    let pkg_kley_path_str = pkg_kley_path
-        .to_str()
-        .ok_or_else(|| anyhow::anyhow!("Path contains non-UTF8 characters: {:?}", pkg_kley_path))?;
+    let pkg_kley_path_str = format!(".kley/{}", package_name);
 
     let npm_command = std::env::var("KLEY_USE_NPM_COMMAND").unwrap_or("npm".to_string());
     let pnpm_command = std::env::var("KLEY_USE_PNPM_COMMAND").unwrap_or("pnpm".to_string());
     let yarn_command = std::env::var("KLEY_USE_YARN_COMMAND").unwrap_or("yarn".to_string());
 
-    let (cmd_name, cmd_args): (&str, Vec<&str>) = match package.manager_type {
+    let (cmd_name, cmd_args): (&str, Vec<&str>) = match project_package.manager_type {
         PackageManagerType::Npm => (
             &npm_command,
             vec![
                 Some("install"),
-                Some(pkg_kley_path_str),
+                Some(&pkg_kley_path_str),
                 Some("--ignore-scripts"),
                 dev.then_some("--save-dev"),
                 no_save.then_some("--no-save"),
@@ -176,7 +191,7 @@ fn pm_install_command(
             &pnpm_command,
             vec![
                 Some("add"),
-                Some(pkg_kley_path_str),
+                Some(&pkg_kley_path_str),
                 Some("--ignore-scripts"),
                 dev.then_some("-D"),
                 no_save.then_some("--save=false"),
@@ -189,7 +204,7 @@ fn pm_install_command(
             &yarn_command,
             vec![
                 Some("add"),
-                Some(pkg_kley_path_str),
+                Some(&pkg_kley_path_str),
                 Some("--ignore-scripts"),
                 dev.then_some("--dev"),
                 // Yarn v1 has no --no-save equivalent.
@@ -219,7 +234,7 @@ fn pm_install_command(
             format!(
                 "{} Error: {:?} command failed with status: {:?}",
                 emoji::ERROR,
-                package.manager_type,
+                project_package.manager_type,
                 status.code(),
             )
             .red(),
@@ -227,7 +242,7 @@ fn pm_install_command(
 
         anyhow::bail!(
             "Package manager {:?} failed with status: {:?}",
-            package.manager_type,
+            project_package.manager_type,
             status.code(),
         );
     }
