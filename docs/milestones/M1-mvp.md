@@ -38,9 +38,9 @@ kanban
         "Rework link: direct symlink to source"<br/><br/>@{ assigned: 🧩, priority: 'Very High', ticket: 'f-32' }
 
     In Progress
-        "Skip PM for dependency-less packages"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-26' }
 
     Done
+        "Skip PM for dependency-less packages"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-26' }
         "Add --no-save flag to install command"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-33' }
         "Fast Reinstall - skip PM when deps unchanged"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-27' }
         "Add --dev flag to install command"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-20' }
