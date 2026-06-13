@@ -104,6 +104,7 @@ fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path)
         version: version.to_string(),
         dependencies: package_json.dependencies,
         peer_dependencies: package_json.peer_dependencies,
+        connection: Default::default(),
     };
 
     lockfile
