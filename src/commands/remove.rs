@@ -6,7 +6,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::emoji;
-use crate::lockfile::Lockfile;
+use crate::lockfile::{ConnectionType, Lockfile};
 use crate::registry::Registry;
 use crate::utils::{detect_indent, get_kley_home_dir, normalized_path};
 
@@ -24,6 +24,17 @@ pub fn remove(
     }
 
     if is_all {
+        // Collect linked packages BEFORE deleting lockfile
+        let linked_packages: Vec<String> = Lockfile::get(project_dir)
+            .map(|lf| {
+                lf.packages
+                    .into_iter()
+                    .filter(|(_, info)| info.connection == ConnectionType::Link)
+                    .map(|(name, _)| name)
+                    .collect()
+            })
+            .unwrap_or_default();
+
         // Remove kley.lock file
         let lock_path = project_dir.join("kley.lock");
         if lock_path.exists() {
@@ -34,6 +45,18 @@ pub fn remove(
         remove_all_from_package_json(&project_dir.join("package.json"))?;
 
         registry.remove_all_installations(project_dir)?;
+
+        // Remove symlinks for linked packages
+        for pkg_name in linked_packages {
+            let symlink_path = project_dir.join("node_modules").join(&pkg_name);
+            if symlink_path.exists() || symlink_path.is_symlink() {
+                fs::remove_file(&symlink_path)
+                    .or_else(|_| fs::remove_dir(&symlink_path))
+                    .ok();
+            }
+            // Also remove from registry links
+            registry.remove_package_link(&pkg_name, project_dir)?;
+        }
 
         let local_store = project_dir.join(".kley");
         if local_store.exists() {
@@ -65,19 +88,36 @@ pub fn remove_package(
     package_name: &str,
     project_dir: &Path,
 ) -> Result<()> {
-    let local_store_package_dir = project_dir.join(".kley").join(package_name);
+    // Check connection type from lockfile
+    let connection = Lockfile::get(project_dir)
+        .and_then(|lf| lf.packages.get(package_name).map(|p| p.connection.clone()))
+        .unwrap_or_default();
 
-    update_package_json(&project_dir.join("package.json"), package_name)?;
-    update_kley_lock(package_name, project_dir)?;
+    if connection == ConnectionType::Link {
+        // Linked: remove symlink + lockfile entry only
+        let symlink_path = project_dir.join("node_modules").join(package_name);
+        if symlink_path.exists() || symlink_path.is_symlink() {
+            // try file first (Unix symlinks), then dir (Windows junctions)
+            fs::remove_file(&symlink_path).or_else(|_| fs::remove_dir(&symlink_path))?;
+        }
+        update_kley_lock(package_name, project_dir)?;
+        registry.remove_package_link(package_name, project_dir)?;
+    } else {
+        // Installed: full cleanup (existing behavior)
+        let local_store_package_dir = project_dir.join(".kley").join(package_name);
 
-    registry.remove_package_installation(package_name, project_dir)?;
+        update_package_json(&project_dir.join("package.json"), package_name)?;
+        update_kley_lock(package_name, project_dir)?;
 
-    if local_store_package_dir.exists() {
-        fs::remove_dir_all(&local_store_package_dir)?;
-        tracing::info!(
-            "removed directory: {}",
-            normalized_path(&local_store_package_dir, get_kley_home_dir().ok().as_ref())
-        );
+        registry.remove_package_installation(package_name, project_dir)?;
+
+        if local_store_package_dir.exists() {
+            fs::remove_dir_all(&local_store_package_dir)?;
+            tracing::info!(
+                "removed directory: {}",
+                normalized_path(&local_store_package_dir, get_kley_home_dir().ok().as_ref())
+            );
+        }
     }
 
     Ok(())
