@@ -2,7 +2,12 @@ use anyhow::Result;
 use colored::*;
 use std::{fs, path::Path};
 
-use crate::{commands::update::run_update, emoji, registry::Registry, utils::work_dirs};
+use crate::{
+    emoji,
+    lockfile::{ConnectionType, Lockfile, PackageInfo},
+    package::PackageJson,
+    registry::Registry,
+};
 
 /// Creates a junction point on Windows as a fallback when symlink creation fails
 /// due to insufficient privileges (e.g. Developer Mode is not enabled).
@@ -37,41 +42,141 @@ fn create_junction(source: &std::path::Path, junction: &std::path::Path) -> anyh
     Ok(())
 }
 
+/// Returns names of dependencies that also appear in peer_dependencies.
+/// These are "singleton" packages that expect exactly one runtime instance.
+fn get_singleton_dep_names(pkg: &PackageJson) -> Vec<String> {
+    pkg.dependencies
+        .keys()
+        .filter(|name| pkg.peer_dependencies.contains_key(*name))
+        .cloned()
+        .collect()
+}
+
+/// Prints a warning if the package has singleton dependencies.
+fn warn_singleton_deps(pkg: &PackageJson, package_name: &str) {
+    let singletons = get_singleton_dep_names(pkg);
+    if !singletons.is_empty() {
+        let list = singletons.join(", ");
+        println!(
+            "{}  {} has singleton dependencies: {}\n   Linking may cause duplicate instances. Consider `kley install {}` instead.",
+            emoji::WARNING,
+            package_name.cyan(),
+            list.magenta(),
+            package_name
+        );
+    }
+}
+
+/// Writes or updates `kley.lock` with a link entry for the package.
+fn write_link_kley_lock(
+    registry: &Registry,
+    package_name: &str,
+    project_dir: &Path,
+) -> Result<()> {
+    let mut lockfile = Lockfile::new(project_dir);
+
+    let pkg_info = PackageInfo {
+        version: registry
+            .get_pkg_version(package_name)
+            .unwrap_or("latest")
+            .to_string(),
+        connection: ConnectionType::Link,
+        dependencies: Default::default(),
+        peer_dependencies: Default::default(),
+    };
+
+    lockfile.packages.insert(package_name.to_string(), pkg_info);
+    lockfile.save(project_dir)?;
+
+    Ok(())
+}
+
+/// Cleans up an existing install for the package.
+/// Removes the `.kley/<pkg>/` directory and the entry from `kley.lock`.
+/// Does NOT modify `package.json`.
+fn remove_install_files(package_name: &str, project_dir: &Path) -> Result<()> {
+    // Remove .kley/<pkg>/ directory if it exists
+    let kley_pkg_dir = project_dir.join(".kley").join(package_name);
+    if kley_pkg_dir.exists() {
+        fs::remove_dir_all(&kley_pkg_dir)?;
+        tracing::debug!("link: removed .kley/{} directory", package_name);
+    }
+
+    // Remove entry from kley.lock
+    if let Some(mut lockfile) = Lockfile::get(project_dir) {
+        lockfile.packages.remove(package_name);
+        lockfile.save(project_dir)?;
+        tracing::debug!("link: removed {} from kley.lock", package_name);
+    }
+
+    Ok(())
+}
+
 pub fn link(registry: &mut Registry, package_name: &str) -> Result<()> {
     tracing::debug!("link: starting for package '{}'", package_name);
 
-    let dirs = work_dirs(package_name)?;
+    let project_dir = std::env::current_dir()?;
 
-    tracing::debug!("link: calling run_update...");
-    run_update(registry, package_name, &std::env::current_dir()?).map_err(|e| {
-        tracing::debug!("link: run_update failed: {e:?}");
-        e
-    })?;
-    tracing::debug!("link: run_update completed");
+    // Get source_path from registry
+    let source_path = registry
+        .get_source_path(package_name)
+        .map(|p| p.to_path_buf())
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "{} not found in registry. Run `kley publish` in the package directory first.",
+                package_name
+            )
+        })?;
 
-    let node_modules_dir = dirs.project_dir.join("node_modules");
+    tracing::debug!("link: source_path={:?}", source_path);
+
+    // Verify source directory still exists
+    if !source_path.exists() {
+        anyhow::bail!(
+            "Source directory {:?} no longer exists.\n   Run `kley publish` in the new location of {} to update the source path.",
+            source_path,
+            package_name
+        );
+    }
+
+    // Load PackageJson from source to check for singleton deps
+    let pkg_json = PackageJson::get(&source_path)?;
+    warn_singleton_deps(&pkg_json, package_name);
+
+    // Switch from install to link if needed
+    if registry.has_installation(package_name, &project_dir) {
+        println!(
+            "{}  {} was installed, switching to link mode.\n   Files in .kley/{}/ will be removed.",
+            emoji::WARNING,
+            package_name.cyan(),
+            package_name
+        );
+        remove_install_files(package_name, &project_dir)?;
+        registry.remove_package_installation(package_name, &project_dir)?;
+    }
+
+    // Create symlink: node_modules/<pkg> -> source_path
+    let node_modules_dir = project_dir.join("node_modules");
     let node_modules_pkg_dir = node_modules_dir.join(package_name);
 
-    tracing::debug!(
-        "link: project_dir={:?}, node_modules_pkg_dir={:?}, project_kley_dir={:?}",
-        dirs.project_dir,
-        node_modules_pkg_dir,
-        dirs.project_kley_dir,
-    );
-
-    // Ensure node_modules directory exists
     fs::create_dir_all(&node_modules_dir)?;
-    tracing::debug!("link: ensured node_modules dir exists");
+    tracing::debug!(
+        "link: creating symlink {:?} -> {:?}",
+        node_modules_pkg_dir,
+        source_path
+    );
+    create_symlink(&source_path, &node_modules_pkg_dir)?;
 
-    create_symlink(&dirs.project_kley_dir, &node_modules_pkg_dir)?;
+    // Register the link
+    registry.add_package_link(package_name, &project_dir)?;
 
-    // Add to registry
-    registry.add_package_installation(package_name, &dirs.project_dir)?;
+    // Write kley.lock
+    write_link_kley_lock(registry, package_name, &project_dir)?;
 
     println!(
         "{}\n{}",
         format!(
-            "Note: `npm install` will overwrite links. Don't forget to run `kley link {}` again after it to restore the link.",
+            "Note: `npm install` will overwrite links. Run `kley link {}` again to restore.",
             package_name
         )
         .italic()
