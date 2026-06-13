@@ -114,6 +114,7 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
     }
 
     registry.update_package_version(&package.json.name, &package.json.version)?;
+    registry.set_source_path(&package.json.name, &std::env::current_dir()?)?;
 
     println!(
         "{} Package '{}' saved to registry",
@@ -152,6 +153,21 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
                     .green()
                 );
             }
+        }
+
+        let links = registry.get_links(&package.json.name).to_vec();
+        for link_dir in links {
+            println!(
+                "{}",
+                format!(
+                    "{} Skipped {}: {} is linked (source is live)",
+                    emoji::UPDATED,
+                    normalized_path(&link_dir, get_kley_home_dir().ok().as_ref()).white(),
+                    &package.json.name.cyan()
+                )
+                .green()
+                .dimmed()
+            );
         }
     } else {
         let install_cmd = format!("     kley install {}", package.json.name).cyan();
