@@ -62,6 +62,8 @@ impl TestEnv {
                 version: pkg_version.to_string(),
                 last_updated: Utc::now().to_rfc3339(),
                 installations: vec![],
+                source_path: None,
+                links: vec![],
             },
         );
 
@@ -101,6 +103,8 @@ impl TestEnv {
                 version: pkg_version.to_string(),
                 last_updated: Utc::now().to_rfc3339(),
                 installations: vec![],
+                source_path: None,
+                links: vec![],
             },
         );
 
