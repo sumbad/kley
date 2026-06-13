@@ -5,7 +5,7 @@ use colored::Colorize;
 
 use crate::{
     emoji,
-    lockfile::{Lockfile, PackageInfo},
+    lockfile::{ConnectionType, Lockfile, PackageInfo},
     package::PackageJson,
     registry::Registry,
     utils::{PROJECT_REGISTRY_DIR_NAME, copy_from_registry, strip_dev_dependencies},
@@ -42,6 +42,19 @@ pub fn update(registry: &mut Registry, packages: &[String], project_dir: &Path) 
 
     println!("{}", "Updating...".green().dimmed());
     for package_name in packages_to_update {
+        let connection = Lockfile::get(project_dir)
+            .and_then(|lf| lf.packages.get(&package_name).map(|p| p.connection.clone()))
+            .unwrap_or_default();
+
+        if connection == ConnectionType::Link {
+            println!(
+                "{} Skipping {}: linked (source is live)",
+                emoji::WARNING,
+                package_name.cyan()
+            );
+            continue;
+        }
+
         run_update(registry, &package_name, project_dir)?;
 
         println!(

@@ -7,7 +7,7 @@ use serde_json::json;
 use crate::{
     commands::{link::create_symlink, update::run_update},
     emoji,
-    lockfile::Lockfile,
+    lockfile::{ConnectionType, Lockfile},
     package::{Package, PackageJson, PackageManagerType},
     registry::Registry,
     utils::{self, PROJECT_REGISTRY_DIR_NAME, normalized_path},
@@ -250,6 +250,32 @@ fn pm_install_command(
     Ok(())
 }
 
+fn restore_link(registry: &Registry, package_name: &str, project_dir: &Path) -> Result<()> {
+    let source_path = registry
+        .get_source_path(package_name)
+        .map(|p| p.to_path_buf())
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "{} not found in registry. Run `kley publish` in the package directory first.",
+                package_name
+            )
+        })?;
+
+    if !source_path.exists() {
+        anyhow::bail!(
+            "Source directory {:?} no longer exists for linked package {}.\n   Run `kley publish` to update the source path.",
+            source_path,
+            package_name
+        );
+    }
+
+    let node_modules_pkg_dir = project_dir.join("node_modules").join(package_name);
+    std::fs::create_dir_all(project_dir.join("node_modules"))?;
+    create_symlink(&source_path, &node_modules_pkg_dir)?;
+
+    Ok(())
+}
+
 fn install_all(registry: &mut Registry, project_dir: &Path, no_save: bool) -> Result<()> {
     let lockfile = if let Some(lockfile) = Lockfile::get(project_dir) {
         lockfile
@@ -278,13 +304,17 @@ fn install_all(registry: &mut Registry, project_dir: &Path, no_save: bool) -> Re
 
     println!("{}", "Install...".green().dimmed());
     for (package_name, package_info) in lockfile.packages {
-        install_package(
-            registry,
-            &format!("{}@{}", package_name, package_info.version),
-            project_dir,
-            dev_dependencies.get(&package_name).is_some(),
-            no_save,
-        )?;
+        if package_info.connection == ConnectionType::Link {
+            restore_link(registry, &package_name, project_dir)?;
+        } else {
+            install_package(
+                registry,
+                &format!("{}@{}", package_name, package_info.version),
+                project_dir,
+                dev_dependencies.get(&package_name).is_some(),
+                no_save,
+            )?;
+        }
 
         println!(
             "{}",
