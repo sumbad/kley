@@ -21,6 +21,10 @@ pub struct PackageMetadata {
     pub version: String,
     pub last_updated: String,
     pub installations: Vec<PathBuf>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_path: Option<PathBuf>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub links: Vec<PathBuf>,
 }
 
 pub struct Registry {
@@ -84,6 +88,8 @@ impl Registry {
                 version: version.to_string(),
                 last_updated: current_formatted_time(),
                 installations: vec![],
+                source_path: None,
+                links: vec![],
             });
 
         self.save()?;
@@ -184,6 +190,78 @@ impl Registry {
         package_version.is_none()
             || registry_pkg_version == package_version
             || (registry_pkg_version.is_some() && package_version == Some("latest"))
+    }
+
+    pub fn set_source_path(&mut self, package_name: &str, source_path: &Path) -> Result<()> {
+        if let Some(meta_data) = self.data.packages.get_mut(package_name) {
+            if meta_data.source_path.as_deref() != Some(source_path) {
+                meta_data.source_path = Some(source_path.to_path_buf());
+                meta_data.last_updated = current_formatted_time();
+                self.save()?;
+            }
+        } else {
+            tracing::warn!("Package {} not found in the registry", package_name);
+        }
+        Ok(())
+    }
+
+    pub fn get_source_path(&self, package_name: &str) -> Option<&Path> {
+        self.data
+            .packages
+            .get(package_name)
+            .and_then(|m| m.source_path.as_deref())
+    }
+
+    pub fn add_package_link(&mut self, package_name: &str, project_path: &Path) -> Result<()> {
+        if let Some(meta_data) = self.data.packages.get_mut(package_name) {
+            let path_buf = project_path.to_path_buf();
+
+            if !meta_data.links.contains(&path_buf) {
+                meta_data.last_updated = current_formatted_time();
+                meta_data.links.push(path_buf);
+
+                self.save()?;
+            }
+        } else {
+            tracing::warn!("Package {} not found in the registry", package_name);
+        }
+
+        Ok(())
+    }
+
+    pub fn remove_package_link(&mut self, package_name: &str, project_path: &Path) -> Result<()> {
+        if let Some(meta_data) = self.data.packages.get_mut(package_name) {
+            meta_data.last_updated = current_formatted_time();
+            meta_data.links.retain(|it| it != project_path);
+
+            self.save()?;
+        } else {
+            tracing::warn!("Package {} not found in the registry", package_name);
+        }
+        Ok(())
+    }
+
+    pub fn get_links(&self, package_name: &str) -> &[PathBuf] {
+        self.data
+            .packages
+            .get(package_name)
+            .map_or(&[], |it| &it.links)
+    }
+
+    pub fn has_installation(&self, package_name: &str, project_path: &Path) -> bool {
+        self.data
+            .packages
+            .get(package_name)
+            .map_or(false, |m| {
+                m.installations.contains(&project_path.to_path_buf())
+            })
+    }
+
+    pub fn has_link(&self, package_name: &str, project_path: &Path) -> bool {
+        self.data
+            .packages
+            .get(package_name)
+            .map_or(false, |m| m.links.contains(&project_path.to_path_buf()))
     }
 
     fn save(&mut self) -> Result<()> {
