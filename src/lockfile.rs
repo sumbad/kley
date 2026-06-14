@@ -102,3 +102,66 @@ impl Lockfile {
         dir.join("kley.lock")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_connection_defaults_to_install() {
+        let json = r#"{"packages":{"my-pkg":{"version":"1.0.0"}}}"#;
+        let lockfile: Lockfile = serde_json::from_str(json).unwrap();
+        let info = lockfile.packages.get("my-pkg").unwrap();
+        assert_eq!(info.connection, ConnectionType::Install);
+    }
+
+    #[test]
+    fn test_connection_link_roundtrip() {
+        let pkg_info = PackageInfo {
+            version: "1.0.0".to_string(),
+            dependencies: BTreeMap::new(),
+            peer_dependencies: BTreeMap::new(),
+            connection: ConnectionType::Link,
+        };
+
+        let json = serde_json::to_string(&pkg_info).unwrap();
+        assert!(
+            json.contains(r#""connection":"link""#),
+            "JSON should contain connection:link. Got: {}",
+            json
+        );
+
+        let deserialized: PackageInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.connection, ConnectionType::Link);
+    }
+
+    #[test]
+    fn test_connection_install_skip_serializing() {
+        let pkg_info = PackageInfo {
+            version: "1.0.0".to_string(),
+            dependencies: BTreeMap::new(),
+            peer_dependencies: BTreeMap::new(),
+            connection: ConnectionType::Install,
+        };
+
+        let json = serde_json::to_string(&pkg_info).unwrap();
+        assert!(
+            !json.contains("connection"),
+            "ConnectionType::Install should be omitted from JSON. Got: {}",
+            json
+        );
+    }
+
+    #[test]
+    fn test_get_connection() {
+        let tmp = tempdir().unwrap();
+        let lock_content =
+            r#"{"packages":{"my-lib":{"version":"1.0.0","connection":"link"}}}"#;
+        std::fs::write(tmp.path().join("kley.lock"), lock_content).unwrap();
+
+        let lockfile = Lockfile::get(tmp.path()).unwrap();
+        let info = lockfile.packages.get("my-lib").unwrap();
+        assert_eq!(info.connection, ConnectionType::Link);
+    }
+}
