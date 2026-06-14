@@ -1111,3 +1111,68 @@ fn test_fast_path_case_b_symlink_to_unknown_falls_back_to_pm() {
         pm_log_after_second
     );
 }
+
+/// `kley install` (no args) must restore the direct symlink for linked packages.
+/// Simulates: user ran `npm install`, which overwrote the link with a real directory,
+/// then runs `kley install` to restore the symlink to the source directory.
+#[test]
+fn test_install_all_restores_linked_symlink() -> Result<(), Box<dyn std::error::Error>> {
+    use assert_cmd::Command;
+    use tempfile::tempdir;
+
+    let home = tempdir()?;
+    let lib = tempdir()?;
+    let app = tempdir()?;
+
+    // Publish and link
+    fs::write(
+        lib.path().join("package.json"),
+        r#"{"name": "test-lib", "version": "1.0.0"}"#,
+    )?;
+    fs::write(lib.path().join("index.js"), "// lib source")?;
+    fs::write(app.path().join("package.json"), r#"{"name": "app", "version": "1.0.0"}"#)?;
+
+    Command::cargo_bin("kley")?
+        .env("KLEY_HOME", home.path())
+        .arg("publish")
+        .current_dir(lib.path())
+        .assert()
+        .success();
+
+    Command::cargo_bin("kley")?
+        .env("KLEY_HOME", home.path())
+        .args(["link", "test-lib"])
+        .current_dir(app.path())
+        .assert()
+        .success();
+
+    // Confirm symlink exists
+    let symlink = app.path().join("node_modules/test-lib");
+    assert!(symlink.is_symlink(), "precondition: symlink should exist after link");
+
+    // Simulate npm install overwriting the symlink with a real directory
+    fs::remove_file(&symlink)?;
+    fs::create_dir_all(&symlink)?;
+    fs::write(symlink.join("index.js"), "// npm copy")?;
+    assert!(!symlink.is_symlink(), "precondition: symlink was replaced by directory");
+
+    // Run kley install (no args) — should restore the link symlink
+    Command::cargo_bin("kley")?
+        .env("KLEY_HOME", home.path())
+        .arg("install")
+        .current_dir(app.path())
+        .assert()
+        .success();
+
+    // Symlink is restored, pointing to lib source
+    assert!(symlink.is_symlink(), "kley install should restore symlink for linked package");
+    let target = fs::canonicalize(fs::read_link(&symlink)?)?;
+    let src = fs::canonicalize(lib.path())?;
+    assert_eq!(target, src, "restored symlink should point to lib source directory");
+
+    // Content is live from source again
+    let content = fs::read_to_string(symlink.join("index.js"))?;
+    assert_eq!(content, "// lib source");
+
+    Ok(())
+}

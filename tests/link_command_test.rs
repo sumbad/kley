@@ -1,110 +1,286 @@
 use anyhow::Result;
 use assert_cmd::Command;
+use predicates::prelude::*;
+use serde_json::Value;
 use std::fs;
 use std::path::Path;
 use tempfile::tempdir;
 
-/// Creates a dummy library project.
-fn setup_test_lib(dir: &Path) -> Result<()> {
-    fs::write(
-        dir.join("package.json"),
-        r#"{"name": "test-lib", "version": "1.0.0"}"#,
-    )?;
-    fs::write(dir.join("index.js"), "module.exports = 'hello';")?;
+fn setup_lib(dir: &Path, name: &str, extra_json: &str) -> Result<()> {
+    let json = format!(r#"{{"name": "{}", "version": "1.0.0"{}}}"#, name, extra_json);
+    fs::write(dir.join("package.json"), json)?;
+    fs::write(dir.join("index.js"), "module.exports = 'v1';")?;
     Ok(())
 }
 
-/// Creates a dummy consumer app.
-fn setup_test_app(dir: &Path) -> Result<()> {
-    fs::create_dir_all(dir.join("node_modules"))?;
-    fs::write(
-        dir.join("package.json"),
-        r#"{"name": "test-app", "dependencies": {}}"#,
-    )?;
+fn setup_app(dir: &Path) -> Result<()> {
+    fs::write(dir.join("package.json"), r#"{"name": "app"}"#)?;
+    Ok(())
+}
+
+fn publish(lib_dir: &Path, home_dir: &Path) {
+    Command::cargo_bin("kley")
+        .unwrap()
+        .env("KLEY_HOME", home_dir)
+        .arg("publish")
+        .current_dir(lib_dir)
+        .assert()
+        .success();
+}
+
+fn link(app_dir: &Path, home_dir: &Path, pkg: &str) -> assert_cmd::assert::Assert {
+    Command::cargo_bin("kley")
+        .unwrap()
+        .env("KLEY_HOME", home_dir)
+        .args(["link", pkg])
+        .current_dir(app_dir)
+        .assert()
+}
+
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_link_creates_direct_symlink_to_source() -> Result<()> {
+    let home = tempdir()?;
+    let lib = tempdir()?;
+    let app = tempdir()?;
+
+    setup_lib(lib.path(), "test-lib", "")?;
+    setup_app(app.path())?;
+
+    publish(lib.path(), home.path());
+    link(app.path(), home.path(), "test-lib").success();
+
+    let symlink = app.path().join("node_modules/test-lib");
+    assert!(symlink.is_symlink(), "node_modules/test-lib should be a symlink");
+
+    let target = fs::read_link(&symlink)?;
+    let target_canon = fs::canonicalize(&target)?;
+    let lib_canon = fs::canonicalize(lib.path())?;
+    assert_eq!(
+        target_canon, lib_canon,
+        "symlink should point directly to library source directory"
+    );
+
     Ok(())
 }
 
 #[test]
-fn test_link_command_e2e() -> Result<()> {
-    // 1. Setup temporary directories for our test projects
-    let lib_dir = tempdir()?;
-    let app_dir = tempdir()?;
-    let temp_home = tempdir()?;
+fn test_link_does_not_create_kley_copy() -> Result<()> {
+    let home = tempdir()?;
+    let lib = tempdir()?;
+    let app = tempdir()?;
 
-    setup_test_lib(lib_dir.path())?;
-    setup_test_app(app_dir.path())?;
+    setup_lib(lib.path(), "test-lib", "")?;
+    setup_app(app.path())?;
 
-    let original_app_pkg_json = fs::read_to_string(app_dir.path().join("package.json"))?;
+    publish(lib.path(), home.path());
+    link(app.path(), home.path(), "test-lib").success();
 
-    // 2. Publish the library to our temporary kley store
-    let mut publish_cmd = Command::cargo_bin("kley")?;
-    publish_cmd
-        .env("KLEY_HOME", temp_home.path()) // Isolate kley store
-        .arg("publish")
-        .current_dir(lib_dir.path());
-
-    publish_cmd
-        .assert()
-        .success()
-        .stdout(predicates::str::contains("Done: test-lib published"));
-
-    // 3. Run the link command in the app directory
-    let mut link_cmd = Command::cargo_bin("kley")?;
-    link_cmd
-        .env("KLEY_HOME", temp_home.path()) // Use the same isolated store
-        .arg("link")
-        .arg("test-lib")
-        .current_dir(app_dir.path());
-
-    // This will fail until the command is implemented
-    link_cmd
-        .assert()
-        .success()
-        .stdout(predicates::str::contains("Done: test-lib linked"));
-
-    // 4. Assertions: Verify the results after the command runs
-    let app_path = app_dir.path();
-    let symlink_path = app_path.join("node_modules/test-lib");
-    let local_copy_path = app_path.join(".kley/test-lib");
-
-    // a. Check that the symlink exists and is actually a symlink
     assert!(
-        symlink_path.exists(),
-        "Symlink should be created in node_modules"
-    );
-    assert!(
-        symlink_path.is_symlink(),
-        "The path in node_modules should be a symlink"
+        !app.path().join(".kley/test-lib").exists(),
+        ".kley/test-lib should NOT be created — new behavior uses direct symlink"
     );
 
-    // b. Check that the symlink points to the local .kley copy
-    // Use canonicalize on both sides to handle platform differences:
-    // - Windows: canonicalize may return UNC path (\\?\C:\...) vs normal path
-    // - Windows: 8.3 short names (RUNNER~1) vs long names (runneradmin)
-    let link_target = fs::read_link(&symlink_path)?;
-    let link_target_canonical = fs::canonicalize(&link_target)?;
-    let local_copy_canonical = fs::canonicalize(&local_copy_path)?;
-    assert!(
-        link_target_canonical == local_copy_canonical
-            || link_target.to_string_lossy().replace('\\', "/")
-                == local_copy_path.to_string_lossy().replace('\\', "/"),
-        "Symlink should point to the .kley directory\n  link target: {:?}\n  expected:    {:?}",
-        link_target,
-        local_copy_path
-    );
+    Ok(())
+}
 
-    // c. Check that the local .kley copy exists and has content
-    assert!(
-        local_copy_path.join("index.js").exists(),
-        "The local .kley copy of the package should exist"
-    );
+#[test]
+fn test_link_does_not_modify_package_json() -> Result<()> {
+    let home = tempdir()?;
+    let lib = tempdir()?;
+    let app = tempdir()?;
 
-    // d. Verify that package.json was NOT modified
-    let final_app_pkg_json = fs::read_to_string(app_dir.path().join("package.json"))?;
+    setup_lib(lib.path(), "test-lib", "")?;
+    setup_app(app.path())?;
+
+    publish(lib.path(), home.path());
+
+    let before = fs::read_to_string(app.path().join("package.json"))?;
+    link(app.path(), home.path(), "test-lib").success();
+    let after = fs::read_to_string(app.path().join("package.json"))?;
+
+    assert_eq!(before, after, "package.json must not be modified by kley link");
+
+    Ok(())
+}
+
+#[test]
+fn test_link_sets_connection_link_in_lockfile() -> Result<()> {
+    let home = tempdir()?;
+    let lib = tempdir()?;
+    let app = tempdir()?;
+
+    setup_lib(lib.path(), "test-lib", "")?;
+    setup_app(app.path())?;
+
+    publish(lib.path(), home.path());
+    link(app.path(), home.path(), "test-lib").success();
+
+    let lock: Value =
+        serde_json::from_str(&fs::read_to_string(app.path().join("kley.lock"))?)?;
     assert_eq!(
-        original_app_pkg_json, final_app_pkg_json,
-        "package.json should not be modified by the link command"
+        lock["packages"]["test-lib"]["connection"], "link",
+        "kley.lock should record connection:link"
     );
+
+    Ok(())
+}
+
+#[test]
+fn test_link_fails_if_not_published() -> Result<()> {
+    let home = tempdir()?;
+    let app = tempdir()?;
+
+    setup_app(app.path())?;
+
+    // No publish — source_path not in registry
+    link(app.path(), home.path(), "unknown-lib")
+        .failure()
+        .stderr(predicate::str::contains("not found in registry"));
+
+    Ok(())
+}
+
+#[test]
+fn test_link_fails_if_source_dir_moved() -> Result<()> {
+    let home = tempdir()?;
+    let lib = tempdir()?;
+    let app = tempdir()?;
+
+    setup_lib(lib.path(), "test-lib", "")?;
+    setup_app(app.path())?;
+
+    // Publish records source_path = lib.path()
+    publish(lib.path(), home.path());
+
+    // Now simulate source directory being removed/moved
+    let gone_lib = lib.path().to_path_buf();
+    drop(lib); // TempDir cleanup — directory is deleted
+
+    assert!(!gone_lib.exists(), "precondition: lib dir must be gone");
+
+    link(app.path(), home.path(), "test-lib")
+        .failure()
+        .stderr(predicate::str::contains("no longer exists"));
+
+    Ok(())
+}
+
+#[test]
+fn test_link_warns_singleton_deps() -> Result<()> {
+    let home = tempdir()?;
+    let lib = tempdir()?;
+    let app = tempdir()?;
+
+    // react is in both dependencies and peerDependencies → singleton
+    setup_lib(
+        lib.path(),
+        "test-lib",
+        r#", "dependencies": {"react": "^18"}, "peerDependencies": {"react": "^18"}"#,
+    )?;
+    setup_app(app.path())?;
+
+    publish(lib.path(), home.path());
+    link(app.path(), home.path(), "test-lib")
+        .success()
+        .stdout(predicate::str::contains("singleton dependencies"));
+
+    Ok(())
+}
+
+#[test]
+fn test_link_no_warning_for_stateless_deps() -> Result<()> {
+    let home = tempdir()?;
+    let lib = tempdir()?;
+    let app = tempdir()?;
+
+    // lodash only in dependencies, react only in peerDependencies — no overlap
+    setup_lib(
+        lib.path(),
+        "test-lib",
+        r#", "dependencies": {"lodash": "^4"}, "peerDependencies": {"react": "^18"}"#,
+    )?;
+    setup_app(app.path())?;
+
+    publish(lib.path(), home.path());
+    link(app.path(), home.path(), "test-lib")
+        .success()
+        .stdout(predicate::str::contains("singleton").not());
+
+    Ok(())
+}
+
+#[test]
+fn test_link_switches_from_install_with_warning() -> Result<()> {
+    let home = tempdir()?;
+    let lib = tempdir()?;
+    let app = tempdir()?;
+
+    setup_lib(lib.path(), "test-lib", "")?;
+    setup_app(app.path())?;
+
+    publish(lib.path(), home.path());
+
+    // Install first (no deps → fast-path creates .kley/test-lib + symlink)
+    Command::cargo_bin("kley")?
+        .env("KLEY_HOME", home.path())
+        .args(["add", "test-lib"])
+        .current_dir(app.path())
+        .assert()
+        .success();
+
+    assert!(
+        app.path().join(".kley/test-lib").exists(),
+        "precondition: .kley/test-lib should exist after install"
+    );
+
+    // Now link — should warn, remove .kley copy, create direct symlink
+    link(app.path(), home.path(), "test-lib")
+        .success()
+        .stdout(predicate::str::contains("switching to link mode"));
+
+    // .kley copy is gone
+    assert!(
+        !app.path().join(".kley/test-lib").exists(),
+        ".kley/test-lib should be removed after switching to link"
+    );
+
+    // Symlink now points to lib source directly
+    let symlink = app.path().join("node_modules/test-lib");
+    assert!(symlink.is_symlink());
+    let target = fs::canonicalize(fs::read_link(&symlink)?)?;
+    let src = fs::canonicalize(lib.path())?;
+    assert_eq!(target, src, "symlink should now point to lib source dir");
+
+    Ok(())
+}
+
+#[test]
+fn test_link_records_in_registry_links() -> Result<()> {
+    let home = tempdir()?;
+    let lib = tempdir()?;
+    let app = tempdir()?;
+
+    setup_lib(lib.path(), "test-lib", "")?;
+    setup_app(app.path())?;
+
+    publish(lib.path(), home.path());
+    link(app.path(), home.path(), "test-lib").success();
+
+    let registry: Value = serde_json::from_str(&fs::read_to_string(
+        home.path().join(".kley/registry.json"),
+    )?)?;
+
+    let links = &registry["packages"]["test-lib"]["links"];
+    assert!(links.is_array(), "links field should be an array");
+    assert_eq!(links.as_array().unwrap().len(), 1, "should have one link entry");
+
+    let installations = &registry["packages"]["test-lib"]["installations"];
+    let install_count = installations
+        .as_array()
+        .map_or(0, |a| a.len());
+    assert_eq!(install_count, 0, "link should not appear in installations[]");
 
     Ok(())
 }

@@ -208,4 +208,74 @@ mod kley_lock_tests {
 
         Ok(())
     }
+
+    #[test]
+    fn test_update_skips_linked_packages() -> Result<()> {
+        let tmp_home = tempdir()?;
+        let project_dir = tempdir()?;
+        let mut registry = Registry::with_home_dir(tmp_home.path())?;
+
+        // Create package in registry
+        let pkg_dir = registry.get_pkg_dir("test-lib");
+        fs::create_dir_all(&pkg_dir)?;
+        let mut file = fs::File::create(pkg_dir.join("package.json"))?;
+        write!(file, r#"{{"name": "test-lib", "version": "1.0.0"}}"#)?;
+        registry.update_package_version("test-lib", "1.0.0")?;
+
+        // kley.lock marks test-lib as linked
+        fs::write(
+            project_dir.path().join("kley.lock"),
+            r#"{"packages":{"test-lib":{"version":"1.0.0","connection":"link"}}}"#,
+        )?;
+
+        // Marker file: if run_update is called it would overwrite this
+        let project_kley_pkg = project_dir.path().join(".kley").join("test-lib");
+        fs::create_dir_all(&project_kley_pkg)?;
+        fs::write(project_kley_pkg.join("marker.txt"), "untouched")?;
+
+        update(&mut registry, &["test-lib".to_string()], project_dir.path())?;
+
+        // Marker should be untouched because update was skipped
+        assert_eq!(
+            fs::read_to_string(project_kley_pkg.join("marker.txt"))?,
+            "untouched",
+            "linked package should not be touched by update"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_update_runs_for_install_packages() -> Result<()> {
+        let tmp_home = tempdir()?;
+        let project_dir = tempdir()?;
+        let mut registry = Registry::with_home_dir(tmp_home.path())?;
+
+        // Create package in registry at v2.0.0
+        let pkg_dir = registry.get_pkg_dir("test-lib");
+        fs::create_dir_all(&pkg_dir)?;
+        let mut file = fs::File::create(pkg_dir.join("package.json"))?;
+        write!(file, r#"{{"name": "test-lib", "version": "2.0.0"}}"#)?;
+        registry.update_package_version("test-lib", "2.0.0")?;
+
+        // kley.lock with no connection field (defaults to Install)
+        fs::write(
+            project_dir.path().join("kley.lock"),
+            r#"{"packages":{"test-lib":{"version":"2.0.0"}}}"#,
+        )?;
+
+        // Old copy at v1
+        let project_kley_pkg = project_dir.path().join(".kley").join("test-lib");
+        fs::create_dir_all(&project_kley_pkg)?;
+        let mut file = fs::File::create(project_kley_pkg.join("package.json"))?;
+        write!(file, r#"{{"name": "test-lib", "version": "1.0.0"}}"#)?;
+
+        update(&mut registry, &["test-lib".to_string()], project_dir.path())?;
+
+        let updated: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(project_kley_pkg.join("package.json"))?)?;
+        assert_eq!(updated["version"], "2.0.0", "installed package should be updated");
+
+        Ok(())
+    }
 }

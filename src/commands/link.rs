@@ -188,7 +188,9 @@ pub fn link(registry: &mut Registry, package_name: &str) -> Result<()> {
 }
 
 pub fn create_symlink(source_path: &Path, target_path: &Path) -> Result<()> {
-    if target_path.exists() {
+    // Use is_symlink() in addition to exists() to catch dangling symlinks,
+    // which exists() returns false for (it follows the symlink to the missing target).
+    if target_path.exists() || target_path.is_symlink() {
         let is_symlink = target_path.is_symlink();
         let is_file = target_path.is_file();
         let is_dir = target_path.is_dir();
@@ -244,4 +246,55 @@ pub fn create_symlink(source_path: &Path, target_path: &Path) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::package::PackageJson;
+
+    fn make_pkg_json(
+        deps: &[(&str, &str)],
+        peer_deps: &[(&str, &str)],
+    ) -> PackageJson {
+        PackageJson {
+            name: "test-pkg".to_string(),
+            version: "1.0.0".to_string(),
+            files: None,
+            package_manager: None,
+            dev_dependencies: None,
+            dependencies: deps.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+            peer_dependencies: peer_deps.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+        }
+    }
+
+    #[test]
+    fn test_get_singleton_dep_names_returns_intersection() {
+        let pkg = make_pkg_json(
+            &[("react", "^18.0.0"), ("lodash", "^4.0.0")],
+            &[("react", "^18.0.0")],
+        );
+        let singletons = get_singleton_dep_names(&pkg);
+        assert_eq!(singletons, vec!["react"]);
+    }
+
+    #[test]
+    fn test_get_singleton_dep_names_empty_if_no_overlap() {
+        let pkg = make_pkg_json(
+            &[("lodash", "^4.0.0")],
+            &[("react", "^18.0.0")],
+        );
+        let singletons = get_singleton_dep_names(&pkg);
+        assert!(singletons.is_empty());
+    }
+
+    #[test]
+    fn test_get_singleton_dep_names_empty_if_no_peer_deps() {
+        let pkg = make_pkg_json(
+            &[("react", "^18.0.0"), ("lodash", "^4.0.0")],
+            &[],
+        );
+        let singletons = get_singleton_dep_names(&pkg);
+        assert!(singletons.is_empty());
+    }
 }

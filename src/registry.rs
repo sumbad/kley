@@ -281,3 +281,125 @@ impl Registry {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    fn make_registry(home_dir: &Path) -> Registry {
+        Registry::with_home_dir(home_dir).unwrap()
+    }
+
+    #[test]
+    fn test_add_package_link() {
+        let tmp = tempdir().unwrap();
+        let mut registry = make_registry(tmp.path());
+        registry.update_package_version("my-lib", "1.0.0").unwrap();
+
+        let project_path = Path::new("/tmp/project");
+        registry.add_package_link("my-lib", project_path).unwrap();
+
+        assert!(registry.has_link("my-lib", project_path));
+        assert!(!registry.has_installation("my-lib", project_path));
+        assert_eq!(registry.get_links("my-lib").len(), 1);
+        assert_eq!(registry.get_installations("my-lib").len(), 0);
+    }
+
+    #[test]
+    fn test_remove_package_link() {
+        let tmp = tempdir().unwrap();
+        let mut registry = make_registry(tmp.path());
+        registry.update_package_version("my-lib", "1.0.0").unwrap();
+
+        let project_path = Path::new("/tmp/project");
+        let other_path = Path::new("/tmp/other");
+
+        registry.add_package_link("my-lib", project_path).unwrap();
+        registry.add_package_installation("my-lib", other_path).unwrap();
+
+        registry.remove_package_link("my-lib", project_path).unwrap();
+
+        assert!(!registry.has_link("my-lib", project_path));
+        assert!(registry.has_installation("my-lib", other_path), "installations should be untouched");
+    }
+
+    #[test]
+    fn test_get_source_path_none() {
+        let tmp = tempdir().unwrap();
+        let mut registry = make_registry(tmp.path());
+        registry.update_package_version("my-lib", "1.0.0").unwrap();
+
+        assert!(registry.get_source_path("my-lib").is_none());
+    }
+
+    #[test]
+    fn test_set_and_get_source_path() {
+        let tmp = tempdir().unwrap();
+        let mut registry = make_registry(tmp.path());
+        registry.update_package_version("my-lib", "1.0.0").unwrap();
+
+        let source = Path::new("/tmp/my-lib-source");
+        registry.set_source_path("my-lib", source).unwrap();
+
+        assert_eq!(registry.get_source_path("my-lib"), Some(source));
+    }
+
+    #[test]
+    fn test_source_path_persisted_in_json() {
+        let tmp = tempdir().unwrap();
+        let mut registry = make_registry(tmp.path());
+        registry.update_package_version("my-lib", "1.0.0").unwrap();
+
+        let source = Path::new("/tmp/my-lib-source");
+        registry.set_source_path("my-lib", source).unwrap();
+
+        let registry_json = fs::read_to_string(&registry.file_path).unwrap();
+        assert!(
+            registry_json.contains("sourcePath"),
+            "registry.json should use camelCase 'sourcePath'. Content:\n{}",
+            registry_json
+        );
+    }
+
+    #[test]
+    fn test_has_installation() {
+        let tmp = tempdir().unwrap();
+        let mut registry = make_registry(tmp.path());
+        registry.update_package_version("my-lib", "1.0.0").unwrap();
+
+        let project_path = Path::new("/tmp/project");
+        assert!(!registry.has_installation("my-lib", project_path));
+        registry.add_package_installation("my-lib", project_path).unwrap();
+        assert!(registry.has_installation("my-lib", project_path));
+    }
+
+    #[test]
+    fn test_has_link() {
+        let tmp = tempdir().unwrap();
+        let mut registry = make_registry(tmp.path());
+        registry.update_package_version("my-lib", "1.0.0").unwrap();
+
+        let project_path = Path::new("/tmp/project");
+        assert!(!registry.has_link("my-lib", project_path));
+        registry.add_package_link("my-lib", project_path).unwrap();
+        assert!(registry.has_link("my-lib", project_path));
+    }
+
+    #[test]
+    fn test_legacy_registry_no_source_path() {
+        let tmp = tempdir().unwrap();
+
+        let registry_dir = tmp.path().join(".kley");
+        fs::create_dir_all(&registry_dir).unwrap();
+        fs::write(
+            registry_dir.join("registry.json"),
+            r#"{"packages":{"old-lib":{"version":"1.0.0","lastUpdated":"2024-01-01T00:00:00Z","installations":[]}}}"#,
+        )
+        .unwrap();
+
+        let registry = Registry::with_home_dir(tmp.path()).unwrap();
+        assert!(registry.get_source_path("old-lib").is_none());
+        assert_eq!(registry.get_links("old-lib"), &[] as &[PathBuf]);
+    }
+}
