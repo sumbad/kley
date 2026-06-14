@@ -4,6 +4,7 @@
 # AI-specific files
 docs/.ai/
 /.opencode
+/.claude
 
 .DS_Store
 /.obsidian
