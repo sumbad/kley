@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Direct Source Linking in `kley link`**: Reworked the `link` command to create a direct symbolic link from `node_modules/<pkg>` to the library's source directory. This enables "live" development where changes in the library are visible instantly without re-publishing or re-installing.
+- **Link Restoration in `kley install`**: `kley install` (without arguments) now automatically detects and restores missing symlinks for linked packages (e.g., after they are deleted by `npm install`).
+- **Singleton Dependency Warning**: `kley link` now warns when linking a package that has "singleton" dependencies (dependencies also listed as `peerDependencies`, like React), which might cause issues when linked.
+- **Registry Source Tracking**: The global registry now records the `source_path` of published packages and tracks which projects are connected via `link`.
+- **Lockfile Connection Type**: Added a `connection` field to `kley.lock` entries to distinguish between packages installed via `kley install`/`add` (copied to `.kley`) and those connected via `kley link` (direct symlink).
+
+### Changed
+- **`kley update` behavior**: Now automatically skips packages connected via `link`, as they already point to the live source.
+- **`kley remove` behavior**: Optimized for linked packages to remove only the symlink and lockfile entry, without attempting to modify `package.json` (since `link` doesn't modify it).
+- **Windows Junction Fallback**: Improved Windows support by using directory junctions (`mklink /J`) as a robust fallback for symlinks when Developer Mode is disabled.
+
+---
+
 ## [0.11.0] - 2026-06-09
 
 ### Added
