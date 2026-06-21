@@ -144,8 +144,7 @@ fn test_remove_install_package_full_cleanup() -> Result<(), Box<dyn std::error::
         let lock: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(app.path().join("kley.lock"))?)?;
         assert!(
-            lock["packages"].get("test-lib").is_none()
-                || lock["packages"]["test-lib"].is_null(),
+            lock["packages"].get("test-lib").is_none() || lock["packages"]["test-lib"].is_null(),
             "kley.lock should not have test-lib entry after remove"
         );
     }
@@ -156,7 +155,10 @@ fn test_remove_install_package_full_cleanup() -> Result<(), Box<dyn std::error::
     )?)?;
     let installations = &registry["packages"]["test-lib"]["installations"];
     let install_count = installations.as_array().map_or(0, |a| a.len());
-    assert_eq!(install_count, 0, "installations[] should be empty after remove");
+    assert_eq!(
+        install_count, 0,
+        "installations[] should be empty after remove"
+    );
 
     Ok(())
 }

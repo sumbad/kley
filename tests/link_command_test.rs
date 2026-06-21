@@ -7,7 +7,10 @@ use std::path::Path;
 use tempfile::tempdir;
 
 fn setup_lib(dir: &Path, name: &str, extra_json: &str) -> Result<()> {
-    let json = format!(r#"{{"name": "{}", "version": "1.0.0"{}}}"#, name, extra_json);
+    let json = format!(
+        r#"{{"name": "{}", "version": "1.0.0"{}}}"#,
+        name, extra_json
+    );
     fs::write(dir.join("package.json"), json)?;
     fs::write(dir.join("index.js"), "module.exports = 'v1';")?;
     Ok(())
@@ -52,7 +55,10 @@ fn test_link_creates_direct_symlink_to_source() -> Result<()> {
     link(app.path(), home.path(), "test-lib").success();
 
     let symlink = app.path().join("node_modules/test-lib");
-    assert!(symlink.is_symlink(), "node_modules/test-lib should be a symlink");
+    assert!(
+        symlink.is_symlink(),
+        "node_modules/test-lib should be a symlink"
+    );
 
     let target = fs::read_link(&symlink)?;
     let target_canon = fs::canonicalize(&target)?;
@@ -100,7 +106,10 @@ fn test_link_does_not_modify_package_json() -> Result<()> {
     link(app.path(), home.path(), "test-lib").success();
     let after = fs::read_to_string(app.path().join("package.json"))?;
 
-    assert_eq!(before, after, "package.json must not be modified by kley link");
+    assert_eq!(
+        before, after,
+        "package.json must not be modified by kley link"
+    );
 
     Ok(())
 }
@@ -117,8 +126,7 @@ fn test_link_sets_connection_link_in_lockfile() -> Result<()> {
     publish(lib.path(), home.path());
     link(app.path(), home.path(), "test-lib").success();
 
-    let lock: Value =
-        serde_json::from_str(&fs::read_to_string(app.path().join("kley.lock"))?)?;
+    let lock: Value = serde_json::from_str(&fs::read_to_string(app.path().join("kley.lock"))?)?;
     assert_eq!(
         lock["packages"]["test-lib"]["connection"], "link",
         "kley.lock should record connection:link"
@@ -274,13 +282,18 @@ fn test_link_records_in_registry_links() -> Result<()> {
 
     let links = &registry["packages"]["test-lib"]["links"];
     assert!(links.is_array(), "links field should be an array");
-    assert_eq!(links.as_array().unwrap().len(), 1, "should have one link entry");
+    assert_eq!(
+        links.as_array().unwrap().len(),
+        1,
+        "should have one link entry"
+    );
 
     let installations = &registry["packages"]["test-lib"]["installations"];
-    let install_count = installations
-        .as_array()
-        .map_or(0, |a| a.len());
-    assert_eq!(install_count, 0, "link should not appear in installations[]");
+    let install_count = installations.as_array().map_or(0, |a| a.len());
+    assert_eq!(
+        install_count, 0,
+        "link should not appear in installations[]"
+    );
 
     Ok(())
 }

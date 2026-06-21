@@ -252,16 +252,14 @@ impl Registry {
         self.data
             .packages
             .get(package_name)
-            .map_or(false, |m| {
-                m.installations.contains(&project_path.to_path_buf())
-            })
+            .is_some_and(|m| m.installations.contains(&project_path.to_path_buf()))
     }
 
     pub fn has_link(&self, package_name: &str, project_path: &Path) -> bool {
         self.data
             .packages
             .get(package_name)
-            .map_or(false, |m| m.links.contains(&project_path.to_path_buf()))
+            .is_some_and(|m| m.links.contains(&project_path.to_path_buf()))
     }
 
     fn save(&mut self) -> Result<()> {
@@ -316,12 +314,19 @@ mod tests {
         let other_path = Path::new("/tmp/other");
 
         registry.add_package_link("my-lib", project_path).unwrap();
-        registry.add_package_installation("my-lib", other_path).unwrap();
+        registry
+            .add_package_installation("my-lib", other_path)
+            .unwrap();
 
-        registry.remove_package_link("my-lib", project_path).unwrap();
+        registry
+            .remove_package_link("my-lib", project_path)
+            .unwrap();
 
         assert!(!registry.has_link("my-lib", project_path));
-        assert!(registry.has_installation("my-lib", other_path), "installations should be untouched");
+        assert!(
+            registry.has_installation("my-lib", other_path),
+            "installations should be untouched"
+        );
     }
 
     #[test]
@@ -370,7 +375,9 @@ mod tests {
 
         let project_path = Path::new("/tmp/project");
         assert!(!registry.has_installation("my-lib", project_path));
-        registry.add_package_installation("my-lib", project_path).unwrap();
+        registry
+            .add_package_installation("my-lib", project_path)
+            .unwrap();
         assert!(registry.has_installation("my-lib", project_path));
     }
 
