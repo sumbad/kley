@@ -121,63 +121,43 @@ sequenceDiagram
 ```
 </details>
 
-### Scenario 2: Rapid Iteration with `publish->link`
+### Scenario 2: Direct Source Link with `link`
 
-This workflow is ideal for quick, temporary testing when you don't want to modify `package.json`. It's faster because it skips the `npm install` step but is less durable.
+This workflow is ideal for rapid, live development. It creates a direct symbolic link from your project's `node_modules` to your library's source directory. It's the fastest way to see changes, but like `npm link`, it's less durable.
 
 **Steps:**
-1. In your **library** directory — run `kley publish`: copies package files to `kley` registry.
-2. In your **project** directory — run `kley link <name>`: copies files to `.kley/` and creates a symlink
-   directly in `node_modules/<name>` — **no `npm install` needed**
-3. Make changes in your library, then run `kley publish --push`: updates the project automatically
+1. In your **library** directory — run `kley publish`: records the source path in the `kley` registry.
+2. In your **project** directory — run `kley link <name>`: creates a symlink directly in `node_modules/<name>` pointing to your library's source — **no `npm install` needed**
+3. Make changes in your library: the project sees them **instantly** because of the direct link.
 
-> ⚠️ **Note:**: If you run `npm install` for any reason, it will delete the symlink. Restore it instantly with `kley link <name>` again — files are already cached, so it's fast.
+> ⚠️ **Note:** If you run `npm install`, it will delete the symlink. Restore it instantly with `kley install` or `kley link <name>` again.
 
 ![kley demo scenario 2](docs/demo/scenario_2.gif)
 
 <details>
 <summary>Schema with details</summary>
 
-This diagram shows how `kley link` provides a direct connection and how it can be "broken" and "repaired."
+This diagram shows how `kley link` provides a direct connection to the source.
 
 ```mermaid
 sequenceDiagram
     actor Dev
-    participant Lib as test-lib
-    participant Store as ~/.kley
+    participant Lib as test-lib (source)
+    participant Store as ~/.kley (registry)
     participant App as test-app
 
-    Note over Dev, App: Prerequisite: `test-lib` has already been published to the store.
+    Note over Dev, App: Prerequisite: `test-lib` has been published (source path recorded).
 
-    Dev->>Lib: 1. `kley publish`
-    Lib->>Store: Copies files to cache
+    Dev->>App: 1. `kley link test-lib`
+    App->>Store: Gets source path for `test-lib`
+    Store-->>App: Returns `/path/to/test-lib`
+    App->>App: Creates symlink:<br/>`node_modules/test-lib` -> `/path/to/test-lib`
 
-    Dev->>App: 2. `kley link test-lib`
-    App->>Store: Reads package from registry
-    Store-->>App: Copies files to `test-app/.kley/test-lib`
-    App->>App: Creates symlink:<br/>`node_modules/test-lib` -> `.kley/test-lib`
+    Note over Dev, App: `test-lib` is now linked directly to source.
 
-    Note over Dev, App: `test-lib` is now usable. No `npm install` needed.
-
-    Dev->>Lib: 3. Makes code changes...
-    Dev->>Lib: 4. `kley publish --push`
-    Lib->>Store: Copies updated files to registry
-    Store->>App: Pushes updates directly to `test-app/.kley/test-lib`
-
-    Note over Dev, App: `test-app` is now running the latest code automatically!
-
-    critical Link was broken (it's recommended to use `add` command if `npm i` is supposed to be during this workflow)
-        Dev->>App: `npm install` (for other reasons)
-        App->>App: `npm` deletes the symlink from `node_modules`
-        App-->>Dev: `test-lib` is now broken
-
-        Dev->>App: `kley link test-lib`
-        App->>App: Re-creates symlink:<br/>`node_modules/test-lib` -> `.kley/test-lib`
-
-        Note over Dev, App: The link is instantly restored without re-copying files.
-    end
+    Dev->>Lib: 2. Makes code changes...
+    Note over Dev, App: `test-app` sees changes instantly!
 ```
-
 </details>
 
 ### **Quick pick:** Not sure which workflow to use?
@@ -248,6 +228,7 @@ A universal command that combines `add` and the native package manager installat
 
 - **With a package name**: `kley install <package-name>` installs the specified package from the local registry.
 - **Without a package name**: `kley install` installs all packages listed in `kley.lock`. This is useful for restoring all local dependencies, similar to how `npm install` refreshes `node_modules` based on `package.json`. Packages already in `devDependencies` are automatically installed with the appropriate dev flag.
+- **Link restoration**: If a package was added via `kley link`, `kley install` (without arguments) will automatically restore the direct symlink to the source directory if it's missing (e.g., after `npm install`).
 - Use the `--dev` or `-D` flag to install a package as a `devDependency`: `kley install --dev <package-name>`.
 - Use the `--no-save` flag to install a package into `node_modules/` and update `kley.lock` **without modifying `package.json`**. This is useful for temporary testing and also works with `kley install --no-save` (no package name) to restore all packages from `kley.lock`. Note: Yarn v1 does not support this flag natively and will still modify `package.json`.
 - Supports `npm`, `pnpm`, and `yarn` out of the box.
@@ -264,15 +245,19 @@ Run this command in the project where you want to use your local package. Kley c
 > **Note:** For the changes to appear in `node_modules`, you must run `npm install` (or `yarn`, `pnpm`) after `kley add`. For a one-step alternative, use `kley install`.
 
 ### 5. `kley link <package-name>`
-This command provides a flexible workflow that avoids modifying `package.json`. It copies the package to a local `.kley` cache and then creates a symbolic link from that cache to your project's `node_modules` directory.
+This command provides a flexible workflow that avoids modifying `package.json`. It creates a symbolic link from your project's `node_modules` directly to the library's source directory.
 
-> **Warning:** Because `package.json` is not modified, running `npm install` (or `yarn`, `pnpm`) will likely delete the symlink from `node_modules`. To restore it, simply run `kley link <package-name>` again. This is a fast operation because the local cache is preserved.
+- **Live updates**: Changes in the library are visible immediately without needing to re-publish or re-install.
+- **Singleton warning**: If the package has dependencies that are also listed as `peerDependencies` (e.g., React), `kley` will issue a warning. Linking such packages may cause duplicate instances if they are also dependencies of other packages in your project. In such cases, `kley install` is recommended instead.
+
+> **Warning:** Because `package.json` is not modified, running `npm install` (or `yarn`, `pnpm`) will delete the symlink from `node_modules`. To restore it, simply run `kley install` (to restore all) or `kley link <package-name>` again.
 
 ### 6. `kley update [package-name]`
 This command updates installed packages to the latest version from the kley store.
 
 - If you provide a package name, only that specific package will be updated.
 - If you run it without arguments, `kley` will update all packages listed in `kley.lock`.
+- **Note**: Linked packages are skipped during update because they point directly to the source.
 
 ### 7. `kley remove [package-name]`
 Run this command to cleanly remove a kley-managed dependency from your project. It will update `package.json` and `kley.lock`, and delete the package files from the `./.kley/` directory.
