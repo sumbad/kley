@@ -5,7 +5,7 @@ use colored::Colorize;
 
 use crate::{
     emoji,
-    lockfile::{Lockfile, PackageInfo},
+    lockfile::{ConnectionType, Lockfile, PackageInfo},
     package::PackageJson,
     registry::Registry,
     utils::{PROJECT_REGISTRY_DIR_NAME, copy_from_registry, strip_dev_dependencies},
@@ -42,6 +42,19 @@ pub fn update(registry: &mut Registry, packages: &[String], project_dir: &Path) 
 
     println!("{}", "Updating...".green().dimmed());
     for package_name in packages_to_update {
+        let connection = Lockfile::get(project_dir)
+            .and_then(|lf| lf.packages.get(&package_name).map(|p| p.connection.clone()))
+            .unwrap_or_default();
+
+        if connection == ConnectionType::Link {
+            println!(
+                "{} Skipping {}: linked (source is live)",
+                emoji::WARNING,
+                package_name.cyan()
+            );
+            continue;
+        }
+
         run_update(registry, &package_name, project_dir)?;
 
         println!(
@@ -104,6 +117,7 @@ fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path)
         version: version.to_string(),
         dependencies: package_json.dependencies,
         peer_dependencies: package_json.peer_dependencies,
+        connection: Default::default(),
     };
 
     lockfile
@@ -190,6 +204,79 @@ mod kley_lock_tests {
         assert_eq!(
             lockfile.packages.get("another-lib").unwrap().version,
             "0.5.0"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_update_skips_linked_packages() -> Result<()> {
+        let tmp_home = tempdir()?;
+        let project_dir = tempdir()?;
+        let mut registry = Registry::with_home_dir(tmp_home.path())?;
+
+        // Create package in registry
+        let pkg_dir = registry.get_pkg_dir("test-lib");
+        fs::create_dir_all(&pkg_dir)?;
+        let mut file = fs::File::create(pkg_dir.join("package.json"))?;
+        write!(file, r#"{{"name": "test-lib", "version": "1.0.0"}}"#)?;
+        registry.update_package_version("test-lib", "1.0.0")?;
+
+        // kley.lock marks test-lib as linked
+        fs::write(
+            project_dir.path().join("kley.lock"),
+            r#"{"packages":{"test-lib":{"version":"1.0.0","connection":"link"}}}"#,
+        )?;
+
+        // Marker file: if run_update is called it would overwrite this
+        let project_kley_pkg = project_dir.path().join(".kley").join("test-lib");
+        fs::create_dir_all(&project_kley_pkg)?;
+        fs::write(project_kley_pkg.join("marker.txt"), "untouched")?;
+
+        update(&mut registry, &["test-lib".to_string()], project_dir.path())?;
+
+        // Marker should be untouched because update was skipped
+        assert_eq!(
+            fs::read_to_string(project_kley_pkg.join("marker.txt"))?,
+            "untouched",
+            "linked package should not be touched by update"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_update_runs_for_install_packages() -> Result<()> {
+        let tmp_home = tempdir()?;
+        let project_dir = tempdir()?;
+        let mut registry = Registry::with_home_dir(tmp_home.path())?;
+
+        // Create package in registry at v2.0.0
+        let pkg_dir = registry.get_pkg_dir("test-lib");
+        fs::create_dir_all(&pkg_dir)?;
+        let mut file = fs::File::create(pkg_dir.join("package.json"))?;
+        write!(file, r#"{{"name": "test-lib", "version": "2.0.0"}}"#)?;
+        registry.update_package_version("test-lib", "2.0.0")?;
+
+        // kley.lock with no connection field (defaults to Install)
+        fs::write(
+            project_dir.path().join("kley.lock"),
+            r#"{"packages":{"test-lib":{"version":"2.0.0"}}}"#,
+        )?;
+
+        // Old copy at v1
+        let project_kley_pkg = project_dir.path().join(".kley").join("test-lib");
+        fs::create_dir_all(&project_kley_pkg)?;
+        let mut file = fs::File::create(project_kley_pkg.join("package.json"))?;
+        write!(file, r#"{{"name": "test-lib", "version": "1.0.0"}}"#)?;
+
+        update(&mut registry, &["test-lib".to_string()], project_dir.path())?;
+
+        let updated: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(project_kley_pkg.join("package.json"))?)?;
+        assert_eq!(
+            updated["version"], "2.0.0",
+            "installed package should be updated"
         );
 
         Ok(())

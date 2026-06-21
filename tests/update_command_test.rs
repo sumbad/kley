@@ -80,3 +80,78 @@ fn test_update_single_package_success() -> Result<(), Box<dyn std::error::Error>
 
     Ok(())
 }
+
+/// `kley update` must skip linked packages — the source is live, no copy exists.
+#[test]
+fn test_update_skips_linked_package_e2e() -> Result<(), Box<dyn std::error::Error>> {
+    let home_dir = tempdir()?;
+    let lib_dir = tempdir()?;
+    let app_dir = tempdir()?;
+
+    // Setup and publish lib at v1.0.0
+    fs::write(
+        lib_dir.path().join("package.json"),
+        r#"{"name": "test-lib", "version": "1.0.0"}"#,
+    )?;
+    fs::write(lib_dir.path().join("index.js"), "// v1")?;
+    fs::write(
+        app_dir.path().join("package.json"),
+        r#"{"name": "app", "version": "1.0.0"}"#,
+    )?;
+
+    Command::cargo_bin("kley")?
+        .env("KLEY_HOME", home_dir.path())
+        .arg("publish")
+        .current_dir(lib_dir.path())
+        .assert()
+        .success();
+
+    // Link in app
+    Command::cargo_bin("kley")?
+        .env("KLEY_HOME", home_dir.path())
+        .args(["link", "test-lib"])
+        .current_dir(app_dir.path())
+        .assert()
+        .success();
+
+    // Publish v2.0.0 to registry (updates the registry copy)
+    fs::write(
+        lib_dir.path().join("package.json"),
+        r#"{"name": "test-lib", "version": "2.0.0"}"#,
+    )?;
+    fs::write(lib_dir.path().join("index.js"), "// v2")?;
+
+    Command::cargo_bin("kley")?
+        .env("KLEY_HOME", home_dir.path())
+        .arg("publish")
+        .current_dir(lib_dir.path())
+        .assert()
+        .success();
+
+    // Run `kley update` — should skip test-lib because it is linked
+    Command::cargo_bin("kley")?
+        .env("KLEY_HOME", home_dir.path())
+        .args(["update", "test-lib"])
+        .current_dir(app_dir.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Skipping test-lib: linked (source is live)",
+        ));
+
+    // kley.lock still shows the link entry (connection:link, version may be old)
+    let lock: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(app_dir.path().join("kley.lock"))?)?;
+    assert_eq!(
+        lock["packages"]["test-lib"]["connection"], "link",
+        "kley.lock should retain connection:link after skipped update"
+    );
+
+    // The symlink still points to lib source — no .kley copy was created
+    assert!(
+        !app_dir.path().join(".kley/test-lib").exists(),
+        "update should not create .kley copy for linked package"
+    );
+
+    Ok(())
+}
