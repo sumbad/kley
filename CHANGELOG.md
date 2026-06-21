@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.12.0] - 2026-06-21
 
 ### Added
 - **Direct Source Linking in `kley link`**: Reworked the `link` command to create a direct symbolic link from `node_modules/<pkg>` to the library's source directory. This enables "live" development where changes in the library are visible instantly without re-publishing or re-installing.

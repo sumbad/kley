@@ -10,8 +10,8 @@ into a project (as a dependency or dev-dependency), update all packages with a
 single command, and cleanly remove them. The tool is ready for everyday use in
 the basic workflow.
 
-### Progress: 26/30
-<progress value="26" max="30"></progress>
+### Progress: 30/30
+<progress value="30" max="30"></progress>
 
 
 ```mermaid
@@ -35,11 +35,11 @@ config:
 
 kanban
     Todo
-        "Rework link: direct symlink to source"<br/><br/>@{ assigned: 🧩, priority: 'Very High', ticket: 'f-32' }
 
     In Progress
 
     Done
+        "Rework link: direct symlink to source"<br/><br/>@{ assigned: 🧩, priority: 'Very High', ticket: 'f-32' }
         "Skip PM for dependency-less packages"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-26' }
         "Add --no-save flag to install command"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-33' }
         "Fast Reinstall - skip PM when deps unchanged"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-27' }
