@@ -1130,7 +1130,10 @@ fn test_install_all_restores_linked_symlink() -> Result<(), Box<dyn std::error::
         r#"{"name": "test-lib", "version": "1.0.0"}"#,
     )?;
     fs::write(lib.path().join("index.js"), "// lib source")?;
-    fs::write(app.path().join("package.json"), r#"{"name": "app", "version": "1.0.0"}"#)?;
+    fs::write(
+        app.path().join("package.json"),
+        r#"{"name": "app", "version": "1.0.0"}"#,
+    )?;
 
     Command::cargo_bin("kley")?
         .env("KLEY_HOME", home.path())
@@ -1148,13 +1151,19 @@ fn test_install_all_restores_linked_symlink() -> Result<(), Box<dyn std::error::
 
     // Confirm symlink exists
     let symlink = app.path().join("node_modules/test-lib");
-    assert!(symlink.is_symlink(), "precondition: symlink should exist after link");
+    assert!(
+        symlink.is_symlink(),
+        "precondition: symlink should exist after link"
+    );
 
     // Simulate npm install overwriting the symlink with a real directory
     fs::remove_file(&symlink)?;
     fs::create_dir_all(&symlink)?;
     fs::write(symlink.join("index.js"), "// npm copy")?;
-    assert!(!symlink.is_symlink(), "precondition: symlink was replaced by directory");
+    assert!(
+        !symlink.is_symlink(),
+        "precondition: symlink was replaced by directory"
+    );
 
     // Run kley install (no args) — should restore the link symlink
     Command::cargo_bin("kley")?
@@ -1165,10 +1174,16 @@ fn test_install_all_restores_linked_symlink() -> Result<(), Box<dyn std::error::
         .success();
 
     // Symlink is restored, pointing to lib source
-    assert!(symlink.is_symlink(), "kley install should restore symlink for linked package");
+    assert!(
+        symlink.is_symlink(),
+        "kley install should restore symlink for linked package"
+    );
     let target = fs::canonicalize(fs::read_link(&symlink)?)?;
     let src = fs::canonicalize(lib.path())?;
-    assert_eq!(target, src, "restored symlink should point to lib source directory");
+    assert_eq!(
+        target, src,
+        "restored symlink should point to lib source directory"
+    );
 
     // Content is live from source again
     let content = fs::read_to_string(symlink.join("index.js"))?;

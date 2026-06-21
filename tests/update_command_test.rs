@@ -94,7 +94,10 @@ fn test_update_skips_linked_package_e2e() -> Result<(), Box<dyn std::error::Erro
         r#"{"name": "test-lib", "version": "1.0.0"}"#,
     )?;
     fs::write(lib_dir.path().join("index.js"), "// v1")?;
-    fs::write(app_dir.path().join("package.json"), r#"{"name": "app", "version": "1.0.0"}"#)?;
+    fs::write(
+        app_dir.path().join("package.json"),
+        r#"{"name": "app", "version": "1.0.0"}"#,
+    )?;
 
     Command::cargo_bin("kley")?
         .env("KLEY_HOME", home_dir.path())
@@ -132,7 +135,9 @@ fn test_update_skips_linked_package_e2e() -> Result<(), Box<dyn std::error::Erro
         .current_dir(app_dir.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("Skipping test-lib: linked (source is live)"));
+        .stdout(predicate::str::contains(
+            "Skipping test-lib: linked (source is live)",
+        ));
 
     // kley.lock still shows the link entry (connection:link, version may be old)
     let lock: serde_json::Value =

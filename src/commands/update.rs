@@ -274,7 +274,10 @@ mod kley_lock_tests {
 
         let updated: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(project_kley_pkg.join("package.json"))?)?;
-        assert_eq!(updated["version"], "2.0.0", "installed package should be updated");
+        assert_eq!(
+            updated["version"], "2.0.0",
+            "installed package should be updated"
+        );
 
         Ok(())
     }

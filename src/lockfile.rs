@@ -156,8 +156,7 @@ mod tests {
     #[test]
     fn test_get_connection() {
         let tmp = tempdir().unwrap();
-        let lock_content =
-            r#"{"packages":{"my-lib":{"version":"1.0.0","connection":"link"}}}"#;
+        let lock_content = r#"{"packages":{"my-lib":{"version":"1.0.0","connection":"link"}}}"#;
         std::fs::write(tmp.path().join("kley.lock"), lock_content).unwrap();
 
         let lockfile = Lockfile::get(tmp.path()).unwrap();
