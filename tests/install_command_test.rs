@@ -1157,7 +1157,16 @@ fn test_install_all_restores_linked_symlink() -> Result<(), Box<dyn std::error::
     );
 
     // Simulate npm install overwriting the symlink with a real directory
+    #[cfg(unix)]
     fs::remove_file(&symlink)?;
+    #[cfg(windows)]
+    {
+        if symlink.is_dir() {
+            fs::remove_dir(&symlink)?;
+        } else {
+            fs::remove_file(&symlink)?;
+        }
+    }
     fs::create_dir_all(&symlink)?;
     fs::write(symlink.join("index.js"), "// npm copy")?;
     assert!(
