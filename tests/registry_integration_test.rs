@@ -18,6 +18,8 @@ struct Registry {
 #[serde(rename_all = "camelCase")]
 struct PackageMetadata {
     installations: Vec<PathBuf>,
+    #[serde(default)]
+    links: Vec<PathBuf>,
 }
 
 #[test]
@@ -103,7 +105,17 @@ fn test_registry_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
     // Assert registry content after link
     let registry_after_link: Registry = serde_json::from_str(&fs::read_to_string(&registry_path)?)?;
     let lib_meta_after_link = registry_after_link.packages.get("my-lib").unwrap();
-    assert_eq!(lib_meta_after_link.installations.len(), 2);
+    // New behavior: link records in links[], NOT installations[]
+    assert_eq!(
+        lib_meta_after_link.installations.len(),
+        1,
+        "link should not add to installations"
+    );
+    assert_eq!(
+        lib_meta_after_link.links.len(),
+        1,
+        "link should add to links[]"
+    );
     assert!(
         lib_meta_after_link
             .installations
@@ -114,14 +126,14 @@ fn test_registry_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
     );
     assert!(
         lib_meta_after_link
-            .installations
+            .links
             .iter()
             .any(|p| paths_match(p, &app_dir_2)),
-        "installations should contain {:?}",
+        "links should contain {:?}",
         app_dir_2
     );
 
-    // 5. TEST `kley remove` from first app
+    // 5. TEST `kley remove` from first app (installed)
     Command::cargo_bin("kley")?
         .current_dir(&app_dir)
         .env("KLEY_HOME", home_dir)
@@ -134,11 +146,21 @@ fn test_registry_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
     let registry_after_remove1: Registry =
         serde_json::from_str(&fs::read_to_string(&registry_path)?)?;
     let lib_meta_after_remove1 = registry_after_remove1.packages.get("my-lib").unwrap();
-    assert_eq!(lib_meta_after_remove1.installations.len(), 1);
+    assert_eq!(
+        lib_meta_after_remove1.installations.len(),
+        0,
+        "app_dir installation should be removed"
+    );
+    // links[] still has app_dir_2
+    assert_eq!(
+        lib_meta_after_remove1.links.len(),
+        1,
+        "app_dir_2 link should remain"
+    );
     assert!(
-        paths_match(&lib_meta_after_remove1.installations[0], &app_dir_2),
-        "remaining installation {:?} should match {:?}",
-        lib_meta_after_remove1.installations[0],
+        paths_match(&lib_meta_after_remove1.links[0], &app_dir_2),
+        "remaining link {:?} should match {:?}",
+        lib_meta_after_remove1.links[0],
         app_dir_2
     );
 
@@ -156,6 +178,10 @@ fn test_registry_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
         serde_json::from_str(&fs::read_to_string(&registry_path)?)?;
     let lib_meta_after_remove2 = registry_after_remove2.packages.get("my-lib").unwrap();
     assert!(lib_meta_after_remove2.installations.is_empty());
+    assert!(
+        lib_meta_after_remove2.links.is_empty(),
+        "links[] should also be empty after remove"
+    );
 
     Ok(())
 }
