@@ -31,10 +31,15 @@ walkdir = "2.5.0"
 
 [dev-dependencies]
 assert_cmd = "2.0"
+criterion = "0.5"
 predicates = "3.1.0"
 serde_json = "1.0.149"
 tempfile = "3.10.1"
 test-log = {version = "0.2", features = ["trace"]}
+
+[[bench]]
+name = "publish_install"
+harness = false
 
 # The profile that 'dist' will build with
 [profile.dist]
