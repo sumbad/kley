@@ -232,9 +232,9 @@ A universal command that combines `add` and the native package manager installat
 - Use the `--dev` or `-D` flag to install a package as a `devDependency`: `kley install --dev <package-name>`.
 - Use the `--no-save` flag to install a package into `node_modules/` and update `kley.lock` **without modifying `package.json`**. This is useful for temporary testing and also works with `kley install --no-save` (no package name) to restore all packages from `kley.lock`. Note: Yarn v1 does not support this flag natively and will still modify `package.json`.
 - Supports `npm`, `pnpm`, and `yarn` out of the box.
-- To explicitly specify the package manager, set the `packageManager` value in `package.json` or `kley.lock`.
+- To explicitly specify the package manager, set the `packageManager` field in `package.json` or `kley.lock`.
 - **Fast reinstall**: When a package's `dependencies` and `peerDependencies` haven't changed since the last install, `kley` skips the package manager entirely and copies files directly to `node_modules/<pkg>`. This makes iterative workflows (repeated `kley publish` → `kley install`) significantly faster.
-- **Faster install for dependency-less packages**: When a package has no `dependencies` and `peerDependencies`, `kley` skips the package manager entirely and creates a direct symlink to `node_modules/<pkg>`. This is even faster than the normal "fast reinstall" and is ideal for simple utility packages or components.
+- **Faster install for packages without dependencies**: When a package has no `dependencies` and `peerDependencies`, `kley` skips the package manager entirely and creates a direct symlink to `node_modules/<pkg>`. This is even faster than the normal "fast reinstall" and is ideal for simple utility packages or components.
 - **Lifecycle scripts** (`preinstall`, `install`, `postinstall`) are **disabled by default** (`--ignore-scripts`) for safety. This prevents arbitrary code execution during install. If a package requires lifecycle scripts to function (e.g., native modules), run the package manager manually.
 
 ### 4. `kley add <package-name>`
@@ -266,6 +266,55 @@ Run this command to cleanly remove a kley-managed dependency from your project. 
 
 > **Note:** When copying a package into your project, `kley` automatically strips its `devDependencies` from `package.json`. This keeps your `node_modules` lean and speeds up installation. The original package in the kley registry remains unchanged.
 
+## Benchmarks
+
+Compare `kley` against [yalc](https://github.com/wclr/yalc) and [@jimsheen/yalc](https://github.com/jimsheen/yalc) in two typical scenarios: cold start and iterative development.
+
+| Operation                        | kley      | yalc    | @jimsheen/yalc |
+| -------------------------------- | --------- | ------- | -------------- |
+| Cold start (publish → install)   | **~9 ms** | ~390 ms | ~437 ms        |
+| Iteration (publish --push)       | **~7 ms** | ~106 ms | ~125 ms        |
+
+<details>
+<summary>Start benchmarks locally</summary>
+
+### Prerequisites
+
+To run all benchmarks (including yalc tools), install the required Node.js packages once:
+
+```bash
+npm install --prefix target/bench_deps yalc @jimsheen/yalc
+```
+
+Then export the paths:
+
+```bash
+export BENCH_YALC_JS=$PWD/target/bench_deps/node_modules/yalc/src/yalc.js
+export BENCH_JIMSHEEN_YALC_JS=$PWD/target/bench_deps/node_modules/@jimsheen/yalc/dist/yalc.js
+```
+
+### Running
+
+Run all benchmarks:
+
+```bash
+cargo bench --bench publish_install
+```
+
+Run only `kley` benchmarks (no env vars required):
+
+```bash
+cargo bench --bench publish_install -- kley
+```
+
+Filter by scenario:
+
+```bash
+cargo bench --bench publish_install -- cold_start
+cargo bench --bench publish_install -- iteration_push
+```
+</details>
+
 ## Environment Variables
 
 | Variable | Default | Description |
@@ -277,7 +326,7 @@ Run this command to cleanly remove a kley-managed dependency from your project. 
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please feel free to share your feedback and suggestions.
 
 ## About
 
