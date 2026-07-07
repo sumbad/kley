@@ -77,7 +77,9 @@ pub fn watch(registry: &mut Registry, watch_path: &Option<String>) -> Result<()>
 fn is_relevant_event(event: &Event) -> bool {
     let relevant_kind = matches!(
         event.kind,
-        EventKind::Create(_) | EventKind::Remove(_) | EventKind::Modify(ModifyKind::Data(_))
+        EventKind::Create(_)
+            | EventKind::Remove(_)
+            | EventKind::Modify(ModifyKind::Data(_) | ModifyKind::Any | ModifyKind::Name(_))
     );
 
     if !relevant_kind {
