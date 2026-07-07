@@ -37,7 +37,6 @@ kanban
     Todo
         "Implement retreat and restore commands"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-21' }
         "Add --changed flag to publish command"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-22' }
-        "Implement watch command"<br/><br/>@{ assigned: 🧩, priority: 'Very High', ticket: 'f-4' }
         "Enhance kley.lock with version pinning"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-15' }
         "Implement clean command"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-13' }
         "Add --global flag to link command"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-9' }
@@ -53,6 +52,7 @@ kanban
         "Implement Trusted Publishing"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-36' }
 
     In Progress
+        "Implement watch command"<br/><br/>@{ assigned: 🧩, priority: 'Very High', ticket: 'f-4' }
 
     Done
 

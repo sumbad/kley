@@ -266,6 +266,12 @@ Run this command to cleanly remove a kley-managed dependency from your project. 
 
 > **Note:** When copying a package into your project, `kley` automatically strips its `devDependencies` from `package.json`. This keeps your `node_modules` lean and speeds up installation. The original package in the kley registry remains unchanged.
 
+### 8. `kley watch [path]`
+Run this command in the directory of your local package to monitor files for changes and automatically run `kley publish --push` whenever changes are detected. This enables a seamless hot-reloading development workflow where the consuming projects receive updates instantly.
+
+- **With a path**: `kley watch <path>` (e.g., `kley watch src`) only monitors the specified subdirectory for changes. This is highly recommended for large projects to reduce file system watcher load.
+- **Without a path**: `kley watch` monitors the entire package directory (excluding `node_modules`, `.git`, and `.kley` directories automatically).
+
 ## Benchmarks
 
 Compare `kley` against [yalc](https://github.com/wclr/yalc) and [@jimsheen/yalc](https://github.com/jimsheen/yalc) in two typical scenarios: cold start and iterative development.

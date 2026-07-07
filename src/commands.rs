@@ -5,3 +5,4 @@ pub mod publish;
 pub mod remove;
 pub mod unpublish;
 pub mod update;
+pub mod watch;
