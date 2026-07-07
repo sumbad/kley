@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.0] - 2026-07-07
+
+### Added
+- **`kley watch [path]` argument**: Added the `watch` command with an optional `path` argument. When specified, only changes within that subdirectory are monitored, reducing file system watcher load on large projects. Defaults to the current directory when omitted.
+
+---
+
 ## [0.12.0] - 2026-06-21
 
 ### Added
