@@ -8,7 +8,7 @@
 
 English | [Русский](./README_RU.md)
 
-**The simple local package manager for npm (JS/TS)**
+**Glue your local packages together without npm publishing, links, or monorepo gymnastics**
 
 > Like **`npm link`**, but with a more convenient workflow. Like **`yalc`**, but without the dependency on Node.js.
 

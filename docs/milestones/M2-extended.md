@@ -52,8 +52,8 @@ kanban
         "Implement Trusted Publishing"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-36' }
 
     In Progress
-        "Implement watch command"<br/><br/>@{ assigned: 🧩, priority: 'Very High', ticket: 'f-4' }
 
     Done
+        "Implement watch command"<br/><br/>@{ assigned: 🧩, priority: 'Very High', ticket: 'f-4' }
 
 ```
