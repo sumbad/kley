@@ -59,6 +59,7 @@ enum Commands {
     Link { name: String },
     /// Remove a package from the current project
     Remove {
+        /// Package name to remove. If omitted, removes all packages from kley.lock
         name: Option<String>,
         #[arg(long)]
         all: bool,
@@ -72,6 +73,11 @@ enum Commands {
     Unpublish {
         #[arg(long)]
         push: bool,
+    },
+    /// Watch for file changes and automatically publish --push
+    Watch {
+        /// Path to watch files. If omitted, watches all files from current directory
+        path: Option<String>,
     },
 }
 
@@ -112,6 +118,7 @@ fn main() -> Result<()> {
         Commands::Update { packages } => {
             commands::update::update(&mut registry, packages, &project_dir)?
         }
+        Commands::Watch { path } => commands::watch::watch(&mut registry, path)?,
     }
 
     Ok(())
