@@ -35,6 +35,18 @@ impl Tool {
         }
     }
 
+    fn check_env(&self) -> Result<(), String> {
+        match self {
+            Tool::Kley => Ok(()),
+            Tool::Yalc => std::env::var("BENCH_YALC_JS")
+                .map(|_| ())
+                .map_err(|_| "BENCH_YALC_JS".to_string()),
+            Tool::JimsheenYalc => std::env::var("BENCH_JIMSHEEN_YALC_JS")
+                .map(|_| ())
+                .map_err(|_| "BENCH_JIMSHEEN_YALC_JS".to_string()),
+        }
+    }
+
     fn publish(&self, lib_dir: &std::path::Path, home_dir: &std::path::Path) {
         match self {
             Tool::Kley => {
@@ -239,6 +251,14 @@ fn bench_cold_start(c: &mut Criterion) {
     group.measurement_time(Duration::from_secs(30));
 
     for tool in &[Tool::Kley, Tool::Yalc, Tool::JimsheenYalc] {
+        if let Err(missing) = tool.check_env() {
+            eprintln!(
+                "Skipping benchmark for {} due to missing env var: {}",
+                tool.name(),
+                missing
+            );
+            continue;
+        }
         group.bench_with_input(
             BenchmarkId::new("publish_install", tool.name()),
             tool,
@@ -270,6 +290,14 @@ fn bench_iteration_push(c: &mut Criterion) {
     group.measurement_time(Duration::from_secs(10));
 
     for tool in &[Tool::Kley, Tool::Yalc, Tool::JimsheenYalc] {
+        if let Err(missing) = tool.check_env() {
+            eprintln!(
+                "Skipping benchmark for {} due to missing env var: {}",
+                tool.name(),
+                missing
+            );
+            continue;
+        }
         group.bench_with_input(
             BenchmarkId::new("publish_push", tool.name()),
             tool,
