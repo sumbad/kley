@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.1] - 2026-07-09
+
+### Fixed
+- **Registry race condition between `kley watch` and `kley install`**: Fixed a bug where running `kley watch` (or any second `kley` process) in parallel with `kley install`/`add` could silently lose registry changes such as a package's `installations` list.
+
+---
+
 ## [0.13.0] - 2026-07-07
 
 ### Added

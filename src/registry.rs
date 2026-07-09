@@ -2,6 +2,7 @@ use anyhow::{Context, Ok, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 use crate::utils::{current_formatted_time, get_kley_home_dir};
@@ -9,13 +10,13 @@ use crate::utils::{current_formatted_time, get_kley_home_dir};
 pub static REGISTRY_DIR_NAME: &str = ".kley";
 pub static REGISTRY_FILE_NAME: &str = "registry.json";
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct RegistryData {
     #[serde(default)]
     pub packages: BTreeMap<String, PackageMetadata>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageMetadata {
     pub version: String,
@@ -28,7 +29,12 @@ pub struct PackageMetadata {
 }
 
 pub struct Registry {
+    /// The in-memory registry state, mutated by the current process.
     data: RegistryData,
+    /// Snapshot of the on-disk state as it was when this `Registry` was loaded.
+    /// Used to compute a correct 3-way merge on save so that our own removals
+    /// are honoured while concurrent additions by other processes survive.
+    loaded: RegistryData,
     pub dir_path: PathBuf,
     pub file_path: PathBuf,
 }
@@ -52,6 +58,7 @@ impl Registry {
         if !registry_dir.exists() || !registry_file.exists() {
             return Ok(Registry {
                 data: RegistryData::default(),
+                loaded: RegistryData::default(),
                 dir_path: registry_dir,
                 file_path: registry_file,
             });
@@ -62,7 +69,8 @@ impl Registry {
             .context(format!("Failed to parse {}", REGISTRY_FILE_NAME))?;
 
         Ok(Registry {
-            data: registry_data,
+            data: registry_data.clone(),
+            loaded: registry_data,
             dir_path: registry_dir,
             file_path: registry_file,
         })
@@ -262,17 +270,138 @@ impl Registry {
             .is_some_and(|m| m.links.contains(&project_path.to_path_buf()))
     }
 
+    /// Atomically persist the registry.
+    ///
+    /// Because multiple `kley` processes (e.g. a long-running `kley watch`
+    /// next to a `kley install`) each keep their own in-memory copy and write
+    /// the same file, a naive read-modify-write loses the other process's
+    /// concurrent changes. To avoid that:
+    ///   1. take an exclusive advisory lock on the registry file itself
+    ///      (`std::fs::File::lock`, stable since Rust 1.89; `flock` on Unix,
+    ///      `LockFileEx` on Windows) — released automatically when the file is
+    ///      dropped,
+    ///   2. re-read the latest on-disk state,
+    ///   3. merge our in-memory changes into it (union of `installations`/`links`,
+    ///      newer `last_updated` wins for `version`/`source_path`),
+    ///   4. truncate and write the merged result, then release the lock on drop.
+    ///
+    /// Merge three views of a path list using a 3-way strategy.
+    ///
+    /// `our` is the intended list in this process, `loaded` is the list as
+    /// it was when this `Registry` was loaded, and `on_disk` is the
+    /// latest on-disk list (which may include concurrent changes).
+    ///
+    /// Our own additions are kept, our own removals are honoured, and
+    /// entries added concurrently by other processes (present on disk but
+    /// unknown to us) are preserved.
+    fn merge_path_lists(our: &[PathBuf], loaded: &[PathBuf], on_disk: &[PathBuf]) -> Vec<PathBuf> {
+        let added: Vec<&PathBuf> = our.iter().filter(|p| !loaded.contains(p)).collect();
+        let removed: Vec<&PathBuf> = loaded.iter().filter(|p| !our.contains(p)).collect();
+
+        let mut result: Vec<PathBuf> = on_disk
+            .iter()
+            .filter(|p| !removed.contains(p))
+            .cloned()
+            .collect();
+
+        for p in added {
+            if !result.contains(p) {
+                result.push(p.clone());
+            }
+        }
+
+        result
+    }
+
+    /// 3-way merge of a single package's metadata into its on-disk view.
+    fn merge_package_metadata(
+        our: &PackageMetadata,
+        loaded: Option<&PackageMetadata>,
+        on_disk: &PackageMetadata,
+    ) -> PackageMetadata {
+        let loaded = loaded.cloned().unwrap_or_default();
+
+        let mut merged = on_disk.clone();
+        merged.installations = Self::merge_path_lists(
+            &our.installations,
+            &loaded.installations,
+            &on_disk.installations,
+        );
+        merged.links = Self::merge_path_lists(&our.links, &loaded.links, &on_disk.links);
+
+        if our.last_updated >= on_disk.last_updated {
+            merged.version = our.version.clone();
+            merged.last_updated = our.last_updated.clone();
+            merged.source_path = our.source_path.clone();
+        }
+
+        merged
+    }
+
+    /// 3-way merge of the whole registry: `our` is this process's intended
+    /// state, `loaded` is the snapshot taken at load time, `on_disk` is the
+    /// latest state read from disk (may reflect concurrent processes).
+    fn merge_registry_data(
+        our: &RegistryData,
+        loaded: &RegistryData,
+        on_disk: &RegistryData,
+    ) -> RegistryData {
+        let mut merged = on_disk.clone();
+
+        for (name, our_meta) in &our.packages {
+            let loaded_meta = loaded.packages.get(name);
+            let disk_meta = merged
+                .packages
+                .entry(name.clone())
+                .or_insert_with(|| our_meta.clone());
+            *disk_meta = Self::merge_package_metadata(our_meta, loaded_meta, disk_meta);
+        }
+
+        // Packages removed since load time should be dropped, unless a concurrent
+        // process re-created them (in which case the loop above kept them).
+        for name in loaded
+            .packages
+            .keys()
+            .filter(|n| !our.packages.contains_key(*n))
+        {
+            merged.packages.remove(name);
+        }
+
+        merged
+    }
+
     fn save(&mut self) -> Result<()> {
         if let Some(parent) = self.file_path.parent() {
             fs::create_dir_all(parent)?;
         }
 
+        let mut file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&self.file_path)
+            .context("Failed to open registry file")?;
+        file.lock().context("Failed to acquire registry lock")?;
+
+        // Re-read the latest on-disk state so concurrent processes' changes
+        // are not lost.
+        let mut content = String::new();
+        file.seek(SeekFrom::Start(0))?;
+        file.read_to_string(&mut content)?;
+        let on_disk: RegistryData = serde_json::from_str(&content).unwrap_or_default();
+
+        let merged = Self::merge_registry_data(&self.data, &self.loaded, &on_disk);
+
         let mut buf = Vec::new();
         let formatter = serde_json::ser::PrettyFormatter::with_indent(b"  ");
         let mut ser = serde_json::Serializer::with_formatter(&mut buf, formatter);
-        self.data.serialize(&mut ser)?;
+        merged.serialize(&mut ser)?;
 
-        fs::write(&self.file_path, buf)?;
+        file.seek(SeekFrom::Start(0))?;
+        file.set_len(buf.len() as u64)?;
+        file.write_all(&buf)?;
+        file.sync_all().ok();
 
         tracing::info!("Updated registry has been saved!");
 
@@ -394,6 +523,39 @@ mod tests {
     }
 
     #[test]
+    fn test_concurrent_save_merges_installations_and_version() {
+        let tmp = tempdir().unwrap();
+        let project_path = Path::new("/tmp/concurrent-project");
+
+        // Process A: publishes the package and records an installation.
+        {
+            let mut registry_a = make_registry(tmp.path());
+            registry_a
+                .update_package_version("my-lib", "1.0.0")
+                .unwrap();
+            registry_a
+                .add_package_installation("my-lib", project_path)
+                .unwrap();
+        }
+
+        // Process B (fresh in-memory registry, same home): bumps the version.
+        {
+            let mut registry_b = make_registry(tmp.path());
+            registry_b
+                .update_package_version("my-lib", "2.0.0")
+                .unwrap();
+        }
+
+        // Reload and verify both the installation and the new version survived.
+        let registry = Registry::with_home_dir(tmp.path()).unwrap();
+        assert_eq!(registry.get_pkg_version("my-lib"), Some("2.0.0"));
+        assert!(
+            registry.has_installation("my-lib", project_path),
+            "installation must survive a concurrent version bump"
+        );
+    }
+
+    #[test]
     fn test_legacy_registry_no_source_path() {
         let tmp = tempdir().unwrap();
 
@@ -408,5 +570,102 @@ mod tests {
         let registry = Registry::with_home_dir(tmp.path()).unwrap();
         assert!(registry.get_source_path("old-lib").is_none());
         assert_eq!(registry.get_links("old-lib"), &[] as &[PathBuf]);
+    }
+
+    fn meta(version: &str, installations: &[&str], links: &[&str]) -> PackageMetadata {
+        PackageMetadata {
+            version: version.to_string(),
+            last_updated: format!("2024-01-0{}T00:00:00Z", version),
+            installations: installations.iter().map(PathBuf::from).collect(),
+            source_path: None,
+            links: links.iter().map(PathBuf::from).collect(),
+        }
+    }
+
+    #[test]
+    fn test_merge_path_lists_concurrent_add_preserved() {
+        let our = vec![PathBuf::from("/a"), PathBuf::from("/b")];
+        let loaded = vec![PathBuf::from("/a")];
+        // Another process added /c concurrently.
+        let on_disk = vec![PathBuf::from("/a"), PathBuf::from("/c")];
+
+        let merged = Registry::merge_path_lists(&our, &loaded, &on_disk);
+
+        assert!(merged.contains(&PathBuf::from("/a")));
+        assert!(merged.contains(&PathBuf::from("/b")), "our addition kept");
+        assert!(
+            merged.contains(&PathBuf::from("/c")),
+            "concurrent addition kept"
+        );
+    }
+
+    #[test]
+    fn test_merge_path_lists_own_removal_preserved() {
+        let our = vec![PathBuf::from("/a")];
+        let loaded = vec![PathBuf::from("/a"), PathBuf::from("/b")];
+        // /b was removed by us; another process did not touch it.
+        let on_disk = vec![PathBuf::from("/a"), PathBuf::from("/b")];
+
+        let merged = Registry::merge_path_lists(&our, &loaded, &on_disk);
+
+        assert!(merged.contains(&PathBuf::from("/a")));
+        assert!(
+            !merged.contains(&PathBuf::from("/b")),
+            "our removal must survive"
+        );
+    }
+
+    #[test]
+    fn test_merge_registry_data_newer_version_wins() {
+        let our = RegistryData {
+            packages: {
+                let mut m = BTreeMap::new();
+                m.insert("my-lib".to_string(), meta("2.0.0", &["/p"], &[]));
+                m
+            },
+        };
+        let loaded = RegistryData::default();
+        let on_disk = RegistryData {
+            packages: {
+                let mut m = BTreeMap::new();
+                m.insert("my-lib".to_string(), meta("1.5.0", &["/p", "/q"], &[]));
+                m
+            },
+        };
+
+        let merged = Registry::merge_registry_data(&our, &loaded, &on_disk);
+        let m = merged.packages.get("my-lib").unwrap();
+
+        assert_eq!(m.version, "2.0.0", "newer version wins");
+        assert!(m.installations.contains(&PathBuf::from("/p")));
+        assert!(
+            m.installations.contains(&PathBuf::from("/q")),
+            "concurrent addition /q preserved"
+        );
+    }
+
+    #[test]
+    fn test_merge_registry_data_whole_package_removal() {
+        let our = RegistryData::default();
+        let loaded = RegistryData {
+            packages: {
+                let mut m = BTreeMap::new();
+                m.insert("old-lib".to_string(), meta("1.0.0", &["/p"], &[]));
+                m
+            },
+        };
+        let on_disk = RegistryData {
+            packages: {
+                let mut m = BTreeMap::new();
+                m.insert("old-lib".to_string(), meta("1.0.0", &["/p"], &[]));
+                m
+            },
+        };
+
+        let merged = Registry::merge_registry_data(&our, &loaded, &on_disk);
+        assert!(
+            merged.packages.get("old-lib").is_none(),
+            "whole-package removal must be applied"
+        );
     }
 }
