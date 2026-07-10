@@ -45,7 +45,7 @@ enum Commands {
         #[arg(long)]
         push: bool,
         /// Do not prompt for hooks configuration; pure file copy
-        #[arg(long)]
+        #[arg(short = 'y', long = "non-interactive")]
         non_interactive: bool,
         /// Ignore .kley/hooks.json for this run (pure file copy)
         #[arg(long)]
