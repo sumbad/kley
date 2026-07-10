@@ -100,6 +100,32 @@ fn test_publish_non_interactive_pure_copy_without_file() {
 }
 
 #[test]
+fn test_publish_short_y_non_interactive_pure_copy() {
+    let home = tempdir().unwrap();
+    let proj = tempdir().unwrap();
+    let proj_path = proj.path();
+    setup_project(proj_path, &basic_pkg("hooks-short-y-pkg"));
+
+    // `-y` is the short alias for `--non-interactive`: pure copy, no wizard,
+    // no hooks file created.
+    let mut cmd = common::kley_cmd();
+    cmd.arg("publish")
+        .arg("-y")
+        .env("KLEY_HOME", home.path())
+        .current_dir(proj_path);
+    cmd.assert().success();
+
+    let store = home
+        .path()
+        .join(".kley/packages/hooks-short-y-pkg/package.json");
+    assert!(store.exists(), "package should be published to the store");
+    assert!(
+        !proj_path.join(".kley/hooks.json").exists(),
+        "-y with no file must not create a hooks file"
+    );
+}
+
+#[test]
 fn test_publish_pre_hook_failure_aborts_before_copy() {
     let home = tempdir().unwrap();
     let proj = tempdir().unwrap();

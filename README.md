@@ -278,11 +278,12 @@ By default `kley publish` is a pure file copy — it never runs `package.json` l
 
 - On the **first** `kley publish` an interactive wizard lists the npm lifecycle scripts found in your `package.json` (`prepare`, `prepack`, `prepublishOnly`, `postpack`, `publish`, `postpublish`) and lets you choose which to run. The selection is saved to `.kley/hooks.json`.
 - Hooks run **only** from `.kley/hooks.json`. `kley` never reads `package.json` `scripts` at publish time.
+- `.kley/hooks.json` is yours to edit freely. A hook command does **not** have to mirror the script in `package.json` — you can copy the original command, tweak it (add flags, change the script), save the file, and **exactly that** command runs. `kley` executes the command as written in `hooks.json`, never the `package.json` one.
 - `PRE` hooks run before files are copied; `POST` hooks run after. If a hook fails, `kley publish` aborts (a failing pre-hook means nothing is copied).
 
 ```bash
 kley publish                    # wizard on first run, then runs configured hooks
-kley publish --non-interactive  # no wizard; hooks run only if .kley/hooks.json exists
+kley publish -y                # alias for --non-interactive: no wizard; hooks run only if .kley/hooks.json exists
 kley publish --no-hooks         # ignore .kley/hooks.json this run (pure copy)
 kley hooks list                 # show the current .kley/hooks.json
 kley hooks edit                 # re-run the wizard (keeps manually-added hooks)
