@@ -8,13 +8,27 @@ use tracing;
 
 use crate::commands::update::run_update;
 use crate::emoji;
+use crate::hooks::registry::HookPhase;
 use crate::package::Package;
 use crate::registry::*;
 use crate::utils::{get_kley_home_dir, normalized_path};
 
 /// Publish logic
-pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
-    let package = Package::get(&std::env::current_dir()?)?;
+pub fn publish(
+    registry: &mut Registry,
+    push: bool,
+    non_interactive: bool,
+    no_hooks: bool,
+) -> Result<()> {
+    let repo_root = std::env::current_dir()?;
+    let package = Package::get(&repo_root)?;
+
+    // Resolve hook configuration (file -> wizard -> non-interactive -> default).
+    let hooks = crate::hooks::load_hooks_config(&repo_root, non_interactive, no_hooks)?;
+
+    // Run PRE hooks before any file copy. A failing pre-hook aborts publish
+    // before the package is written to the store.
+    crate::hooks::runner::run_phase(&hooks, HookPhase::Pre, &repo_root)?;
 
     println!(
         "{} Publishing {}@{}...",
@@ -46,6 +60,9 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
     override_builder.add("!yarn.lock")?;
     override_builder.add("!pnpm-lock.yaml")?;
     override_builder.add("!.npmrc")?;
+    // A library that itself consumes local packages has its own .kley/ dir
+    // (installed deps + its own hooks.json). Never bundle it into the store.
+    override_builder.add("!.kley/")?;
 
     // Whitelist
     // NOTE: If an override contains one or more positive patterns,
@@ -115,6 +132,9 @@ pub fn publish(registry: &mut Registry, push: bool) -> Result<()> {
 
     registry.update_package_version(&package.json.name, &package.json.version)?;
     registry.set_source_path(&package.json.name, &std::env::current_dir()?)?;
+
+    // Run POST hooks after the files are copied into the store.
+    crate::hooks::runner::run_phase(&hooks, HookPhase::Post, &repo_root)?;
 
     println!(
         "{} Package '{}' saved to registry",
@@ -243,7 +263,7 @@ mod tests {
             fs::write(proj_path.join(".npmignore"), "secret.log")?;
 
             std::env::set_current_dir(proj_path)?;
-            publish(&mut registry, false)?;
+            publish(&mut registry, false, false, false)?;
 
             // Assert: build artifact IS included, secret IS NOT, node_modules IS NOT
             assert!(
@@ -274,7 +294,7 @@ mod tests {
             )?;
 
             std::env::set_current_dir(proj_path)?;
-            publish(&mut registry, false)?;
+            publish(&mut registry, false, false, false)?;
 
             // Assert: build artifact IS NOT included, secret IS NOT, node_modules IS NOT
             assert!(
