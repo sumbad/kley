@@ -92,10 +92,7 @@ fn test_publish_non_interactive_pure_copy_without_file() {
     let store = home
         .path()
         .join(".kley/packages/hooks-nonint-pkg/package.json");
-    assert!(
-        store.exists(),
-        "package should be published to the store"
-    );
+    assert!(store.exists(), "package should be published to the store");
     assert!(
         !proj_path.join(".kley/hooks.json").exists(),
         "--non-interactive with no file must not create a hooks file"
@@ -156,5 +153,32 @@ fn test_publish_excludes_project_kley_dir() {
     assert!(
         !store.join(".kley").exists(),
         "a library's own .kley/ dir must be excluded from the published package"
+    );
+}
+
+#[test]
+fn test_publish_post_hook_failure_still_publishes() {
+    let home = tempdir().unwrap();
+    let proj = tempdir().unwrap();
+    let proj_path = proj.path();
+    setup_project(proj_path, &basic_pkg("hooks-postfail-pkg"));
+
+    // A failing POST hook must not undo the already-copied package.
+    fs::write(
+        proj_path.join(".kley/hooks.json"),
+        r#"{"postpublish": {"command": "exit 1"}}"#,
+    )
+    .unwrap();
+
+    let mut cmd = common::kley_cmd();
+    cmd.arg("publish")
+        .env("KLEY_HOME", home.path())
+        .current_dir(proj_path);
+    cmd.assert().failure();
+
+    let store = home.path().join(".kley/packages/hooks-postfail-pkg");
+    assert!(
+        store.join("package.json").exists(),
+        "post-hook failure must NOT undo the already-published package"
     );
 }
