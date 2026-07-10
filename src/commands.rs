@@ -1,4 +1,5 @@
 pub mod add;
+pub mod hooks;
 pub mod install;
 pub mod link;
 pub mod publish;
