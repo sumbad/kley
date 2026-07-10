@@ -4,7 +4,7 @@ use std::path::Path;
 use anyhow::Result;
 use colored::*;
 
-use crate::hooks::registry::{HooksConfig, HookPhase, KNOWN_HOOKS};
+use crate::hooks::registry::{HookPhase, HooksConfig, KNOWN_HOOKS};
 
 /// Print the current `.kley/hooks.json` in a readable form.
 pub fn list(repo_root: &Path) -> Result<()> {
@@ -21,7 +21,10 @@ pub fn list(repo_root: &Path) -> Result<()> {
     let config = HooksConfig::load(&hooks_path)?;
 
     if config.hooks.is_empty() {
-        println!("{} .kley/hooks.json exists but no hooks are configured.", "ℹ".yellow());
+        println!(
+            "{} .kley/hooks.json exists but no hooks are configured.",
+            "ℹ".yellow()
+        );
         return Ok(());
     }
 
@@ -35,12 +38,7 @@ pub fn list(repo_root: &Path) -> Result<()> {
                 HookPhase::Post => "POST",
             })
             .unwrap_or("?   ");
-        println!(
-            "  [{}] {} -> {}",
-            phase,
-            name.cyan(),
-            entry.command
-        );
+        println!("  [{}] {} -> {}", phase, name.cyan(), entry.command);
     }
 
     Ok(())

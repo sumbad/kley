@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::path::Path;
 
-use dialoguer::{theme::ColorfulTheme, MultiSelect};
+use dialoguer::{MultiSelect, theme::ColorfulTheme};
 
 use crate::hooks::registry::{HookEntry, HooksConfig, KNOWN_HOOKS};
 use crate::package::Package;
@@ -40,9 +40,12 @@ pub fn run_hooks_wizard(repo_root: &Path, hooks_path: &Path) -> Result<HooksConf
 
         for i in selections {
             let (name, cmd) = candidates[i];
-            config
-                .hooks
-                .insert(name.to_string(), HookEntry { command: cmd.to_string() });
+            config.hooks.insert(
+                name.to_string(),
+                HookEntry {
+                    command: cmd.to_string(),
+                },
+            );
         }
     }
 

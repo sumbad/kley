@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::path::Path;
 use std::process::Command;
 
@@ -27,10 +27,7 @@ pub fn run_phase(config: &HooksConfig, phase: HookPhase, cwd: &Path) -> Result<(
         .with_context(|| format!("Failed to spawn hook '{name}'"))?;
 
         if !status.success() {
-            bail!(
-                "Hook '{name}' failed with exit code {:?}",
-                status.code()
-            );
+            bail!("Hook '{name}' failed with exit code {:?}", status.code());
         }
     }
 

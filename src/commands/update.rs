@@ -59,7 +59,7 @@ pub fn update(registry: &mut Registry, packages: &[String], project_dir: &Path) 
 
         println!(
             "{}",
-            format!("   {} {}", emoji::UPDATED, &package_name.clone())
+            format!("   {} {}", emoji::UPDATED, package_name.clone())
                 .green()
                 .dimmed()
         );

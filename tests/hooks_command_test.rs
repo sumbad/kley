@@ -26,9 +26,7 @@ fn test_hooks_list_shows_config() {
     .unwrap();
 
     let mut cmd = common::kley_cmd();
-    cmd.arg("hooks")
-        .arg("list")
-        .current_dir(proj_path);
+    cmd.arg("hooks").arg("list").current_dir(proj_path);
     cmd.assert()
         .success()
         .stdout(predicates::str::contains("prepare"))

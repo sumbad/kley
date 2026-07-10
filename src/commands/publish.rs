@@ -133,8 +133,18 @@ pub fn publish(
     registry.update_package_version(&package.json.name, &package.json.version)?;
     registry.set_source_path(&package.json.name, &std::env::current_dir()?)?;
 
-    // Run POST hooks after the files are copied into the store.
-    crate::hooks::runner::run_phase(&hooks, HookPhase::Post, &repo_root)?;
+    // Run POST hooks after the files are copied into the store. A post-hook
+    // failure does NOT mean the publish failed: the package is already in the
+    // store and the registry is updated, so it is installable. Report the hook
+    // error clearly but still exit non-zero so CI/scripts see the failure.
+    if let Err(e) = crate::hooks::runner::run_phase(&hooks, HookPhase::Post, &repo_root) {
+        eprintln!(
+            "{} Publish succeeded — '{}' is in the store and installable, but a post-publish hook failed:",
+            "⚠".yellow(),
+            package.json.name.cyan()
+        );
+        return Err(e);
+    }
 
     println!(
         "{} Package '{}' saved to registry",
@@ -168,7 +178,7 @@ pub fn publish(
                         "{} Updated {} to the latest version of {}",
                         emoji::UPDATED,
                         normalized_path(&project_dir, get_kley_home_dir().ok().as_ref()).white(),
-                        &package.json.name.cyan()
+                        package.json.name.cyan()
                     )
                     .green()
                 );
@@ -183,7 +193,7 @@ pub fn publish(
                     "{} Skipped {}: {} is linked (source is live)",
                     emoji::UPDATED,
                     normalized_path(&link_dir, get_kley_home_dir().ok().as_ref()).white(),
-                    &package.json.name.cyan()
+                    package.json.name.cyan()
                 )
                 .green()
                 .dimmed()
