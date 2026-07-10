@@ -459,7 +459,7 @@ fn assert_pkg_json_has_dev_dep(pkg_name: &str, project_dir: &std::path::Path) {
         dev_dependencies.get(pkg_name).is_some(),
         "devDependencies should contain '{}'. Content:\n{:?}",
         pkg_name,
-        &package_json
+        package_json
     );
 
     let expected_path = format!("file:.kley/{}", pkg_name);

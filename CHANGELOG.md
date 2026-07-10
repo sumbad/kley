@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.0] - 2026-07-10
+
+### Added
+- **Publish hooks (`.kley/hooks.json` + wizard)**: `kley publish` now supports explicit, publisher-side lifecycle hooks. On first run an interactive wizard lists the npm lifecycle scripts found in `package.json` (`prepare`, `prepack`, `prepublishOnly`, `postpack`, `publish`, `postpublish`) and saves the chosen subset to `.kley/hooks.json`. Hooks run only from that file — `kley` never reads `package.json` `scripts` at publish time, preserving the "safe by design" guarantee.
+- **`--non-interactive` and `--no-hooks` flags for `publish`**: `--non-interactive` skips the wizard (hooks run only if `.kley/hooks.json` already exists); `--no-hooks` performs a pure file copy ignoring the config.
+- **`kley hooks` command group**: `kley hooks list` shows the current `.kley/hooks.json`; `kley hooks edit` re-runs the wizard while preserving manually-added hooks absent from `package.json`.
+- **Pre/Post hook phases**: `PRE` hooks run before files are copied, `POST` hooks after. A hook failure aborts `kley publish` (a failing pre-hook means nothing is copied); a failing post-hook still leaves the package publishable and reports it clearly.
+
+### Fixed
+- **Exclude a library's own `.kley/` from published packages**: publishing a package that itself consumes local packages no longer bundles its `.kley/` directory (installed deps + its own `hooks.json`) into the store.
+
+---
+
 ## [0.13.1] - 2026-07-09
 
 ### Fixed

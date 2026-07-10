@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod hooks;
 pub mod lockfile;
 pub mod package;
 pub mod registry;

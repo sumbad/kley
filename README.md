@@ -272,6 +272,25 @@ Run this command in the directory of your local package to monitor files for cha
 - **With a path**: `kley watch <path>` (e.g., `kley watch src`) only monitors the specified subdirectory for changes. This is highly recommended for large projects to reduce file system watcher load.
 - **Without a path**: `kley watch` monitors the entire package directory (excluding `node_modules`, `.git`, and `.kley` directories automatically).
 
+### Publish hooks
+
+By default `kley publish` is a pure file copy — it never runs `package.json` lifecycle scripts. This keeps you safe from accidental side effects (e.g. a hook that publishes to the real npm registry). To run build/prep steps during publish, configure explicit hooks in `.kley/hooks.json`:
+
+- On the **first** `kley publish` an interactive wizard lists the npm lifecycle scripts found in your `package.json` (`prepare`, `prepack`, `prepublishOnly`, `postpack`, `publish`, `postpublish`) and lets you choose which to run. The selection is saved to `.kley/hooks.json`.
+- Hooks run **only** from `.kley/hooks.json`. `kley` never reads `package.json` `scripts` at publish time.
+- `.kley/hooks.json` is yours to edit freely. A hook command does **not** have to mirror the script in `package.json` — you can copy the original command, tweak it (add flags, change the script), save the file, and **exactly that** command runs. `kley` executes the command as written in `hooks.json`, never the `package.json` one.
+- `PRE` hooks run before files are copied; `POST` hooks run after. If a hook fails, `kley publish` aborts (a failing pre-hook means nothing is copied).
+
+```bash
+kley publish                    # wizard on first run, then runs configured hooks
+kley publish -y                # alias for --non-interactive: no wizard; hooks run only if .kley/hooks.json exists
+kley publish --no-hooks         # ignore .kley/hooks.json this run (pure copy)
+kley hooks list                 # show the current .kley/hooks.json
+kley hooks edit                 # re-run the wizard (keeps manually-added hooks)
+```
+
+> **Safety:** hooks are executed exactly as written in `.kley/hooks.json`. Review them carefully — `kley` will not guard against dangerous commands such as `npm publish`.
+
 ## Benchmarks
 
 Compare `kley` against [yalc](https://github.com/wclr/yalc) and [@jimsheen/yalc](https://github.com/jimsheen/yalc) in two typical scenarios: cold start and iterative development.

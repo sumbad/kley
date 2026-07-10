@@ -664,7 +664,7 @@ mod tests {
 
         let merged = Registry::merge_registry_data(&our, &loaded, &on_disk);
         assert!(
-            merged.packages.get("old-lib").is_none(),
+            !merged.packages.contains_key("old-lib"),
             "whole-package removal must be applied"
         );
     }

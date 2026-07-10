@@ -31,12 +31,29 @@ struct Cli {
 }
 
 #[derive(Subcommand)]
+enum HooksAction {
+    /// Show the current .kley/hooks.json
+    List,
+    /// Reconfigure .kley/hooks.json via the interactive wizard
+    Edit,
+}
+
+#[derive(Subcommand)]
 enum Commands {
     /// Publish the current package to the registry
     Publish {
         #[arg(long)]
         push: bool,
+        /// Do not prompt for hooks configuration; pure file copy
+        #[arg(short = 'y', long = "non-interactive")]
+        non_interactive: bool,
+        /// Ignore .kley/hooks.json for this run (pure file copy)
+        #[arg(long)]
+        no_hooks: bool,
     },
+    /// Manage publish hooks (.kley/hooks.json)
+    #[command(subcommand)]
+    Hooks(HooksAction),
     /// Add a package from the registry to the current project
     Add {
         name: String,
@@ -101,7 +118,15 @@ fn main() -> Result<()> {
     let mut registry = Registry::new()?;
 
     match &cli.command {
-        Commands::Publish { push } => commands::publish::publish(&mut registry, *push)?,
+        Commands::Publish {
+            push,
+            non_interactive,
+            no_hooks,
+        } => commands::publish::publish(&mut registry, *push, *non_interactive, *no_hooks)?,
+        Commands::Hooks(action) => match action {
+            HooksAction::List => commands::hooks::list(&project_dir)?,
+            HooksAction::Edit => commands::hooks::edit(&project_dir)?,
+        },
         Commands::Unpublish { push } => commands::unpublish::unpublish(&mut registry, *push)?,
         Commands::Add { name, dev } => commands::add::add(&mut registry, name, *dev)?,
         Commands::Install { name, dev, no_save } => commands::install::install(
