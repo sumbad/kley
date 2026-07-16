@@ -10,8 +10,8 @@ workspaces), automatically track changes (watch), configure behavior via
 .kleyrc, use lifecycle scripts, and run diagnostic commands (check, list,
 clean).
 
-### Progress: 2/16
-<progress value="2" max="16"></progress>
+### Progress: 2/27
+<progress value="2" max="27"></progress>
 
 
 ```mermaid
@@ -50,6 +50,17 @@ kanban
         "Batch PM installation in install_all"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-34' }
         "Skip PM when deps already satisfied"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-35' }
         "Implement Trusted Publishing"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-36' }
+        "Add --pure flag to add (workspaces support)"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-38' }
+        "Resolve workspace: protocol in dependencies"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-39' }
+        "Add --workspace/-W flag to add"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-40' }
+        "Add --link flag to add (manual link: injection)"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-41' }
+        "kley install defaults to link: protocol"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-42' }
+        "Add --sig content hash version signature"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-43' }
+        "Add --store-folder flag"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-44' }
+        "Add --quiet/--no-colors output control"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-45' }
+        "Add publish --content preview"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-46' }
+        "Add push --replace/--update flags"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-47' }
+        "Support publish <sub-project> (monorepo)"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-48' }
 
     In Progress
 
