@@ -143,17 +143,16 @@ fn main() -> Result<()> {
             pure,
             no_pure,
         } => {
-            let pure = if *no_pure {
+            let effective_pure = if *no_pure {
                 false
             } else if *pure {
                 true
             } else {
                 PackageJson::get(&project_dir)
-                    .unwrap_or_default()
-                    .workspaces
-                    .is_some()
+                    .map(|p| p.has_workspaces())
+                    .unwrap_or(false)
             };
-            commands::add::add(&mut registry, name, *dev, pure)?;
+            commands::add::add(&mut registry, name, *dev, effective_pure)?;
         }
         Commands::Install { name, dev, no_save } => commands::install::install(
             &mut registry,
