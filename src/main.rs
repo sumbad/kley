@@ -4,6 +4,7 @@ use clap::{Parser, Subcommand};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 use kley::commands;
+use kley::package::PackageJson;
 use kley::registry::Registry;
 
 fn styles() -> Styles {
@@ -60,6 +61,14 @@ enum Commands {
         /// Install as devDependency
         #[arg(long, short = 'D')]
         dev: bool,
+        /// Do not modify package.json (workspace-friendly). Defaults to on when
+        /// the project declares a `workspaces` field. Use --no-pure to force
+        /// the usual `file:` dependency injection.
+        #[arg(long, action = clap::ArgAction::Set, default_value_t = false)]
+        pure: bool,
+        /// Force the default (non-pure) behavior even inside a workspace project
+        #[arg(long, action = clap::ArgAction::SetTrue)]
+        no_pure: bool,
     },
     /// Install a package from the registry to the current project
     #[command(visible_alias = "i")]
@@ -128,7 +137,24 @@ fn main() -> Result<()> {
             HooksAction::Edit => commands::hooks::edit(&project_dir)?,
         },
         Commands::Unpublish { push } => commands::unpublish::unpublish(&mut registry, *push)?,
-        Commands::Add { name, dev } => commands::add::add(&mut registry, name, *dev)?,
+        Commands::Add {
+            name,
+            dev,
+            pure,
+            no_pure,
+        } => {
+            let pure = if *no_pure {
+                false
+            } else if *pure {
+                true
+            } else {
+                PackageJson::get(&project_dir)
+                    .unwrap_or_default()
+                    .workspaces
+                    .is_some()
+            };
+            commands::add::add(&mut registry, name, *dev, pure)?;
+        }
         Commands::Install { name, dev, no_save } => commands::install::install(
             &mut registry,
             name.as_deref(),

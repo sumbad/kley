@@ -8,7 +8,7 @@ use crate::registry::Registry;
 use crate::utils::{self, work_dirs};
 
 /// Add logic
-pub fn add(registry: &mut Registry, package_name_version: &str, is_dev: bool) -> Result<()> {
+pub fn add(registry: &mut Registry, package_name_version: &str, is_dev: bool, pure: bool) -> Result<()> {
     let (package_name, package_version) = utils::package_name_version_parse(package_name_version);
 
     utils::validate_version_in_registry(registry, package_name, package_version);
