@@ -17,8 +17,12 @@ pub fn add(registry: &mut Registry, package_name_version: &str, is_dev: bool, pu
 
     run_update(registry, package_name, &std::env::current_dir()?)?;
 
-    // --- Automate package.json modification ---
-    PackageJson::update_dependency(&dirs.project_dir, package_name, is_dev)?;
+    if pure {
+        println!("{}", "Note. package.json and node_modules left untouched (--pure).".italic().bright_black());
+    } else {
+        // --- Automate package.json modification ---
+        PackageJson::update_dependency(&dirs.project_dir, package_name, is_dev)?;
+    }
 
     registry.add_package_installation(package_name, &dirs.project_dir)?;
 
