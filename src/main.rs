@@ -62,13 +62,12 @@ enum Commands {
         #[arg(long, short = 'D')]
         dev: bool,
         /// Do not modify package.json (workspace-friendly). Defaults to on when
-        /// the project declares a `workspaces` field. Use --no-pure to force
-        /// the usual `file:` dependency injection.
-        #[arg(long, action = clap::ArgAction::Set, default_value_t = false)]
+        /// the project declares a `workspaces` field.
+        #[arg(long, overrides_with = "_no_pure")]
         pure: bool,
         /// Force the default (non-pure) behavior even inside a workspace project
-        #[arg(long, action = clap::ArgAction::SetTrue)]
-        no_pure: bool,
+        #[arg(long = "no-pure")]
+        _no_pure: bool,
     },
     /// Install a package from the registry to the current project
     #[command(visible_alias = "i")]
@@ -141,17 +140,19 @@ fn main() -> Result<()> {
             name,
             dev,
             pure,
-            no_pure,
+            _no_pure,
         } => {
-            let effective_pure = if *no_pure {
+            let effective_pure = if *_no_pure {
                 false
             } else if *pure {
                 true
             } else {
+                // neither → workspace detection
                 PackageJson::get(&project_dir)
                     .map(|p| p.has_workspaces())
                     .unwrap_or(false)
             };
+
             commands::add::add(&mut registry, name, *dev, effective_pure)?;
         }
         Commands::Install { name, dev, no_save } => commands::install::install(
