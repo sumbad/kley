@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **`--pure` / `--no-pure` flag for `kley add`**: `kley add <pkg> --pure` copies the package to `.kley/` and updates `kley.lock` without modifying `package.json` or `node_modules`. Designed for **workspaces** (pnpm/yarn/npm), where the workspace manager owns linking and expects to link `.kley/*` itself. Inside a project that declares a `workspaces` field, `kley add` defaults to `--pure` automatically. `--no-pure` forces the usual `file:` dependency injection.
+- **`--pure` / `--no-pure` flag for `kley add`**: `kley add <pkg> --pure` copies the package to `.kley/` and updates `kley.lock` without modifying `package.json` or `node_modules`. Designed for **workspaces** (pnpm/yarn/npm), where the workspace manager owns linking. Note: `--pure` does not make the package resolvable — you still need to add `.kley/*` to the `workspaces` globs and run `npm install`. Inside a project that declares a `workspaces` field, `kley add` defaults to `--pure` automatically. `--no-pure` forces the usual `file:` dependency injection.
 
 ---
 
