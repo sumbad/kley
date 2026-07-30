@@ -4,19 +4,6 @@ use assert_cmd::Command;
 use chrono::Utc;
 use std::env;
 
-/// Resolve the `kley` binary in a way that does not depend on the flaky
-/// per-test `CARGO_BIN_EXE_kley` environment variable behaviour of
-/// `assert_cmd::Command::cargo_bin`.
-pub fn kley_cmd() -> Command {
-    match env::var("CARGO_BIN_EXE_kley") {
-        Ok(path) => Command::new(path),
-        Err(_) => {
-            let manifest = env!("CARGO_MANIFEST_DIR");
-            let bin = if cfg!(windows) { "kley.exe" } else { "kley" };
-            Command::new(format!("{}/target/debug/{}", manifest, bin))
-        }
-    }
-}
 use kley::registry::{PackageMetadata, RegistryData};
 use std::fs;
 use std::io::Write;
@@ -243,4 +230,18 @@ pub fn paths_match(a: &Path, b: &Path) -> bool {
     let a_str = a.to_string_lossy().replace('\\', "/");
     let b_str = b.to_string_lossy().replace('\\', "/");
     a_str == b_str
+}
+
+/// Resolve the `kley` binary in a way that does not depend on the flaky
+/// per-test `CARGO_BIN_EXE_kley` environment variable behaviour of
+/// `assert_cmd::Command::cargo_bin`.
+pub fn kley_cmd() -> Command {
+    match env::var("CARGO_BIN_EXE_kley") {
+        Ok(path) => Command::new(path),
+        Err(_) => {
+            let manifest = env!("CARGO_MANIFEST_DIR");
+            let bin = if cfg!(windows) { "kley.exe" } else { "kley" };
+            Command::new(format!("{}/target/debug/{}", manifest, bin))
+        }
+    }
 }

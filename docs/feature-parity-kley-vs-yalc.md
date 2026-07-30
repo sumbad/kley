@@ -74,7 +74,7 @@ Legend: ✅ yes / ⚠️ partial / ❌ no / — no data
 | Mandatory files (README/LICENSE) | ✅ | ✅ | both |
 | Publish hooks/scripts | ✅ (opt-in, safe) | ✅ (on by default) | both, different models |
 | `--dev` / devDependency | ✅ | ✅ | both |
-| `--no-save` (node_modules only, no package.json) | ✅ | ⚠️ (`--pure`, not identical) | both (differently) |
+| `--no-save` (node_modules only, no package.json) | ✅ | ❌ | kley |
 | Build deps via PM on install | ✅ (fast-reinstall / symlink) | ✅ | both |
 | Auto-restore symlinks after `npm install` | ✅ (`kley install` no args) | ❌ (manual) | **kley** |
 | Singleton/peer-dep warning on link | ✅ | ❌ | **kley** |
@@ -87,7 +87,7 @@ Legend: ✅ yes / ⚠️ partial / ❌ no / — no data
 | `add --link` (inject `link:` into package.json) | ✅ (f-41) | ✅ | both |
 | Resolve `workspace:` protocol in deps | ❌ | ✅ (by default) | yalc |
 | `add --workspace` / `-W` | ❌ | ✅ | yalc |
-| `--pure` for workspaces + `--no-pure` | ✅ (f-38) | ✅ | both |
+| `--pure` (no package.json, no node_modules) | ✅ (f-38, auto in workspaces) | ✅ | both |
 | Version hash signature `--sig` (`1.2.3+ffff`) | ❌ | ✅ | yalc |
 | `push --changed` (publish only on changes) | ❌ (`watch` always pushes) | ✅ | yalc |
 | `push --replace` / `--update` (run PM update) | ❌ | ✅ | yalc |
@@ -117,17 +117,15 @@ real users.
 2. **Resolve `workspace:` protocol** in a package's dependencies. yalc does this
    by default (`-no-workspace-resolve` disables it). In a monorepo/kley this
    would break.
-3. **Workspaces support (pnpm/yarn)** — analog of `--pure`/`--no-pure` and
-   `--workspace`/`-W`. Important clarification: `kley add` **already does not
-   touch `node_modules`** (it only copies into `.kley/`, edits
-   `package.json`+`kley.lock`, and leaves installation to the package manager —
-   see `src/commands/add.rs:18-30`). But `kley add` still **writes a `file:`
-   dependency into `package.json`**, while `kley install --no-save` on the
-   contrary does not edit `package.json` but places the package into
-   `node_modules`. There is no mode that **touches neither `package.json` nor
-   `node_modules`** — which is exactly what yalc's `--pure` does (copies only
-   into `.yalc/`, everything else is handled by the workspace manager). For a
-   clean workspace scenario kley lacks such a "pure" mode.
+3. **Workspaces support (pnpm/yarn)** — **partially implemented (f-38)**:
+   `--pure`/`--no-pure` is done: `kley add` inside a project with a
+   `workspaces` field defaults to pure (no `package.json` mutation), and
+   `--no-pure` restores the `file:` injection. Remaining gaps:
+   - No `--workspace` / `-W` short alias (yalc injects `workspace:*` instead
+     of `file:`).
+   - No automatic `workspace:` protocol resolution in a package's dependencies
+     (yalc resolves `workspace:*` by default, `-no-workspace-resolve`
+     disables).
 4. **`retreat` / `restore`** — temporarily remove a local dependency before
    publishing to the real registry and bring it back. In yalc this is a basic
    "release preparation" scenario. kley has nothing.
@@ -200,9 +198,8 @@ real users.
 
 Based on §4 and §5, ranked for "real usefulness":
 
-1. **Workspaces support** (`--pure`/`--no-pure`, resolve `workspace:`,
-   `--workspace`/`-W`). Without it kley loses directly to yalc in
-   monorepos/kley projects with workspaces. The heaviest gap.
+1. **Workspaces support** — `--pure`/`--no-pure` is done (f-38). Remaining:
+   `--workspace`/`-W` short alias and `workspace:` protocol resolution in deps.
 2. **Version pin `add pkg@version`** — small change, big benefit.
 3. **`installations show` / `clean`** — give access to what kley already stores
    internally; removes warnings on deleted projects.

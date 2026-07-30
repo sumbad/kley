@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{lockfile::Lockfile, utils::detect_indent};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageJson {
     pub name: String,
@@ -29,6 +29,9 @@ pub struct PackageJson {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scripts: Option<HashMap<String, String>>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspaces: Option<serde_json::Value>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -191,6 +194,21 @@ impl PackageJson {
 
         Ok(())
     }
+
+    /// Returns true if the project's package.json declares a `workspaces` field,
+    /// in either form: an array of globs (`"workspaces": [...]`) or the
+    /// object form (`"workspaces": { "packages": [...] }`)
+    pub fn has_workspaces(&self) -> bool {
+        match &self.workspaces {
+            Some(serde_json::Value::Array(a)) => !a.is_empty(),
+            Some(serde_json::Value::Object(o)) => o
+                .get("packages")
+                .and_then(|p| p.as_array())
+                .map(|a| !a.is_empty())
+                .unwrap_or(false),
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -316,6 +334,56 @@ mod tests {
             "file:.kley/my-local-lib"
         );
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_has_workspaces_array_form() -> Result<()> {
+        let tmp = tempdir()?;
+        fs::write(
+            tmp.path().join("package.json"),
+            r#"{ "name": "ws", "version": "1.0.0", "workspaces": ["packages/*"] }"#,
+        )?;
+
+        let pkg = PackageJson::get(tmp.path())?;
+        assert!(pkg.has_workspaces());
+        Ok(())
+    }
+
+    #[test]
+    fn test_has_workspaces_object_form() -> Result<()> {
+        let tmp = tempdir()?;
+        fs::write(
+            tmp.path().join("package.json"),
+            r#"{ "name": "ws", "version": "1.0.0", "workspaces": {"packages": ["app/*"]} }"#,
+        )?;
+
+        let pkg = PackageJson::get(tmp.path())?;
+        assert!(pkg.has_workspaces());
+        Ok(())
+    }
+
+    #[test]
+    fn test_has_workspaces_absent() -> Result<()> {
+        let tmp = tempdir()?;
+        fs::write(
+            tmp.path().join("package.json"),
+            r#"{ "name": "ws", "version": "1.0.0" }"#,
+        )?;
+        let pkg = PackageJson::get(tmp.path())?;
+        assert!(!pkg.has_workspaces());
+        Ok(())
+    }
+
+    #[test]
+    fn test_has_workspaces_empty_array() -> Result<()> {
+        let tmp = tempdir()?;
+        fs::write(
+            tmp.path().join("package.json"),
+            r#"{ "name": "ws", "version": "1.0.0", "workspaces": [] }"#,
+        )?;
+        let pkg = PackageJson::get(tmp.path())?;
+        assert!(!pkg.has_workspaces());
         Ok(())
     }
 }

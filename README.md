@@ -238,11 +238,16 @@ A universal command that combines `add` and the native package manager installat
 - **Lifecycle scripts** (`preinstall`, `install`, `postinstall`) are **disabled by default** (`--ignore-scripts`) for safety. This prevents arbitrary code execution during install. If a package requires lifecycle scripts to function (e.g., native modules), run the package manager manually.
 
 ### 4. `kley add <package-name>`
-Run this command in the project where you want to use your local package. Kley copies the package into a local `./.kley/` directory, then automatically updates your `package.json` and `kley.lock`.
+A lower-level command that adds a local package to your project without installing it into `node_modules`. You'll need to run `npm install` (or `yarn`, `pnpm`) afterwards for the changes to take effect. Think of it as the manual counterpart to `kley install` — it copies the package and updates `package.json` + `kley.lock`, but leaves the actual installation to you or your package manager.
 
-- Use the `--dev` flag to add the package to `devDependencies`.
+- `--dev` adds the package to `devDependencies`.
+- `--pure` adds the package **without modifying `package.json`** (and without touching `node_modules`). It only copies the package to `.kley/` and records it in `kley.lock` (so `publish --push` can still update it). This is intended for **workspaces** — but note that `--pure` does **not** make the package resolvable automatically. You still need to add `.kley/*` to the `workspaces` globs in your `package.json` and run `npm install` (or `yarn`, `pnpm`) for the workspace manager to pick it up. If your project has a `workspaces` field, `kley add` defaults to `--pure` mode. To force the usual `file:` dependency injection, use `--no-pure`.
 
-> **Note:** For the changes to appear in `node_modules`, you must run `npm install` (or `yarn`, `pnpm`) after `kley add`. For a one-step alternative, use `kley install`.
+```bash
+kley add my-lib --pure     # don't touch package.json / node_modules
+kley add my-lib            # in a workspace project → pure by default
+kley add my-lib --no-pure  # force the normal file: injection
+```
 
 ### 5. `kley link <package-name>`
 This command provides a flexible workflow that avoids modifying `package.json`. It creates a symbolic link from your project's `node_modules` directly to the library's source directory.
