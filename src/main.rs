@@ -51,6 +51,9 @@ enum Commands {
         /// Ignore .kley/hooks.json for this run (pure file copy)
         #[arg(long)]
         no_hooks: bool,
+        /// Disable resolution of `workspace:` protocol dependencies on push
+        #[arg(long = "no-workspace-resolve")]
+        no_workspace_resolve: bool,
     },
     /// Manage publish hooks (.kley/hooks.json)
     #[command(subcommand)]
@@ -68,6 +71,9 @@ enum Commands {
         /// Force the default (non-pure) behavior even inside a workspace project
         #[arg(long = "no-pure")]
         _no_pure: bool,
+        /// Disable resolution of `workspace:` protocol dependencies
+        #[arg(long = "no-workspace-resolve")]
+        no_workspace_resolve: bool,
     },
     /// Install a package from the registry to the current project
     #[command(visible_alias = "i")]
@@ -79,6 +85,9 @@ enum Commands {
         dev: bool,
         #[arg(long)]
         no_save: bool,
+        /// Disable resolution of `workspace:` protocol dependencies
+        #[arg(long = "no-workspace-resolve")]
+        no_workspace_resolve: bool,
     },
     /// Link a package from the registry to the current project
     Link { name: String },
@@ -93,6 +102,9 @@ enum Commands {
     Update {
         /// Specific packages to update. If not provided, all packages will be updated.
         packages: Vec<String>,
+        /// Disable resolution of `workspace:` protocol dependencies
+        #[arg(long = "no-workspace-resolve")]
+        no_workspace_resolve: bool,
     },
     /// Unpublish the current package from the registry
     Unpublish {
@@ -130,7 +142,14 @@ fn main() -> Result<()> {
             push,
             non_interactive,
             no_hooks,
-        } => commands::publish::publish(&mut registry, *push, *non_interactive, *no_hooks)?,
+            no_workspace_resolve,
+        } => commands::publish::publish(
+            &mut registry,
+            *push,
+            *non_interactive,
+            *no_hooks,
+            *no_workspace_resolve,
+        )?,
         Commands::Hooks(action) => match action {
             HooksAction::List => commands::hooks::list(&project_dir)?,
             HooksAction::Edit => commands::hooks::edit(&project_dir)?,
@@ -141,6 +160,7 @@ fn main() -> Result<()> {
             dev,
             pure,
             _no_pure,
+            no_workspace_resolve,
         } => {
             let effective_pure = if *_no_pure {
                 false
@@ -153,21 +173,24 @@ fn main() -> Result<()> {
                     .unwrap_or(false)
             };
 
-            commands::add::add(&mut registry, name, *dev, effective_pure)?;
+            let resolve_workspace = !*no_workspace_resolve;
+
+            commands::add::add(&mut registry, name, *dev, effective_pure, resolve_workspace)?;
         }
-        Commands::Install { name, dev, no_save } => commands::install::install(
+        Commands::Install { name, dev, no_save, no_workspace_resolve } => commands::install::install(
             &mut registry,
             name.as_deref(),
             &project_dir,
             *dev,
             *no_save,
+            !*no_workspace_resolve,
         )?,
         Commands::Link { name } => commands::link::link(&mut registry, name)?,
         Commands::Remove { name, all } => {
             commands::remove::remove(&mut registry, name, *all, &project_dir)?
         }
-        Commands::Update { packages } => {
-            commands::update::update(&mut registry, packages, &project_dir)?
+        Commands::Update { packages, no_workspace_resolve } => {
+            commands::update::update(&mut registry, packages, &project_dir, !*no_workspace_resolve)?
         }
         Commands::Watch { path } => commands::watch::watch(&mut registry, path)?,
     }

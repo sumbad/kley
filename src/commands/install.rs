@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::{path::Path, process::Command};
 
 use anyhow::Result;
@@ -40,10 +41,11 @@ pub fn install(
     project_dir: &Path,
     dev: bool,
     no_save: bool,
+    resolve_workspace: bool,
 ) -> Result<()> {
     match package_name_version {
         Some(pkg_name_version) => {
-            install_package(registry, pkg_name_version, project_dir, dev, no_save)?;
+            install_package(registry, pkg_name_version, project_dir, dev, no_save, resolve_workspace)?;
 
             println!(
                 "{}",
@@ -62,7 +64,7 @@ pub fn install(
                 );
             }
 
-            install_all(registry, project_dir, no_save)?
+            install_all(registry, project_dir, no_save, resolve_workspace)?
         }
     }
 
@@ -77,6 +79,7 @@ fn install_package(
     project_dir: &Path,
     dev: bool,
     no_save: bool,
+    resolve_workspace: bool,
 ) -> Result<()> {
     let (package_name, package_version) = utils::package_name_version_parse(package_name_version);
 
@@ -95,7 +98,18 @@ fn install_package(
         .as_ref()
         .and_then(|it| it.packages.get(package_name));
 
-    run_update(registry, package_name, project_dir)?;
+    let pure = Package::get(project_dir)
+        .map(|p| p.json.has_workspaces())
+        .unwrap_or(false);
+    let mut visited = HashSet::new();
+    run_update(
+        registry,
+        package_name,
+        project_dir,
+        pure,
+        resolve_workspace,
+        &mut visited,
+    )?;
     registry.add_package_installation(package_name, project_dir)?;
 
     let installed_pkg_json = PackageJson::get(&pkg_kley_path)?;
@@ -276,7 +290,7 @@ fn restore_link(registry: &Registry, package_name: &str, project_dir: &Path) -> 
     Ok(())
 }
 
-fn install_all(registry: &mut Registry, project_dir: &Path, no_save: bool) -> Result<()> {
+fn install_all(registry: &mut Registry, project_dir: &Path, no_save: bool, resolve_workspace: bool) -> Result<()> {
     let lockfile = if let Some(lockfile) = Lockfile::get(project_dir) {
         lockfile
     } else {
@@ -313,6 +327,7 @@ fn install_all(registry: &mut Registry, project_dir: &Path, no_save: bool) -> Re
                 project_dir,
                 dev_dependencies.get(&package_name).is_some(),
                 no_save,
+                resolve_workspace,
             )?;
         }
 

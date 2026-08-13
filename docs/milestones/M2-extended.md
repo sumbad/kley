@@ -61,10 +61,10 @@ kanban
         "Support publish <sub-project> (monorepo)"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-48' }
 
     In Progress
-        "Resolve workspace: protocol in dependencies"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-39' }
 
     Done
         "Add --pure flag to add (workspaces support)"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-38' }
+        "Resolve workspace: protocol in dependencies"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-39' }
         "Publish hooks (.kley/hooks.json + wizard)"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-23' }
         "Implement watch command"<br/><br/>@{ assigned: 🧩, priority: 'Very High', ticket: 'f-4' }
 

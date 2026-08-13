@@ -727,6 +727,7 @@ dependencies = [
  "indicatif",
  "notify",
  "predicates",
+ "semver",
  "serde",
  "serde_json",
  "tempfile",

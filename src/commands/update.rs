@@ -1,7 +1,9 @@
+use std::collections::HashSet;
 use std::path::Path;
 
 use anyhow::Result;
 use colored::Colorize;
+use semver::{Version, VersionReq};
 
 use crate::{
     emoji,
@@ -12,7 +14,12 @@ use crate::{
 };
 
 /// Main entry point for the `update` command.
-pub fn update(registry: &mut Registry, packages: &[String], project_dir: &Path) -> Result<()> {
+pub fn update(
+    registry: &mut Registry,
+    packages: &[String],
+    project_dir: &Path,
+    resolve_workspace: bool,
+) -> Result<()> {
     let packages_to_update = if packages.is_empty() {
         // If no packages are specified, update all packages in kley.lock
         let Some(lockfile) = Lockfile::get(project_dir) else {
@@ -40,6 +47,11 @@ pub fn update(registry: &mut Registry, packages: &[String], project_dir: &Path) 
         return Ok(());
     }
 
+    let pure = PackageJson::get(project_dir)
+        .map(|p| p.has_workspaces())
+        .unwrap_or(false);
+    let mut visited = HashSet::new();
+
     println!("{}", "Updating...".green().dimmed());
     for package_name in packages_to_update {
         let connection = Lockfile::get(project_dir)
@@ -55,7 +67,14 @@ pub fn update(registry: &mut Registry, packages: &[String], project_dir: &Path) 
             continue;
         }
 
-        run_update(registry, &package_name, project_dir)?;
+        run_update(
+            registry,
+            &package_name,
+            project_dir,
+            pure,
+            resolve_workspace,
+            &mut visited,
+        )?;
 
         println!(
             "{}",
@@ -73,7 +92,14 @@ pub fn update(registry: &mut Registry, packages: &[String], project_dir: &Path) 
     Ok(())
 }
 
-pub fn run_update(registry: &mut Registry, package_name: &str, project_dir: &Path) -> Result<()> {
+pub fn run_update(
+    registry: &mut Registry,
+    package_name: &str,
+    project_dir: &Path,
+    pure: bool,
+    resolve_workspace: bool,
+    visited: &mut HashSet<String>,
+) -> Result<()> {
     tracing::debug!("run_update:\n package_name: {package_name}\n project_dir: {project_dir:?}");
 
     let project_kley_dir = project_dir
@@ -84,9 +110,96 @@ pub fn run_update(registry: &mut Registry, package_name: &str, project_dir: &Pat
 
     strip_dev_dependencies(&project_kley_dir)?;
 
+    resolve_workspace_links(registry, package_name, project_dir, pure, resolve_workspace, visited)?;
+
     update_kley_lock(registry, package_name, project_dir)?;
 
     tracing::debug!("Updated directory {project_dir:?}");
+
+    Ok(())
+}
+
+/// Resolve `workspace:` protocol dependencies of `package_name` for the given
+/// project. Equivalent to running `kley add <dep>` for each resolvable
+/// `workspace:` dependency: the dependency is copied into the project's `.kley/`
+/// and (unless `pure`) injected into the project's root `package.json`.
+///
+/// The `workspace:` protocol itself is always stripped (rewritten to a plain
+/// semver range) so the consumer's package manager can install it. Resolution is
+/// skipped entirely when `resolve_workspace` is false (`--no-workspace-resolve`).
+fn resolve_workspace_links(
+    registry: &mut Registry,
+    package_name: &str,
+    project_dir: &Path,
+    pure: bool,
+    resolve_workspace: bool,
+    visited: &mut HashSet<String>,
+) -> Result<()> {
+    if !resolve_workspace {
+        return Ok(());
+    }
+
+    if visited.contains(package_name) {
+        return Ok(());
+    }
+    visited.insert(package_name.to_string());
+
+    let project_kley_dir = project_dir
+        .join(PROJECT_REGISTRY_DIR_NAME)
+        .join(package_name);
+
+    let workspace_deps = crate::package::extract_and_strip_workspace_protocol(&project_kley_dir)?;
+    if workspace_deps.is_empty() {
+        return Ok(());
+    }
+
+    for dep in workspace_deps {
+        // `peerDependencies` are stripped above but must not be linked locally as a
+        // `file:.kley` dependency; only `dependencies` are installed.
+        if !dep.inject {
+            continue;
+        }
+
+        let resolvable = match registry.get_pkg_version(&dep.name) {
+            Some(v) => {
+                if dep.range.is_empty() {
+                    true
+                } else {
+                    match (Version::parse(v), VersionReq::parse(&dep.range)) {
+                        (Ok(ver), Ok(req)) => req.matches(&ver),
+                        _ => false,
+                    }
+                }
+            }
+            None => false,
+        };
+
+        if !resolvable {
+            eprintln!(
+                "{}",
+                format!(
+                    "{} Warning: workspace dependency '{}' ({}) could not be resolved from the kley registry; left as '{}'",
+                    emoji::WARNING,
+                    dep.name.cyan(),
+                    format!("workspace:{}", dep.range).magenta(),
+                    dep.range,
+                )
+                .yellow()
+            );
+            continue;
+        }
+
+        // Equivalent to `kley add <dep>` into this project.
+        crate::commands::add::install_package_into_project(
+            registry,
+            &dep.name,
+            false,
+            pure,
+            resolve_workspace,
+            project_dir,
+            visited,
+        )?;
+    }
 
     Ok(())
 }
@@ -233,7 +346,7 @@ mod kley_lock_tests {
         fs::create_dir_all(&project_kley_pkg)?;
         fs::write(project_kley_pkg.join("marker.txt"), "untouched")?;
 
-        update(&mut registry, &["test-lib".to_string()], project_dir.path())?;
+        update(&mut registry, &["test-lib".to_string()], project_dir.path(), true)?;
 
         // Marker should be untouched because update was skipped
         assert_eq!(
@@ -270,7 +383,7 @@ mod kley_lock_tests {
         let mut file = fs::File::create(project_kley_pkg.join("package.json"))?;
         write!(file, r#"{{"name": "test-lib", "version": "1.0.0"}}"#)?;
 
-        update(&mut registry, &["test-lib".to_string()], project_dir.path())?;
+        update(&mut registry, &["test-lib".to_string()], project_dir.path(), true)?;
 
         let updated: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(project_kley_pkg.join("package.json"))?)?;

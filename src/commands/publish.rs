@@ -2,6 +2,7 @@ use anyhow::Result;
 use colored::*;
 use ignore::WalkBuilder;
 use ignore::overrides::OverrideBuilder;
+use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use tracing;
@@ -19,6 +20,7 @@ pub fn publish(
     push: bool,
     non_interactive: bool,
     no_hooks: bool,
+    no_workspace_resolve: bool,
 ) -> Result<()> {
     let repo_root = std::env::current_dir()?;
     let package = Package::get(&repo_root)?;
@@ -170,7 +172,18 @@ pub fn publish(
             );
 
             for project_dir in instalations {
-                run_update(registry, &package.json.name, &project_dir)?;
+                let pure = Package::get(&project_dir)
+                    .map(|p| p.json.has_workspaces())
+                    .unwrap_or(false);
+                let mut visited = HashSet::new();
+                run_update(
+                    registry,
+                    &package.json.name,
+                    &project_dir,
+                    pure,
+                    !no_workspace_resolve,
+                    &mut visited,
+                )?;
 
                 println!(
                     "{}",
@@ -273,7 +286,7 @@ mod tests {
             fs::write(proj_path.join(".npmignore"), "secret.log")?;
 
             std::env::set_current_dir(proj_path)?;
-            publish(&mut registry, false, false, false)?;
+            publish(&mut registry, false, false, false, false)?;
 
             // Assert: build artifact IS included, secret IS NOT, node_modules IS NOT
             assert!(
@@ -304,7 +317,7 @@ mod tests {
             )?;
 
             std::env::set_current_dir(proj_path)?;
-            publish(&mut registry, false, false, false)?;
+            publish(&mut registry, false, false, false, false)?;
 
             // Assert: build artifact IS NOT included, secret IS NOT, node_modules IS NOT
             assert!(
