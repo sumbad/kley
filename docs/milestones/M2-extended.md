@@ -10,8 +10,8 @@ workspaces), automatically track changes (watch), configure behavior via
 .kleyrc, use lifecycle scripts, and run diagnostic commands (check, list,
 clean).
 
-### Progress: 2/27
-<progress value="2" max="27"></progress>
+### Progress: 3/27
+<progress value="3" max="27"></progress>
 
 
 ```mermaid
@@ -50,8 +50,6 @@ kanban
         "Batch PM installation in install_all"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-34' }
         "Skip PM when deps already satisfied"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-35' }
         "Implement Trusted Publishing"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-36' }
-        "Add --pure flag to add (workspaces support)"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-38' }
-        "Resolve workspace: protocol in dependencies"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-39' }
         "Add --workspace/-W flag to add"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-40' }
         "Add --link flag to add (manual link: injection)"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-41' }
         "kley install defaults to link: protocol"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-42' }
@@ -63,8 +61,10 @@ kanban
         "Support publish <sub-project> (monorepo)"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-48' }
 
     In Progress
+        "Resolve workspace: protocol in dependencies"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-39' }
 
     Done
+        "Add --pure flag to add (workspaces support)"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-38' }
         "Publish hooks (.kley/hooks.json + wizard)"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-23' }
         "Implement watch command"<br/><br/>@{ assigned: 🧩, priority: 'Very High', ticket: 'f-4' }
 
