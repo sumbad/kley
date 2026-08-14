@@ -257,10 +257,11 @@ automatically during `add`, `install`, `update` and `publish --push`:
 
 - The `workspace:` prefix is stripped, so the specifier becomes a plain semver
   range (`"workspace:^1.2.0"` → `"^1.2.0"`).
-- The referenced package is installed into the project (copied into `.kley/`
-  and recorded in `kley.lock`) and — unless `--pure` — injected as a
-  `file:.kley/<pkg>` entry into `package.json`. This mirrors yalc's default
-  behavior.
+- `dependencies` are installed into the project (copied into `.kley/` and
+  recorded in `kley.lock`) and — unless `--pure` — injected as a
+  `file:.kley/<pkg>` entry into `package.json`.
+- `peerDependencies` only have the `workspace:` prefix stripped to a plain
+  semver range; they are **not** installed or injected as `file:.kley` links.
 - If the referenced package is absent from the kley registry, or its stored
   version does not satisfy the range, the specifier is still stripped to a
   plain range and a warning is printed (no local `file:` link is created).

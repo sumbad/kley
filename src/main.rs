@@ -173,9 +173,13 @@ fn main() -> Result<()> {
                     .unwrap_or(false)
             };
 
-            let resolve_workspace = !*no_workspace_resolve;
-
-            commands::add::add(&mut registry, name, *dev, effective_pure, resolve_workspace)?;
+            commands::add::add(
+                &mut registry,
+                name,
+                *dev,
+                effective_pure,
+                !*no_workspace_resolve,
+            )?;
         }
         Commands::Install {
             name,

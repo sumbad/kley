@@ -131,7 +131,7 @@ pub fn run_update(
 /// `file:.kley/<pkg>` entry into the project's `package.json`, and record the
 /// installation in the registry. This is the shared implementation behind both
 /// `kley add` and the resolution of `workspace:` dependencies during `run_update`.
-pub fn install_package_into_project(
+pub fn add_package_into_project(
     registry: &mut Registry,
     package_name: &str,
     is_dev: bool,
@@ -216,14 +216,25 @@ fn resolve_workspace_links(
 
         // Equivalent to `kley add <dep>` into this project. Nested
         // `workspace:` deps are resolved transitively.
-        install_package_into_project(registry, &dep.name, false, pure, true, project_dir, visited)?;
+        add_package_into_project(registry, &dep.name, false, pure, true, project_dir, visited)?;
     }
 
     Ok(())
 }
 
 /// Creates or updates kley.lock file.
-fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path) -> Result<()> {
+///
+/// Snapshots the package's dependencies from its installed copy under
+/// `.kley/<pkg>` — the same manifest `install_package` compares against. This
+/// is only ever called after `copy_from_registry` (inside `run_update`), so the
+/// installed copy is guaranteed to exist; callers must ensure it is present.
+/// The `version` still comes from the registry (its stored metadata), not from
+/// the copied manifest.
+fn update_kley_lock(
+    registry: &Registry,
+    package_name: &str,
+    project_dir: &Path,
+) -> Result<()> {
     let version = if let Some(pkg_version) = registry.get_pkg_version(package_name) {
         pkg_version
     } else {
@@ -241,7 +252,10 @@ fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path)
 
     let mut lockfile = Lockfile::new(project_dir);
 
-    let package_json = PackageJson::get(&registry.get_pkg_dir(package_name))?;
+    let project_kley_dir = project_dir
+        .join(PROJECT_REGISTRY_DIR_NAME)
+        .join(package_name);
+    let package_json = PackageJson::get(&project_kley_dir)?;
 
     // Insert or update package info
     let package_info = PackageInfo {
@@ -275,7 +289,8 @@ mod kley_lock_tests {
         let mut registry = Registry::with_home_dir(tmp_home_dir.path())?;
 
         let package_name = "test-lib";
-        // The snapshot is read from the package.json in the registry store
+        // Mirror `run_update`: publish into the registry store, then copy into
+        // the project's `.kley/` — `update_kley_lock` reads from that copy.
         let source_path = registry.get_pkg_dir(package_name);
         fs::create_dir_all(&source_path)?;
         let pkg_json_path = source_path.join("package.json");
@@ -286,6 +301,11 @@ mod kley_lock_tests {
         )?;
 
         registry.update_package_version(package_name, "1.2.3")?;
+
+        let project_kley_dir = project_dir
+            .join(PROJECT_REGISTRY_DIR_NAME)
+            .join(package_name);
+        copy_from_registry(&registry, package_name, &project_kley_dir)?;
 
         update_kley_lock(&registry, package_name, project_dir)?;
 
@@ -309,7 +329,8 @@ mod kley_lock_tests {
         let mut registry = Registry::with_home_dir(tmp_home_dir.path())?;
 
         let package_name = "test-lib";
-        // The snapshot is read from the package.json in the registry store
+        // Mirror `run_update`: publish into the registry store, then copy into
+        // the project's `.kley/` — `update_kley_lock` reads from that copy.
         let source_path = registry.get_pkg_dir(package_name);
         fs::create_dir_all(&source_path)?;
         let pkg_json_path = source_path.join("package.json");
@@ -324,6 +345,11 @@ mod kley_lock_tests {
         )?;
 
         registry.update_package_version(package_name, "2.0.0")?;
+
+        let project_kley_dir = project_dir
+            .join(PROJECT_REGISTRY_DIR_NAME)
+            .join(package_name);
+        copy_from_registry(&registry, package_name, &project_kley_dir)?;
 
         update_kley_lock(&registry, package_name, project_dir)?;
 

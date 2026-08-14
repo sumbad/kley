@@ -105,6 +105,13 @@ fn install_package(
         .as_ref()
         .and_then(|it| it.packages.get(package_name));
 
+    // `pure` is forced on for workspace projects, so `run_update` will NOT inject
+    // resolved `workspace:` dependencies as `file:.kley/<pkg>` into the root
+    // `package.json` (injection is skipped in pure mode). The top-level package
+    // requested by `kley install <pkg>` is still written to `package.json` below
+    // via the `no_save`-controlled path (PM install or `PackageJson::update_dependency`),
+    // independent of `pure`. Note that `pm_install_command` always rewrites
+    // `package.json` for Yarn v1, which has no `--no-save` equivalent (see below).
     let pure = project_package.json.has_workspaces();
     let mut visited = HashSet::new();
     run_update(

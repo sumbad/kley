@@ -3,7 +3,7 @@ use colored::*;
 
 use std::collections::HashSet;
 
-use crate::commands::update::install_package_into_project;
+use crate::commands::update::add_package_into_project;
 use crate::emoji;
 use crate::registry::Registry;
 use crate::utils;
@@ -23,7 +23,7 @@ pub fn add(
     let project_dir = std::env::current_dir()?;
     let mut visited = HashSet::new();
 
-    install_package_into_project(
+    add_package_into_project(
         registry,
         package_name,
         is_dev,
