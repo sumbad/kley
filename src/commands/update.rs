@@ -8,7 +8,7 @@ use semver::{Version, VersionReq};
 use crate::{
     emoji,
     lockfile::{ConnectionType, Lockfile, PackageInfo},
-    package::PackageJson,
+    package::{PackageJson, WorkspaceDep},
     registry::Registry,
     utils::{PROJECT_REGISTRY_DIR_NAME, copy_from_registry, strip_dev_dependencies},
 };
@@ -110,7 +110,15 @@ pub fn run_update(
 
     strip_dev_dependencies(&project_kley_dir)?;
 
-    resolve_workspace_links(registry, package_name, project_dir, pure, resolve_workspace, visited)?;
+    // The `workspace:` protocol is always stripped from the freshly copied
+    // manifest (idempotent), so a re-copy on a later `run_update` of the same
+    // package can never leave a raw `workspace:` behind. Only the recursive
+    // install of the referenced packages is guarded against cycles.
+    if resolve_workspace {
+        let workspace_deps =
+            crate::package::extract_and_strip_workspace_protocol(&project_kley_dir)?;
+        resolve_workspace_links(registry, &workspace_deps, project_dir, pure, visited)?;
+    }
 
     update_kley_lock(registry, package_name, project_dir)?;
 
@@ -119,42 +127,51 @@ pub fn run_update(
     Ok(())
 }
 
-/// Resolve `workspace:` protocol dependencies of `package_name` for the given
-/// project. Equivalent to running `kley add <dep>` for each resolvable
-/// `workspace:` dependency: the dependency is copied into the project's `.kley/`
-/// and (unless `pure`) injected into the project's root `package.json`.
-///
-/// The `workspace:` protocol itself is always stripped (rewritten to a plain
-/// semver range) so the consumer's package manager can install it. Resolution is
-/// skipped entirely when `resolve_workspace` is false (`--no-workspace-resolve`).
-fn resolve_workspace_links(
+/// Install a package into a project: copy it into `.kley/`, optionally inject a
+/// `file:.kley/<pkg>` entry into the project's `package.json`, and record the
+/// installation in the registry. This is the shared implementation behind both
+/// `kley add` and the resolution of `workspace:` dependencies during `run_update`.
+pub fn install_package_into_project(
     registry: &mut Registry,
     package_name: &str,
-    project_dir: &Path,
+    is_dev: bool,
     pure: bool,
     resolve_workspace: bool,
+    project_dir: &Path,
     visited: &mut HashSet<String>,
 ) -> Result<()> {
-    if !resolve_workspace {
-        return Ok(());
+    run_update(
+        registry,
+        package_name,
+        project_dir,
+        pure,
+        resolve_workspace,
+        visited,
+    )?;
+
+    if !pure {
+        PackageJson::update_dependency(project_dir, package_name, is_dev)?;
     }
 
-    if visited.contains(package_name) {
-        return Ok(());
-    }
-    visited.insert(package_name.to_string());
+    registry.add_package_installation(package_name, project_dir)?;
 
-    let project_kley_dir = project_dir
-        .join(PROJECT_REGISTRY_DIR_NAME)
-        .join(package_name);
+    Ok(())
+}
 
-    let workspace_deps = crate::package::extract_and_strip_workspace_protocol(&project_kley_dir)?;
-    if workspace_deps.is_empty() {
-        return Ok(());
-    }
-
+/// Resolve the given `workspace:` dependencies (already extracted and stripped
+/// from the package manifest) for the given project. Equivalent to running
+/// `kley add <dep>` for each resolvable dependency: the dependency is copied
+/// into the project's `.kley/` and (unless `pure`) injected into the project's
+/// root `package.json`.
+fn resolve_workspace_links(
+    registry: &mut Registry,
+    workspace_deps: &[WorkspaceDep],
+    project_dir: &Path,
+    pure: bool,
+    visited: &mut HashSet<String>,
+) -> Result<()> {
     for dep in workspace_deps {
-        // `peerDependencies` are stripped above but must not be linked locally as a
+        // `peerDependencies` are stripped but must not be linked locally as a
         // `file:.kley` dependency; only `dependencies` are installed.
         if !dep.inject {
             continue;
@@ -189,16 +206,17 @@ fn resolve_workspace_links(
             continue;
         }
 
-        // Equivalent to `kley add <dep>` into this project.
-        crate::commands::add::install_package_into_project(
-            registry,
-            &dep.name,
-            false,
-            pure,
-            resolve_workspace,
-            project_dir,
-            visited,
-        )?;
+        // Cycle guard on the recursion only: a package already being resolved
+        // must not recurse into itself. A permanent mark also de-duplicates
+        // shared transitive dependencies.
+        if visited.contains(&dep.name) {
+            continue;
+        }
+        visited.insert(dep.name.clone());
+
+        // Equivalent to `kley add <dep>` into this project. Nested
+        // `workspace:` deps are resolved transitively.
+        install_package_into_project(registry, &dep.name, false, pure, true, project_dir, visited)?;
     }
 
     Ok(())
@@ -346,7 +364,12 @@ mod kley_lock_tests {
         fs::create_dir_all(&project_kley_pkg)?;
         fs::write(project_kley_pkg.join("marker.txt"), "untouched")?;
 
-        update(&mut registry, &["test-lib".to_string()], project_dir.path(), true)?;
+        update(
+            &mut registry,
+            &["test-lib".to_string()],
+            project_dir.path(),
+            true,
+        )?;
 
         // Marker should be untouched because update was skipped
         assert_eq!(
@@ -383,7 +406,12 @@ mod kley_lock_tests {
         let mut file = fs::File::create(project_kley_pkg.join("package.json"))?;
         write!(file, r#"{{"name": "test-lib", "version": "1.0.0"}}"#)?;
 
-        update(&mut registry, &["test-lib".to_string()], project_dir.path(), true)?;
+        update(
+            &mut registry,
+            &["test-lib".to_string()],
+            project_dir.path(),
+            true,
+        )?;
 
         let updated: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(project_kley_pkg.join("package.json"))?)?;

@@ -177,7 +177,12 @@ fn main() -> Result<()> {
 
             commands::add::add(&mut registry, name, *dev, effective_pure, resolve_workspace)?;
         }
-        Commands::Install { name, dev, no_save, no_workspace_resolve } => commands::install::install(
+        Commands::Install {
+            name,
+            dev,
+            no_save,
+            no_workspace_resolve,
+        } => commands::install::install(
             &mut registry,
             name.as_deref(),
             &project_dir,
@@ -189,9 +194,15 @@ fn main() -> Result<()> {
         Commands::Remove { name, all } => {
             commands::remove::remove(&mut registry, name, *all, &project_dir)?
         }
-        Commands::Update { packages, no_workspace_resolve } => {
-            commands::update::update(&mut registry, packages, &project_dir, !*no_workspace_resolve)?
-        }
+        Commands::Update {
+            packages,
+            no_workspace_resolve,
+        } => commands::update::update(
+            &mut registry,
+            packages,
+            &project_dir,
+            !*no_workspace_resolve,
+        )?,
         Commands::Watch { path } => commands::watch::watch(&mut registry, path)?,
     }
 

@@ -85,7 +85,7 @@ Legend: ✅ yes / ⚠️ partial / ❌ no / — no data
 | Speed (cold/iter) | ✅ (faster ~10-50x) | ⚠️ slower | **kley** |
 | Version pin `add pkg@version` | ❌ | ✅ | yalc |
 | `add --link` (inject `link:` into package.json) | ✅ (f-41) | ✅ | both |
-| Resolve `workspace:` protocol in deps | ❌ | ✅ (by default) | yalc |
+| Resolve `workspace:` protocol in deps | ✅ (f-39, `--no-workspace-resolve` disables) | ✅ (by default) | both |
 | `add --workspace` / `-W` | ❌ | ✅ | yalc |
 | `--pure` (no package.json, no node_modules) | ✅ (f-38, auto in workspaces) | ✅ | both |
 | Version hash signature `--sig` (`1.2.3+ffff`) | ❌ | ✅ | yalc |
@@ -114,28 +114,24 @@ real users.
 1. **Version pin on `add`** — `yalc add pkg@1.2.3`. In kley `add` accepts only
    a name; the version is taken from the current store. Users who need to pin a
    specific version in `kley.lock` currently cannot.
-2. **Resolve `workspace:` protocol** in a package's dependencies. yalc does this
-   by default (`-no-workspace-resolve` disables it). In a monorepo/kley this
-   would break.
-3. **Workspaces support (pnpm/yarn)** — **partially implemented (f-38)**:
+2. **Workspaces support (pnpm/yarn)** — **partially implemented (f-38, f-39)**:
    `--pure`/`--no-pure` is done: `kley add` inside a project with a
    `workspaces` field defaults to pure (no `package.json` mutation), and
-   `--no-pure` restores the `file:` injection. Remaining gaps:
+   `--no-pure` restores the `file:` injection. `workspace:` protocol resolution
+   in dependencies is done (f-39, `--no-workspace-resolve` disables). Remaining
+   gaps:
    - No `--workspace` / `-W` short alias (yalc injects `workspace:*` instead
      of `file:`).
-   - No automatic `workspace:` protocol resolution in a package's dependencies
-     (yalc resolves `workspace:*` by default, `-no-workspace-resolve`
-     disables).
-4. **`retreat` / `restore`** — temporarily remove a local dependency before
+3. **`retreat` / `restore`** — temporarily remove a local dependency before
    publishing to the real registry and bring it back. In yalc this is a basic
    "release preparation" scenario. kley has nothing.
-5. **`installations show` / `installations clean`** — kley internally stores the
+4. **`installations show` / `installations clean`** — kley internally stores the
    list of installations for push, but does not let the user view or clean it
    (e.g., when a project was deleted from disk — yalc warns on push).
 
 ### 4.2 Medium priority (convenience / clear scenarios)
 
-6. **`add --link` (manual flag) + `install` defaults to `link:`** — `kley
+5. **`add --link` (manual flag) + `install` defaults to `link:`** — `kley
    add --link` manually injects `link:.kley/<pkg>` into package.json (low-level
    control; `add` without the flag stays `file:`). `kley install` by default
    behaves like `kley add --link` + `npm install`: it writes `link:`, the PM
@@ -143,29 +139,29 @@ real users.
    changes automatically regardless of npm defaults. The singleton/peer-dep risk
    is neutralized because `.kley/` lives inside the project (resolution of
    `require` reaches the project's `node_modules`). See tickets `f-41`, `f-42`.
-7. **`push --changed`** — publish/push only if the content changed. Currently
+6. **`push --changed`** — publish/push only if the content changed. Currently
    `watch` triggers `publish --push` on any FS event; for large packages this
    is wasted work.
-8. **Version hash signature `--sig`** (`1.2.3+ffffffff`). Useful for unambiguous
+7. **Version hash signature `--sig`** (`1.2.3+ffffffff`). Useful for unambiguous
    content identification in the lock file.
-9. **`publish <sub-project>`** — publish from a subdirectory (monorepo).
+8. **`publish <sub-project>`** — publish from a subdirectory (monorepo).
    Currently `kley publish` only works in cwd.
-10. **`.kleyrc` / default options** — yalc lets you set options once (e.g.
+9. **`.kleyrc` / default options** — yalc lets you set options once (e.g.
     `workspace-resolve=false`, `sig=false`). kley has no config file; only env
     variables.
-11. **`check`** — a pre-commit hook that fails if `file:`/local dependencies
+10. **`check`** — a pre-commit hook that fails if `file:`/local dependencies
     remain in package.json. Helps avoid committing local links.
-12. **`--store-folder` flag** — currently only the `KLEY_HOME` env. A flag is
+11. **`--store-folder` flag** — currently only the `KLEY_HOME` env. A flag is
     more convenient for one-off calls/CI.
-13. **`--quiet` / `--no-colors`** — output control. kley only adds `-v` but
+12. **`--quiet` / `--no-colors`** — output control. kley only adds `-v` but
     cannot go silent. Needed in CI/scripts.
 
 ### 4.3 Low priority (nice-to-have)
 
-14. **`publish --content`** — show the list of files that will go into the
-    package.
-15. **`push --replace` / `--update`** — force replacement / run PM update.
-16. **`pre/post`yalc scripts in package.json** — kley has its own hook model
+13. **`publish --content`** — show the list of files that will go into the
+   package.
+14. **`push --replace` / `--update`** — force replacement / run PM update.
+15. **`pre/post`yalc scripts in package.json** — kley has its own hook model
     (`.kley/hooks.json`), so this is more an alternative than a gap. But
     compatibility with `preyalc`/`postyalc`-style scripts is absent.
 
@@ -198,8 +194,9 @@ real users.
 
 Based on §4 and §5, ranked for "real usefulness":
 
-1. **Workspaces support** — `--pure`/`--no-pure` is done (f-38). Remaining:
-   `--workspace`/`-W` short alias and `workspace:` protocol resolution in deps.
+1. **Workspaces support** — `--pure`/`--no-pure` (f-38) and `workspace:`
+   protocol resolution (f-39) are done. Remaining: `--workspace`/`-W` short
+   alias.
 2. **Version pin `add pkg@version`** — small change, big benefit.
 3. **`installations show` / `clean`** — give access to what kley already stores
    internally; removes warnings on deleted projects.

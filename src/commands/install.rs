@@ -45,7 +45,14 @@ pub fn install(
 ) -> Result<()> {
     match package_name_version {
         Some(pkg_name_version) => {
-            install_package(registry, pkg_name_version, project_dir, dev, no_save, resolve_workspace)?;
+            install_package(
+                registry,
+                pkg_name_version,
+                project_dir,
+                dev,
+                no_save,
+                resolve_workspace,
+            )?;
 
             println!(
                 "{}",
@@ -98,9 +105,7 @@ fn install_package(
         .as_ref()
         .and_then(|it| it.packages.get(package_name));
 
-    let pure = Package::get(project_dir)
-        .map(|p| p.json.has_workspaces())
-        .unwrap_or(false);
+    let pure = project_package.json.has_workspaces();
     let mut visited = HashSet::new();
     run_update(
         registry,
@@ -290,7 +295,12 @@ fn restore_link(registry: &Registry, package_name: &str, project_dir: &Path) -> 
     Ok(())
 }
 
-fn install_all(registry: &mut Registry, project_dir: &Path, no_save: bool, resolve_workspace: bool) -> Result<()> {
+fn install_all(
+    registry: &mut Registry,
+    project_dir: &Path,
+    no_save: bool,
+    resolve_workspace: bool,
+) -> Result<()> {
     let lockfile = if let Some(lockfile) = Lockfile::get(project_dir) {
         lockfile
     } else {

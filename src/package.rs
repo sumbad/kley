@@ -246,15 +246,15 @@ pub fn extract_and_strip_workspace_protocol(dir: &Path) -> Result<Vec<WorkspaceD
             if let Some(map) = obj.get_mut(section).and_then(|s| s.as_object_mut()) {
                 let keys: Vec<String> = map.keys().cloned().collect();
                 for key in keys {
-                    if let Some(serde_json::Value::String(spec)) = map.get(&key) {
-                        if let Some(range) = spec.strip_prefix("workspace:") {
-                            deps.push(WorkspaceDep {
-                                name: key.clone(),
-                                range: range.to_string(),
-                                inject,
-                            });
-                            map.insert(key, serde_json::Value::String(range.to_string()));
-                        }
+                    if let Some(serde_json::Value::String(spec)) = map.get(&key)
+                        && let Some(range) = spec.strip_prefix("workspace:")
+                    {
+                        deps.push(WorkspaceDep {
+                            name: key.clone(),
+                            range: range.to_string(),
+                            inject,
+                        });
+                        map.insert(key, serde_json::Value::String(range.to_string()));
                     }
                 }
             }

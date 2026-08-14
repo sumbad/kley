@@ -249,6 +249,29 @@ kley add my-lib            # in a workspace project → pure by default
 kley add my-lib --no-pure  # force the normal file: injection
 ```
 
+#### `workspace:` protocol resolution
+
+When a published package's `dependencies` or `peerDependencies` use the
+`workspace:` protocol (e.g. `"my-lib": "workspace:^1.2.0"`), `kley` resolves it
+automatically during `add`, `install`, `update` and `publish --push`:
+
+- The `workspace:` prefix is stripped, so the specifier becomes a plain semver
+  range (`"workspace:^1.2.0"` → `"^1.2.0"`).
+- The referenced package is installed into the project (copied into `.kley/`
+  and recorded in `kley.lock`) and — unless `--pure` — injected as a
+  `file:.kley/<pkg>` entry into `package.json`. This mirrors yalc's default
+  behavior.
+- If the referenced package is absent from the kley registry, or its stored
+  version does not satisfy the range, the specifier is still stripped to a
+  plain range and a warning is printed (no local `file:` link is created).
+- Use `--no-workspace-resolve` on `add`, `install`, `update` or `publish` to
+  keep the raw `workspace:` specifier.
+
+```bash
+kley add my-lib                      # resolves my-lib's workspace: deps automatically
+kley add my-lib --no-workspace-resolve   # keep raw workspace: specifiers
+```
+
 ### 5. `kley link <package-name>`
 This command provides a flexible workflow that avoids modifying `package.json`. It creates a symbolic link from your project's `node_modules` directly to the library's source directory.
 

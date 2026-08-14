@@ -13,23 +13,6 @@ use crate::{emoji, package::PackageJson};
 
 pub static PROJECT_REGISTRY_DIR_NAME: &str = ".kley";
 
-pub struct WorkDirs {
-    pub project_dir: PathBuf,
-    pub project_kley_dir: PathBuf,
-}
-
-pub fn work_dirs(package_name: &str) -> Result<WorkDirs> {
-    let project_dir = std::env::current_dir()?;
-    let project_kley_dir = project_dir
-        .join(PROJECT_REGISTRY_DIR_NAME)
-        .join(package_name);
-
-    Ok(WorkDirs {
-        project_dir,
-        project_kley_dir,
-    })
-}
-
 pub fn strip_dev_dependencies(package_dir: &Path) -> Result<()> {
     if !package_dir.exists() {
         println!(
