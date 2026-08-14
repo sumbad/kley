@@ -230,11 +230,7 @@ fn resolve_workspace_links(
 /// installed copy is guaranteed to exist; callers must ensure it is present.
 /// The `version` still comes from the registry (its stored metadata), not from
 /// the copied manifest.
-fn update_kley_lock(
-    registry: &Registry,
-    package_name: &str,
-    project_dir: &Path,
-) -> Result<()> {
+fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path) -> Result<()> {
     let version = if let Some(pkg_version) = registry.get_pkg_version(package_name) {
         pkg_version
     } else {

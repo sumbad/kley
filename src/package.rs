@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{lockfile::Lockfile, utils::detect_indent};
 
+use semver::VersionReq;
+
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageJson {
@@ -223,9 +225,14 @@ pub struct WorkspaceDep {
 }
 
 /// Find `workspace:` protocol dependencies in a package's `package.json` (under
-/// `dependencies` and `peerDependencies`), strip the `workspace:` prefix so the
-/// specifier becomes a plain semver range, and return the extracted
-/// dependencies so the caller can locally resolve them.
+/// `dependencies` and `peerDependencies`) and return the extracted dependencies
+/// so the caller can locally resolve them.
+///
+/// Only plain semver ranges (`workspace:^1.2.0`, `workspace:*`, ...) are stripped
+/// to a plain range and recorded. Path forms (`.`, `./pkg`, `../pkg`, relative or
+/// absolute paths) and alias forms that do not resolve to a valid semver range
+/// are preserved unchanged in the manifest and skipped, since they are not
+/// version ranges that kley can resolve.
 ///
 /// Returns an empty vec when there are no `workspace:` deps (or no file).
 pub fn extract_and_strip_workspace_protocol(dir: &Path) -> Result<Vec<WorkspaceDep>> {
@@ -247,14 +254,34 @@ pub fn extract_and_strip_workspace_protocol(dir: &Path) -> Result<Vec<WorkspaceD
                 let keys: Vec<String> = map.keys().cloned().collect();
                 for key in keys {
                     if let Some(serde_json::Value::String(spec)) = map.get(&key)
-                        && let Some(range) = spec.strip_prefix("workspace:")
+                        && let Some(rest) = spec.strip_prefix("workspace:")
                     {
-                        deps.push(WorkspaceDep {
-                            name: key.clone(),
-                            range: range.to_string(),
-                            inject,
-                        });
-                        map.insert(key, serde_json::Value::String(range.to_string()));
+                        // Path forms (".", "./pkg", "../pkg", "pkg/sub", "/abs")
+                        // are not version ranges — keep them unchanged and skip.
+                        if rest.starts_with('.') || rest.starts_with('/') || rest.contains('/') {
+                            continue;
+                        }
+
+                        // Alias form `name@range` (e.g. `workspace:foo@^1.2.0`)
+                        // resolves to the real package name + a plain semver range
+                        // only when the range is valid.
+                        let (name, range) = if let Some((alias, r)) = rest.split_once('@') {
+                            (alias, r)
+                        } else {
+                            (key.as_str(), rest)
+                        };
+
+                        // Only strip the prefix and record the dep when the
+                        // remainder is a valid plain semver range.
+                        if !name.is_empty() && VersionReq::parse(range).is_ok() {
+                            deps.push(WorkspaceDep {
+                                name: name.to_string(),
+                                range: range.to_string(),
+                                inject,
+                            });
+                            map.insert(key, serde_json::Value::String(range.to_string()));
+                        }
+                        // Otherwise the spec is preserved unchanged and skipped.
                     }
                 }
             }
@@ -482,6 +509,60 @@ mod tests {
         assert_eq!(updated["dependencies"]["my-lib"], "^1.2.0");
         assert_eq!(updated["dependencies"]["plain"], "^1.0.0");
         assert_eq!(updated["peerDependencies"]["peer-lib"], "*");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_extract_workspace_preserves_paths_and_resolves_aliases() -> Result<()> {
+        let tmp = tempdir()?;
+        fs::write(
+            tmp.path().join("package.json"),
+            r#"{
+  "name": "app",
+  "version": "1.0.0",
+  "dependencies": {
+    "plain": "workspace:^1.2.0",
+    "self-path": "workspace:.",
+    "rel-path": "workspace:./packages/foo",
+    "parent-path": "workspace:../foo",
+    "alias-valid": "workspace:foo@^2.0.0",
+    "alias-path": "workspace:foo@./packages/foo"
+  }
+}"#,
+        )?;
+
+        let deps = extract_and_strip_workspace_protocol(tmp.path())?;
+
+        // Only valid semver ranges are recorded: `plain` (range) and `foo`
+        // (resolved from the `alias-valid` form). Paths and the invalid alias
+        // are skipped.
+        let mut names: Vec<&str> = deps.iter().map(|d| d.name.as_str()).collect();
+        names.sort_unstable();
+        assert_eq!(names, vec!["foo", "plain"]);
+
+        let plain = deps.iter().find(|d| d.name == "plain").unwrap();
+        assert_eq!(plain.range, "^1.2.0");
+        assert!(plain.inject);
+        let foo = deps.iter().find(|d| d.name == "foo").unwrap();
+        assert_eq!(foo.range, "^2.0.0");
+        assert!(foo.inject);
+
+        // Path forms and the invalid alias are preserved unchanged in the manifest.
+        let updated: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(tmp.path().join("package.json"))?)?;
+        assert_eq!(updated["dependencies"]["plain"], "^1.2.0");
+        assert_eq!(updated["dependencies"]["self-path"], "workspace:.");
+        assert_eq!(
+            updated["dependencies"]["rel-path"],
+            "workspace:./packages/foo"
+        );
+        assert_eq!(updated["dependencies"]["parent-path"], "workspace:../foo");
+        assert_eq!(updated["dependencies"]["alias-valid"], "^2.0.0");
+        assert_eq!(
+            updated["dependencies"]["alias-path"],
+            "workspace:foo@./packages/foo"
+        );
 
         Ok(())
     }
