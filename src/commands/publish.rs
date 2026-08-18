@@ -2,6 +2,7 @@ use anyhow::Result;
 use colored::*;
 use ignore::WalkBuilder;
 use ignore::overrides::OverrideBuilder;
+use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use tracing;
@@ -19,6 +20,7 @@ pub fn publish(
     push: bool,
     non_interactive: bool,
     no_hooks: bool,
+    no_workspace_resolve: bool,
 ) -> Result<()> {
     let repo_root = std::env::current_dir()?;
     let package = Package::get(&repo_root)?;
@@ -69,10 +71,16 @@ pub fn publish(
     // then it will ignore any file path that does not match at least one of those positive patterns
     if let Some(files) = &package.json.files {
         for file in files {
+            // npm treats a leading "./" in a `files` entry the same as the bare
+            // path ("lib" == "./lib"), but globset interprets the leading "."
+            // literally, so "./lib/**" matches nothing against the walker's
+            // relative paths like `lib/index.js`. Strip the prefix so the
+            // whitelist actually includes those dirs/files.
+            let normalized = file.strip_prefix("./").unwrap_or(file);
             // add files
-            override_builder.add(file)?;
+            override_builder.add(normalized)?;
             // and folders
-            override_builder.add(&format!("{}/**", file))?;
+            override_builder.add(&format!("{}/**", normalized))?;
         }
     }
 
@@ -170,7 +178,18 @@ pub fn publish(
             );
 
             for project_dir in instalations {
-                run_update(registry, &package.json.name, &project_dir)?;
+                let pure = Package::get(&project_dir)
+                    .map(|p| p.json.has_workspaces())
+                    .unwrap_or(false);
+                let mut visited = HashSet::new();
+                run_update(
+                    registry,
+                    &package.json.name,
+                    &project_dir,
+                    pure,
+                    !no_workspace_resolve,
+                    &mut visited,
+                )?;
 
                 println!(
                     "{}",
@@ -273,7 +292,7 @@ mod tests {
             fs::write(proj_path.join(".npmignore"), "secret.log")?;
 
             std::env::set_current_dir(proj_path)?;
-            publish(&mut registry, false, false, false)?;
+            publish(&mut registry, false, false, false, false)?;
 
             // Assert: build artifact IS included, secret IS NOT, node_modules IS NOT
             assert!(
@@ -304,7 +323,7 @@ mod tests {
             )?;
 
             std::env::set_current_dir(proj_path)?;
-            publish(&mut registry, false, false, false)?;
+            publish(&mut registry, false, false, false, false)?;
 
             // Assert: build artifact IS NOT included, secret IS NOT, node_modules IS NOT
             assert!(
@@ -319,6 +338,32 @@ mod tests {
                 !store_path.join("node_modules").exists(),
                 "Scenario 2: node_modules should NOT exist"
             );
+        }
+
+        // --- SCENARIO 3: `files` whitelist uses the npm-style "./lib" prefix ---
+        {
+            let proj_dir = tempdir()?;
+            let proj_path = proj_dir.path();
+            setup_test_project(proj_path)?;
+            fs::create_dir_all(proj_path.join("lib"))?;
+            fs::write(proj_path.join("lib/index.js"), "/* built */")?;
+            fs::write(
+                proj_path.join("package.json"),
+                r#"{"name": "test-pkg", "version": "1.0.0", "files": ["./lib"]}"#,
+            )?;
+
+            std::env::set_current_dir(proj_path)?;
+            publish(&mut registry, false, false, false, false)?;
+
+            // The "./lib" prefix must be normalized so whitelisted build
+            // output is actually copied into the store (regression for the
+            // `./lib/**` glob matching nothing against `lib/index.js`).
+            assert!(
+                store_path.join("lib/index.js").exists(),
+                "Scenario 3: lib/index.js should be included for \"./lib\" files whitelist"
+            );
+
+            fs::remove_dir_all(&store_path)?;
         }
 
         // --- Final Cleanup ---

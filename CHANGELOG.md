@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **`workspace:` dependencies are now resolved automatically**: if a package you add or install has dependencies like `"react": "workspace:^18.0.0"`, kley will install the referenced local package into your project and replace the `workspace:` specifier with a normal version range. Use `--no-workspace-resolve` to keep the original `workspace:` specifier.
+
+### Fixed
+- **Publish now respects `files` entries with a leading `./` prefix**: a package with `"files": ["./lib"]` (npm-style) is copied correctly.
+
+---
+
 ## [0.15.0] - 2026-07-31
 
 ### Added

@@ -1,18 +1,25 @@
+use std::collections::HashSet;
 use std::path::Path;
 
 use anyhow::Result;
 use colored::Colorize;
+use semver::{Version, VersionReq};
 
 use crate::{
     emoji,
     lockfile::{ConnectionType, Lockfile, PackageInfo},
-    package::PackageJson,
+    package::{PackageJson, WorkspaceDep},
     registry::Registry,
     utils::{PROJECT_REGISTRY_DIR_NAME, copy_from_registry, strip_dev_dependencies},
 };
 
 /// Main entry point for the `update` command.
-pub fn update(registry: &mut Registry, packages: &[String], project_dir: &Path) -> Result<()> {
+pub fn update(
+    registry: &mut Registry,
+    packages: &[String],
+    project_dir: &Path,
+    resolve_workspace: bool,
+) -> Result<()> {
     let packages_to_update = if packages.is_empty() {
         // If no packages are specified, update all packages in kley.lock
         let Some(lockfile) = Lockfile::get(project_dir) else {
@@ -40,6 +47,11 @@ pub fn update(registry: &mut Registry, packages: &[String], project_dir: &Path) 
         return Ok(());
     }
 
+    let pure = PackageJson::get(project_dir)
+        .map(|p| p.has_workspaces())
+        .unwrap_or(false);
+    let mut visited = HashSet::new();
+
     println!("{}", "Updating...".green().dimmed());
     for package_name in packages_to_update {
         let connection = Lockfile::get(project_dir)
@@ -55,7 +67,14 @@ pub fn update(registry: &mut Registry, packages: &[String], project_dir: &Path) 
             continue;
         }
 
-        run_update(registry, &package_name, project_dir)?;
+        run_update(
+            registry,
+            &package_name,
+            project_dir,
+            pure,
+            resolve_workspace,
+            &mut visited,
+        )?;
 
         println!(
             "{}",
@@ -73,7 +92,14 @@ pub fn update(registry: &mut Registry, packages: &[String], project_dir: &Path) 
     Ok(())
 }
 
-pub fn run_update(registry: &mut Registry, package_name: &str, project_dir: &Path) -> Result<()> {
+pub fn run_update(
+    registry: &mut Registry,
+    package_name: &str,
+    project_dir: &Path,
+    pure: bool,
+    resolve_workspace: bool,
+    visited: &mut HashSet<String>,
+) -> Result<()> {
     tracing::debug!("run_update:\n package_name: {package_name}\n project_dir: {project_dir:?}");
 
     let project_kley_dir = project_dir
@@ -84,6 +110,16 @@ pub fn run_update(registry: &mut Registry, package_name: &str, project_dir: &Pat
 
     strip_dev_dependencies(&project_kley_dir)?;
 
+    // The `workspace:` protocol is always stripped from the freshly copied
+    // manifest (idempotent), so a re-copy on a later `run_update` of the same
+    // package can never leave a raw `workspace:` behind. Only the recursive
+    // install of the referenced packages is guarded against cycles.
+    if resolve_workspace {
+        let workspace_deps =
+            crate::package::extract_and_strip_workspace_protocol(&project_kley_dir)?;
+        resolve_workspace_links(registry, &workspace_deps, project_dir, pure, visited)?;
+    }
+
     update_kley_lock(registry, package_name, project_dir)?;
 
     tracing::debug!("Updated directory {project_dir:?}");
@@ -91,7 +127,109 @@ pub fn run_update(registry: &mut Registry, package_name: &str, project_dir: &Pat
     Ok(())
 }
 
+/// Install a package into a project: copy it into `.kley/`, optionally inject a
+/// `file:.kley/<pkg>` entry into the project's `package.json`, and record the
+/// installation in the registry. This is the shared implementation behind both
+/// `kley add` and the resolution of `workspace:` dependencies during `run_update`.
+pub fn add_package_into_project(
+    registry: &mut Registry,
+    package_name: &str,
+    is_dev: bool,
+    pure: bool,
+    resolve_workspace: bool,
+    project_dir: &Path,
+    visited: &mut HashSet<String>,
+) -> Result<()> {
+    run_update(
+        registry,
+        package_name,
+        project_dir,
+        pure,
+        resolve_workspace,
+        visited,
+    )?;
+
+    if !pure {
+        PackageJson::update_dependency(project_dir, package_name, is_dev)?;
+    }
+
+    registry.add_package_installation(package_name, project_dir)?;
+
+    Ok(())
+}
+
+/// Resolve the given `workspace:` dependencies (already extracted and stripped
+/// from the package manifest) for the given project. Equivalent to running
+/// `kley add <dep>` for each resolvable dependency: the dependency is copied
+/// into the project's `.kley/` and (unless `pure`) injected into the project's
+/// root `package.json`.
+fn resolve_workspace_links(
+    registry: &mut Registry,
+    workspace_deps: &[WorkspaceDep],
+    project_dir: &Path,
+    pure: bool,
+    visited: &mut HashSet<String>,
+) -> Result<()> {
+    for dep in workspace_deps {
+        // `peerDependencies` are stripped but must not be linked locally as a
+        // `file:.kley` dependency; only `dependencies` are installed.
+        if !dep.inject {
+            continue;
+        }
+
+        let resolvable = match registry.get_pkg_version(&dep.name) {
+            Some(v) => {
+                if dep.range.is_empty() {
+                    true
+                } else {
+                    match (Version::parse(v), VersionReq::parse(&dep.range)) {
+                        (Ok(ver), Ok(req)) => req.matches(&ver),
+                        _ => false,
+                    }
+                }
+            }
+            None => false,
+        };
+
+        if !resolvable {
+            eprintln!(
+                "{}",
+                format!(
+                    "{} Warning: workspace dependency '{}' ({}) could not be resolved from the kley registry; left as '{}'",
+                    emoji::WARNING,
+                    dep.name.cyan(),
+                    format!("workspace:{}", dep.range).magenta(),
+                    dep.range,
+                )
+                .yellow()
+            );
+            continue;
+        }
+
+        // Cycle guard on the recursion only: a package already being resolved
+        // must not recurse into itself. A permanent mark also de-duplicates
+        // shared transitive dependencies.
+        if visited.contains(&dep.name) {
+            continue;
+        }
+        visited.insert(dep.name.clone());
+
+        // Equivalent to `kley add <dep>` into this project. Nested
+        // `workspace:` deps are resolved transitively.
+        add_package_into_project(registry, &dep.name, false, pure, true, project_dir, visited)?;
+    }
+
+    Ok(())
+}
+
 /// Creates or updates kley.lock file.
+///
+/// Snapshots the package's dependencies from its installed copy under
+/// `.kley/<pkg>` — the same manifest `install_package` compares against. This
+/// is only ever called after `copy_from_registry` (inside `run_update`), so the
+/// installed copy is guaranteed to exist; callers must ensure it is present.
+/// The `version` still comes from the registry (its stored metadata), not from
+/// the copied manifest.
 fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path) -> Result<()> {
     let version = if let Some(pkg_version) = registry.get_pkg_version(package_name) {
         pkg_version
@@ -110,7 +248,10 @@ fn update_kley_lock(registry: &Registry, package_name: &str, project_dir: &Path)
 
     let mut lockfile = Lockfile::new(project_dir);
 
-    let package_json = PackageJson::get(&registry.get_pkg_dir(package_name))?;
+    let project_kley_dir = project_dir
+        .join(PROJECT_REGISTRY_DIR_NAME)
+        .join(package_name);
+    let package_json = PackageJson::get(&project_kley_dir)?;
 
     // Insert or update package info
     let package_info = PackageInfo {
@@ -144,7 +285,8 @@ mod kley_lock_tests {
         let mut registry = Registry::with_home_dir(tmp_home_dir.path())?;
 
         let package_name = "test-lib";
-        // The snapshot is read from the package.json in the registry store
+        // Mirror `run_update`: publish into the registry store, then copy into
+        // the project's `.kley/` — `update_kley_lock` reads from that copy.
         let source_path = registry.get_pkg_dir(package_name);
         fs::create_dir_all(&source_path)?;
         let pkg_json_path = source_path.join("package.json");
@@ -155,6 +297,11 @@ mod kley_lock_tests {
         )?;
 
         registry.update_package_version(package_name, "1.2.3")?;
+
+        let project_kley_dir = project_dir
+            .join(PROJECT_REGISTRY_DIR_NAME)
+            .join(package_name);
+        copy_from_registry(&registry, package_name, &project_kley_dir)?;
 
         update_kley_lock(&registry, package_name, project_dir)?;
 
@@ -178,7 +325,8 @@ mod kley_lock_tests {
         let mut registry = Registry::with_home_dir(tmp_home_dir.path())?;
 
         let package_name = "test-lib";
-        // The snapshot is read from the package.json in the registry store
+        // Mirror `run_update`: publish into the registry store, then copy into
+        // the project's `.kley/` — `update_kley_lock` reads from that copy.
         let source_path = registry.get_pkg_dir(package_name);
         fs::create_dir_all(&source_path)?;
         let pkg_json_path = source_path.join("package.json");
@@ -193,6 +341,11 @@ mod kley_lock_tests {
         )?;
 
         registry.update_package_version(package_name, "2.0.0")?;
+
+        let project_kley_dir = project_dir
+            .join(PROJECT_REGISTRY_DIR_NAME)
+            .join(package_name);
+        copy_from_registry(&registry, package_name, &project_kley_dir)?;
 
         update_kley_lock(&registry, package_name, project_dir)?;
 
@@ -233,7 +386,12 @@ mod kley_lock_tests {
         fs::create_dir_all(&project_kley_pkg)?;
         fs::write(project_kley_pkg.join("marker.txt"), "untouched")?;
 
-        update(&mut registry, &["test-lib".to_string()], project_dir.path())?;
+        update(
+            &mut registry,
+            &["test-lib".to_string()],
+            project_dir.path(),
+            true,
+        )?;
 
         // Marker should be untouched because update was skipped
         assert_eq!(
@@ -270,7 +428,12 @@ mod kley_lock_tests {
         let mut file = fs::File::create(project_kley_pkg.join("package.json"))?;
         write!(file, r#"{{"name": "test-lib", "version": "1.0.0"}}"#)?;
 
-        update(&mut registry, &["test-lib".to_string()], project_dir.path())?;
+        update(
+            &mut registry,
+            &["test-lib".to_string()],
+            project_dir.path(),
+            true,
+        )?;
 
         let updated: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(project_kley_pkg.join("package.json"))?)?;
