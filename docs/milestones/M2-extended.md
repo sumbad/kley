@@ -10,8 +10,8 @@ workspaces), automatically track changes (watch), configure behavior via
 .kleyrc, use lifecycle scripts, and run diagnostic commands (check, list,
 clean).
 
-### Progress: 3/27
-<progress value="3" max="27"></progress>
+### Progress: 4/27
+<progress value="4" max="27"></progress>
 
 
 ```mermaid
