@@ -1200,3 +1200,198 @@ fn test_install_all_restores_linked_symlink() -> Result<(), Box<dyn std::error::
 
     Ok(())
 }
+
+// ─── Case C must keep package.json in sync with the kley copy ───────
+//
+// The Case C fast path (deps unchanged + node_modules/<pkg> is a regular
+// directory) used to return without touching package.json. If the project's
+// package.json held a stale spec for the package (e.g. a registry version
+// instead of `file:.kley/<pkg>`), a plain `npm install` would later resolve
+// that spec from the registry and overwrite the kley copy in node_modules.
+
+fn read_project_pkg_json(env: &TestEnv) -> serde_json::Value {
+    serde_json::from_str(
+        &fs::read_to_string(env.project_dir.join("package.json")).unwrap(),
+    )
+    .unwrap()
+}
+
+/// Case C regression: package.json holds a stale registry version instead of
+/// `file:.kley/<pkg>`. Re-install should heal the spec to `file:.kley/<pkg>`
+/// without calling the PM.
+#[test_log::test]
+fn test_fast_path_case_c_heals_stale_registry_version_spec() {
+    let env = TestEnv::new();
+    let pkg_name = "stale-spec-pkg";
+    env.create_mock_package_with_content(
+        pkg_name,
+        "1.0.0",
+        r#"{"name": "stale-spec-pkg", "version": "1.0.0", "dependencies": {"lodash": "^4.0.0"}}"#,
+    );
+    env.setup_project_pm("npm");
+
+    // 1. First install — slow path: PM writes the file: spec + node_modules copy
+    env.run_kley_command(&["install", pkg_name]).assert().success();
+
+    let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert_eq!(pm_log.lines().count(), 1, "First install should call PM once");
+    assert_eq!(
+        read_project_pkg_json(&env)["dependencies"][pkg_name],
+        format!("file:.kley/{}", pkg_name),
+        "First install should record the file: spec"
+    );
+
+    // 2. Simulate the regression: package.json spec reverted to a registry version
+    //    (e.g. written by hand or by a regular npm install of the published package)
+    let pkg_json_path = env.project_dir.join("package.json");
+    let mut pkg: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&pkg_json_path).unwrap()).unwrap();
+    pkg["dependencies"][pkg_name] = "1.0.0".into();
+    fs::write(&pkg_json_path, serde_json::to_string_pretty(&pkg).unwrap()).unwrap();
+
+    // 3. New code is published to the registry with the same version and deps
+    let registry_pkg_dir = env.kley_registry.join("packages").join(pkg_name);
+    fs::write(registry_pkg_dir.join("index.js"), "// v2 code").unwrap();
+
+    // 4. Second install — Case C fast path: PM skipped, node_modules updated,
+    //    and the stale spec must be healed to file:.kley/<pkg>
+    env.run_kley_command(&["install", pkg_name])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Done: stale-spec-pkg installed"));
+
+    let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert_eq!(
+        pm_log.lines().count(),
+        1,
+        "PM should NOT be called on the Case C fast path. pm.log:\n{}",
+        pm_log
+    );
+    assert_eq!(
+        read_project_pkg_json(&env)["dependencies"][pkg_name],
+        format!("file:.kley/{}", pkg_name),
+        "Stale registry version spec should be healed to file:.kley/<pkg>"
+    );
+    assert_eq!(
+        fs::read_to_string(env.project_dir.join("node_modules").join(pkg_name).join("index.js"))
+            .unwrap(),
+        "// v2 code",
+        "Updated source should be copied to node_modules"
+    );
+}
+
+/// Case C with a missing entry: if the package was installed with --no-save
+/// earlier (no spec in package.json, but snapshot + node_modules copy exist),
+/// a subsequent regular install should record the file: spec.
+#[test_log::test]
+fn test_fast_path_case_c_adds_missing_entry_after_no_save() {
+    let env = TestEnv::new();
+    let pkg_name = "missing-entry-pkg";
+    env.create_mock_package_with_content(
+        pkg_name,
+        "1.0.0",
+        r#"{"name": "missing-entry-pkg", "version": "1.0.0", "dependencies": {"lodash": "^4.0.0"}}"#,
+    );
+    env.setup_project_pm("npm");
+
+    // 1. First install with --no-save — PM copies to node_modules but saves nothing
+    env.run_kley_command(&["install", "--no-save", pkg_name])
+        .assert()
+        .success();
+
+    let pkg = read_project_pkg_json(&env);
+    assert!(
+        pkg.get("dependencies").and_then(|d| d.get(pkg_name)).is_none(),
+        "precondition: --no-save should not record the dependency. package.json:\n{}",
+        serde_json::to_string_pretty(&pkg).unwrap()
+    );
+
+    // 2. Second regular install — Case C fast path should add the missing entry
+    env.run_kley_command(&["install", pkg_name]).assert().success();
+
+    let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert_eq!(
+        pm_log.lines().count(),
+        1,
+        "PM should NOT be called on the Case C fast path. pm.log:\n{}",
+        pm_log
+    );
+    assert_eq!(
+        read_project_pkg_json(&env)["dependencies"][pkg_name],
+        format!("file:.kley/{}", pkg_name),
+        "Missing entry should be added on re-install"
+    );
+}
+
+/// Case C with --no-save must leave the stale spec untouched — that is the
+/// documented meaning of the flag.
+#[test_log::test]
+fn test_fast_path_case_c_no_save_keeps_stale_spec() {
+    let env = TestEnv::new();
+    let pkg_name = "no-save-stale-pkg";
+    env.create_mock_package_with_content(
+        pkg_name,
+        "1.0.0",
+        r#"{"name": "no-save-stale-pkg", "version": "1.0.0", "dependencies": {"lodash": "^4.0.0"}}"#,
+    );
+    env.setup_project_pm("npm");
+
+    // 1. First install — slow path
+    env.run_kley_command(&["install", pkg_name]).assert().success();
+
+    // 2. Revert the spec to a registry version
+    let pkg_json_path = env.project_dir.join("package.json");
+    let mut pkg: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&pkg_json_path).unwrap()).unwrap();
+    pkg["dependencies"][pkg_name] = "1.0.0".into();
+    fs::write(&pkg_json_path, serde_json::to_string_pretty(&pkg).unwrap()).unwrap();
+    let pkg_json_before = fs::read_to_string(&pkg_json_path).unwrap();
+
+    // 3. Re-install with --no-save — spec must stay as is
+    env.run_kley_command(&["install", "--no-save", pkg_name])
+        .assert()
+        .success();
+
+    let pkg_json_after = fs::read_to_string(&pkg_json_path).unwrap();
+    assert_eq!(
+        pkg_json_before, pkg_json_after,
+        "package.json should not be modified with --no-save"
+    );
+    assert_eq!(
+        read_project_pkg_json(&env)["dependencies"][pkg_name],
+        "1.0.0",
+        "Stale spec should remain untouched with --no-save"
+    );
+}
+
+/// Case C idempotency: when the spec is already `file:.kley/<pkg>`, re-install
+/// must not rewrite package.json at all.
+#[test_log::test]
+fn test_fast_path_case_c_correct_spec_not_rewritten() {
+    let env = TestEnv::new();
+    let pkg_name = "idempotent-pkg";
+    env.create_mock_package_with_content(
+        pkg_name,
+        "1.0.0",
+        r#"{"name": "idempotent-pkg", "version": "1.0.0", "dependencies": {"lodash": "^4.0.0"}}"#,
+    );
+    env.setup_project_pm("npm");
+
+    // 1. First install — slow path
+    env.run_kley_command(&["install", pkg_name]).assert().success();
+
+    let pkg_json_path = env.project_dir.join("package.json");
+    let pkg_json_before = fs::read_to_string(&pkg_json_path).unwrap();
+
+    // 2. Second install — fast path, already correct spec
+    env.run_kley_command(&["install", pkg_name]).assert().success();
+
+    let pkg_json_after = fs::read_to_string(&pkg_json_path).unwrap();
+    assert_eq!(
+        pkg_json_before, pkg_json_after,
+        "package.json should not be rewritten when the spec is already file:.kley/<pkg>"
+    );
+
+    let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
+    assert_eq!(pm_log.lines().count(), 1, "PM should NOT be called again");
+}

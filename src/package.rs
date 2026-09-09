@@ -147,6 +147,28 @@ impl PackageJson {
     }
 
     /// Modifies package.json in a dir to add or update a dependency
+    /// Returns the current dependency spec for `dependency_name` in the
+    /// project's `package.json`, if the package is listed in any of
+    /// `dependencies`, `devDependencies` or `peerDependencies`.
+    pub fn dependency_spec(project_dir: &Path, dependency_name: &str) -> Result<Option<String>> {
+        let content = PackageJson::get_raw(project_dir)?;
+        let value: serde_json::Value =
+            serde_json::from_str(&content).context("Failed to parse package.json")?;
+
+        let dep_keys = ["dependencies", "devDependencies", "peerDependencies"];
+        for key in dep_keys {
+            if let Some(spec) = value
+                .get(key)
+                .and_then(|d| d.get(dependency_name))
+                .and_then(|s| s.as_str())
+            {
+                return Ok(Some(spec.to_string()));
+            }
+        }
+
+        Ok(None)
+    }
+
     pub fn update_dependency(
         project_dir: &Path,
         dependency_name: &str,

@@ -156,6 +156,21 @@ fn install_package(
             options.overwrite = true;
             options.content_only = true;
             fs_extra::dir::copy(&pkg_kley_path, &deps_path, &options)?;
+
+            // The fast path above can be reached while the project's
+            // `package.json` still holds a non-`file:.kley/...` spec for the
+            // package (e.g. a registry version). Left as is, a plain
+            // `npm install` would resolve that spec from the registry and
+            // overwrite the copy we just made — so record the dependency,
+            // same as the slow path (PM install / `update_dependency`) would.
+            if !no_save {
+                let expected_spec = format!("file:.kley/{}", package_name);
+                let current_spec = PackageJson::dependency_spec(project_dir, package_name)?;
+                if current_spec.as_deref() != Some(expected_spec.as_str()) {
+                    PackageJson::update_dependency(project_dir, package_name, dev)?;
+                }
+            }
+
             return Ok(());
         }
 

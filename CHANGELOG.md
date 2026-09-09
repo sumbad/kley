@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.16.1] - 2026-09-10
+
+### Fixed
+- **`kley install` fast path now keeps `package.json` in sync**: when re-installing a package whose dependencies haven't changed and `node_modules/<pkg>` already exists as a regular directory.
+
+---
+
 ## [0.16.0] - 2026-08-18
 
 ### Added
