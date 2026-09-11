@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Changed
+- **Updated dependencies**: `dialoguer` 0.11 → 0.12, `dirs` 6.0.0 → 7.0.0, `criterion` 0.5 → 0.8. All updates are backward-compatible, no code changes required.
+
+---
+
 ## [0.16.1] - 2026-09-10
 
 ### Fixed
