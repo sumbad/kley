@@ -1,5 +1,9 @@
-use anyhow::Result;
+mod common;
+
+use anyhow::{Ok, Result};
 use assert_cmd::Command;
+use common::TestEnv;
+use serde_json::Value;
 use std::fs;
 use std::path::Path;
 use tempfile::tempdir;
@@ -63,6 +67,34 @@ fn test_publish_command_e2e() -> Result<()> {
         !store_path.join("node_modules").exists(),
         "node_modules should NOT exist"
     );
+
+    Ok(())
+}
+
+#[test]
+fn test_publish_subproject() -> Result<()> {
+    let env = TestEnv::new();
+
+    let sub = env.project_dir.join("packages/my-lib");
+    fs::create_dir_all(&sub)?;
+    fs::write(
+        sub.join("package.json"),
+        r#"{"name": "my-lib", "version": "1.0.0"}"#,
+    )?;
+    fs::write(sub.join("index.js"), "module.exports = 'v1';")?;
+
+    env.run_kley_command(&["publish", "packages/my-lib"])
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("my-lib published"));
+
+    let store = env.kley_registry.join("packages/my-lib");
+    assert!(store.join("index.js").exists());
+
+    let registry: Value = serde_json::from_str(&fs::read_to_string(env.kley_registry.join("registry.json"))?)?;
+    let recorded = registry["packages"]["my-lib"]["sourcePath"].as_str().unwrap();
+
+    assert!(recorded.ends_with("packages/my-lib"));
 
     Ok(())
 }

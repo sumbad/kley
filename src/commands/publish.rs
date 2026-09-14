@@ -4,7 +4,7 @@ use ignore::WalkBuilder;
 use ignore::overrides::OverrideBuilder;
 use std::collections::HashSet;
 use std::fs;
-use std::path::Path;
+use std::path::PathBuf;
 use tracing;
 
 use crate::commands::update::run_update;
@@ -17,20 +17,20 @@ use crate::utils::{get_kley_home_dir, normalized_path};
 /// Publish logic
 pub fn publish(
     registry: &mut Registry,
+    path: PathBuf,
     push: bool,
     non_interactive: bool,
     no_hooks: bool,
     no_workspace_resolve: bool,
 ) -> Result<()> {
-    let repo_root = std::env::current_dir()?;
-    let package = Package::get(&repo_root)?;
+    let package = Package::get(&path)?;
 
     // Resolve hook configuration (file -> wizard -> non-interactive -> default).
-    let hooks = crate::hooks::load_hooks_config(&repo_root, non_interactive, no_hooks)?;
+    let hooks = crate::hooks::load_hooks_config(&path, non_interactive, no_hooks)?;
 
     // Run PRE hooks before any file copy. A failing pre-hook aborts publish
     // before the package is written to the store.
-    crate::hooks::runner::run_phase(&hooks, HookPhase::Pre, &repo_root)?;
+    crate::hooks::runner::run_phase(&hooks, HookPhase::Pre, &path)?;
 
     println!(
         "{} Publishing {}@{}...",
@@ -50,7 +50,7 @@ pub fn publish(
     tracing::debug!("Created dir {:?}", &pkg_in_registry);
 
     // Apply npm built-in rules via OverrideBuilder
-    let mut override_builder = OverrideBuilder::new(Path::new("."));
+    let mut override_builder = OverrideBuilder::new(&path);
     // Exclude:
     override_builder.add("!.git/")?;
     override_builder.add("!node_modules/")?;
@@ -84,9 +84,9 @@ pub fn publish(
         }
     }
 
-    let walk_with_ignores = WalkBuilder::new(".")
+    let walk_with_ignores = WalkBuilder::new(&path)
         .hidden(false)
-        .git_ignore(!Path::new(".npmignore").exists()) // Correctly use .gitignore as a fallback
+        .git_ignore(!path.join(".npmignore").exists()) // Correctly use .gitignore as a fallback
         .add_custom_ignore_filename(".npmignore")
         .add_custom_ignore_filename(".kleyignore")
         .overrides(override_builder.build()?)
@@ -94,29 +94,29 @@ pub fn publish(
 
     for entry in walk_with_ignores {
         let entry = entry?;
-        let path = entry.path();
+        let entry_path = entry.path();
 
-        if path == Path::new(".") {
+        if *entry_path == *path {
             continue;
         }
 
         // Skip only dirs without files
-        if path.is_dir() {
+        if entry_path.is_dir() {
             continue;
         }
 
-        tracing::debug!(path = %path.to_string_lossy(), "Packing entry");
+        tracing::info!(path = %entry_path.to_string_lossy(), "Packing entry");
 
-        let relative_path = path.strip_prefix(".")?;
+        let relative_path = entry_path.strip_prefix(&path)?;
         let target_path = pkg_in_registry.join(relative_path);
 
-        if path.is_dir() {
+        if entry_path.is_dir() {
             fs::create_dir_all(&target_path)?;
         } else {
             if let Some(parent) = target_path.parent() {
                 fs::create_dir_all(parent)?;
             }
-            fs::copy(path, &target_path)?;
+            fs::copy(entry_path, &target_path)?;
         }
     }
 
@@ -131,7 +131,7 @@ pub fn publish(
     ];
 
     for mf in mandatory_files {
-        let mf_path = Path::new(mf);
+        let mf_path = path.join(mf);
         if mf_path.is_file() {
             let target = pkg_in_registry.join(mf);
             fs::copy(mf_path, target).ok();
@@ -139,13 +139,13 @@ pub fn publish(
     }
 
     registry.update_package_version(&package.json.name, &package.json.version)?;
-    registry.set_source_path(&package.json.name, &std::env::current_dir()?)?;
+    registry.set_source_path(&package.json.name, &path)?;
 
     // Run POST hooks after the files are copied into the store. A post-hook
     // failure does NOT mean the publish failed: the package is already in the
     // store and the registry is updated, so it is installable. Report the hook
     // error clearly but still exit non-zero so CI/scripts see the failure.
-    if let Err(e) = crate::hooks::runner::run_phase(&hooks, HookPhase::Post, &repo_root) {
+    if let Err(e) = crate::hooks::runner::run_phase(&hooks, HookPhase::Post, &path) {
         eprintln!(
             "{} Publish succeeded — '{}' is in the store and installable, but a post-publish hook failed:",
             "⚠".yellow(),
@@ -243,6 +243,7 @@ pub fn publish(
         .green()
     );
 
+    tracing::info!("path - {}", path.to_string_lossy());
     Ok(())
 }
 
@@ -273,7 +274,6 @@ mod tests {
 
     #[test]
     fn test_publish_filtering_logic() -> Result<()> {
-        let original_dir = std::env::current_dir()?;
         let tmp_home_dir = tempdir()?;
         let store_path = tmp_home_dir.path().join(".kley/packages/test-pkg");
 
@@ -291,8 +291,14 @@ mod tests {
             )?;
             fs::write(proj_path.join(".npmignore"), "secret.log")?;
 
-            std::env::set_current_dir(proj_path)?;
-            publish(&mut registry, false, false, false, false)?;
+            publish(
+                &mut registry,
+                proj_path.to_path_buf(),
+                false,
+                false,
+                false,
+                false,
+            )?;
 
             // Assert: build artifact IS included, secret IS NOT, node_modules IS NOT
             assert!(
@@ -322,8 +328,14 @@ mod tests {
                 "dist\nsecret.log\nnode_modules",
             )?;
 
-            std::env::set_current_dir(proj_path)?;
-            publish(&mut registry, false, false, false, false)?;
+            publish(
+                &mut registry,
+                proj_path.to_path_buf(),
+                false,
+                false,
+                false,
+                false,
+            )?;
 
             // Assert: build artifact IS NOT included, secret IS NOT, node_modules IS NOT
             assert!(
@@ -352,8 +364,14 @@ mod tests {
                 r#"{"name": "test-pkg", "version": "1.0.0", "files": ["./lib"]}"#,
             )?;
 
-            std::env::set_current_dir(proj_path)?;
-            publish(&mut registry, false, false, false, false)?;
+            publish(
+                &mut registry,
+                proj_path.to_path_buf(),
+                false,
+                false,
+                false,
+                false,
+            )?;
 
             // The "./lib" prefix must be normalized so whitelisted build
             // output is actually copied into the store (regression for the
@@ -367,7 +385,6 @@ mod tests {
         }
 
         // --- Final Cleanup ---
-        std::env::set_current_dir(original_dir)?;
         if store_path.exists() {
             fs::remove_dir_all(&store_path)?;
         }

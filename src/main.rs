@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use anyhow::Result;
 use clap::builder::styling::{AnsiColor, Styles};
 use clap::{Parser, Subcommand};
@@ -43,6 +45,8 @@ enum HooksAction {
 enum Commands {
     /// Publish the current package to the registry
     Publish {
+        /// Path to the sub-project to publish (monorepo support)
+        path: Option<String>,
         #[arg(long)]
         push: bool,
         /// Do not prompt for hooks configuration; pure file copy
@@ -139,17 +143,33 @@ fn main() -> Result<()> {
 
     match &cli.command {
         Commands::Publish {
+            path,
             push,
             non_interactive,
             no_hooks,
             no_workspace_resolve,
-        } => commands::publish::publish(
-            &mut registry,
-            *push,
-            *non_interactive,
-            *no_hooks,
-            *no_workspace_resolve,
-        )?,
+        } => {
+            let path = if let Some(path_str) = path {
+                let path_obj = Path::new(path_str);
+
+                if path_obj.is_absolute() {
+                    path_obj.to_path_buf()
+                } else {
+                    project_dir.join(path_obj)
+                }
+            } else {
+                project_dir
+            };
+
+            commands::publish::publish(
+                &mut registry,
+                path,
+                *push,
+                *non_interactive,
+                *no_hooks,
+                *no_workspace_resolve,
+            )?
+        }
         Commands::Hooks(action) => match action {
             HooksAction::List => commands::hooks::list(&project_dir)?,
             HooksAction::Edit => commands::hooks::edit(&project_dir)?,
@@ -207,7 +227,7 @@ fn main() -> Result<()> {
             &project_dir,
             !*no_workspace_resolve,
         )?,
-        Commands::Watch { path } => commands::watch::watch(&mut registry, path)?,
+        Commands::Watch { path } => commands::watch::watch(&mut registry, project_dir, path)?,
     }
 
     Ok(())

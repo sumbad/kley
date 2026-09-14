@@ -212,9 +212,10 @@ cargo install kley
 
 ## Usage
 
-### 1. `kley publish`
+### 1. `kley publish [path]`
 Run this command in the directory of the package you want to share locally. Kley copies all necessary files to a central store at `~/.kley/packages/<your-package-name>`.
 
+- **Monorepo support**: `kley publish <path>` publishes the package at the given sub-directory without changing into it. Example: `kley publish packages/my-lib`.
 - Use the `--push` flag to automatically update the package in all projects where it has been added or linked. This is the primary command for a fast, iterative workflow.
 
 ### 2. `kley unpublish`
