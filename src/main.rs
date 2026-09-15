@@ -235,7 +235,14 @@ fn main() -> Result<()> {
             !*no_workspace_resolve,
         )?,
         Commands::Watch { path } => {
-            println!("{}", format!("{} Warning: `kley watch` is deprecated. Use `kley publish --watch` instead", emoji::WARNING).yellow());
+            println!(
+                "{}",
+                format!(
+                    "{} Warning: `kley watch` is deprecated. Use `kley publish --watch` instead",
+                    emoji::WARNING
+                )
+                .yellow()
+            );
 
             commands::watch::watch(&mut registry, project_dir, path)?
         }
