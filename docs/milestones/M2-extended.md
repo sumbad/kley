@@ -58,9 +58,9 @@ kanban
         "Add --quiet/--no-colors output control"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-45' }
         "Add publish --content preview"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-46' }
         "Add push --replace/--update flags"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-47' }
-        "Support publish <sub-project> (monorepo)"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-48' }
 
     In Progress
+        "Support publish <sub-project> (monorepo)"<br/><br/>@{ assigned: 🧩, priority: 'Low', ticket: 'f-48' }
 
     Done
         "Add --pure flag to add (workspaces support)"<br/><br/>@{ assigned: 🧩, priority: 'High', ticket: 'f-38' }

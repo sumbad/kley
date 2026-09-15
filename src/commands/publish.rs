@@ -2,9 +2,13 @@ use anyhow::Result;
 use colored::*;
 use ignore::WalkBuilder;
 use ignore::overrides::OverrideBuilder;
+use notify::{Event, EventKind, RecursiveMode, Watcher, recommended_watcher};
 use std::collections::HashSet;
 use std::fs;
-use std::path::Path;
+use std::path::PathBuf;
+use std::sync::mpsc;
+use std::sync::mpsc::RecvTimeoutError;
+use std::time::Duration;
 use tracing;
 
 use crate::commands::update::run_update;
@@ -14,23 +18,26 @@ use crate::package::Package;
 use crate::registry::*;
 use crate::utils::{get_kley_home_dir, normalized_path};
 
+const WATCH_DEBOUNCE: Duration = Duration::from_millis(500);
+
 /// Publish logic
 pub fn publish(
     registry: &mut Registry,
+    path: PathBuf,
     push: bool,
+    watch: Option<String>,
     non_interactive: bool,
     no_hooks: bool,
     no_workspace_resolve: bool,
 ) -> Result<()> {
-    let repo_root = std::env::current_dir()?;
-    let package = Package::get(&repo_root)?;
+    let package = Package::get(&path)?;
 
     // Resolve hook configuration (file -> wizard -> non-interactive -> default).
-    let hooks = crate::hooks::load_hooks_config(&repo_root, non_interactive, no_hooks)?;
+    let hooks = crate::hooks::load_hooks_config(&path, non_interactive, no_hooks)?;
 
     // Run PRE hooks before any file copy. A failing pre-hook aborts publish
     // before the package is written to the store.
-    crate::hooks::runner::run_phase(&hooks, HookPhase::Pre, &repo_root)?;
+    crate::hooks::runner::run_phase(&hooks, HookPhase::Pre, &path)?;
 
     println!(
         "{} Publishing {}@{}...",
@@ -50,7 +57,7 @@ pub fn publish(
     tracing::debug!("Created dir {:?}", &pkg_in_registry);
 
     // Apply npm built-in rules via OverrideBuilder
-    let mut override_builder = OverrideBuilder::new(Path::new("."));
+    let mut override_builder = OverrideBuilder::new(&path);
     // Exclude:
     override_builder.add("!.git/")?;
     override_builder.add("!node_modules/")?;
@@ -84,9 +91,9 @@ pub fn publish(
         }
     }
 
-    let walk_with_ignores = WalkBuilder::new(".")
+    let walk_with_ignores = WalkBuilder::new(&path)
         .hidden(false)
-        .git_ignore(!Path::new(".npmignore").exists()) // Correctly use .gitignore as a fallback
+        .git_ignore(!path.join(".npmignore").exists()) // Correctly use .gitignore as a fallback
         .add_custom_ignore_filename(".npmignore")
         .add_custom_ignore_filename(".kleyignore")
         .overrides(override_builder.build()?)
@@ -94,29 +101,29 @@ pub fn publish(
 
     for entry in walk_with_ignores {
         let entry = entry?;
-        let path = entry.path();
+        let entry_path = entry.path();
 
-        if path == Path::new(".") {
+        if *entry_path == *path {
             continue;
         }
 
         // Skip only dirs without files
-        if path.is_dir() {
+        if entry_path.is_dir() {
             continue;
         }
 
-        tracing::debug!(path = %path.to_string_lossy(), "Packing entry");
+        tracing::info!(path = %entry_path.to_string_lossy(), "Packing entry");
 
-        let relative_path = path.strip_prefix(".")?;
+        let relative_path = entry_path.strip_prefix(&path)?;
         let target_path = pkg_in_registry.join(relative_path);
 
-        if path.is_dir() {
+        if entry_path.is_dir() {
             fs::create_dir_all(&target_path)?;
         } else {
             if let Some(parent) = target_path.parent() {
                 fs::create_dir_all(parent)?;
             }
-            fs::copy(path, &target_path)?;
+            fs::copy(entry_path, &target_path)?;
         }
     }
 
@@ -131,7 +138,7 @@ pub fn publish(
     ];
 
     for mf in mandatory_files {
-        let mf_path = Path::new(mf);
+        let mf_path = path.join(mf);
         if mf_path.is_file() {
             let target = pkg_in_registry.join(mf);
             fs::copy(mf_path, target).ok();
@@ -139,13 +146,13 @@ pub fn publish(
     }
 
     registry.update_package_version(&package.json.name, &package.json.version)?;
-    registry.set_source_path(&package.json.name, &std::env::current_dir()?)?;
+    registry.set_source_path(&package.json.name, &path)?;
 
     // Run POST hooks after the files are copied into the store. A post-hook
     // failure does NOT mean the publish failed: the package is already in the
     // store and the registry is updated, so it is installable. Report the hook
     // error clearly but still exit non-zero so CI/scripts see the failure.
-    if let Err(e) = crate::hooks::runner::run_phase(&hooks, HookPhase::Post, &repo_root) {
+    if let Err(e) = crate::hooks::runner::run_phase(&hooks, HookPhase::Post, &path) {
         eprintln!(
             "{} Publish succeeded — '{}' is in the store and installable, but a post-publish hook failed:",
             "⚠".yellow(),
@@ -243,7 +250,96 @@ pub fn publish(
         .green()
     );
 
+    tracing::info!("path - {}", path.to_string_lossy());
+
+    // Watch mode: start file watcher and republish on changes
+    if let Some(watch_dir) = &watch {
+        let watch_path = if watch_dir.is_empty() {
+            path.clone()
+        } else {
+            path.join(watch_dir)
+        };
+
+        println!(
+            "{} Watching {} for changes...",
+            emoji::WAITING,
+            watch_path.display().to_string().cyan()
+        );
+        println!("{}", "  Press Ctrl+C to stop.".bright_black().italic());
+
+        let (tx, rx) = mpsc::channel::<notify::Result<Event>>();
+        let mut watcher = recommended_watcher(tx)?;
+        watcher.watch(&watch_path, RecursiveMode::Recursive)?;
+
+        let mut pending = false;
+
+        loop {
+            match rx.recv_timeout(WATCH_DEBOUNCE) {
+                Ok(Ok(event)) => {
+                    if is_relevant_event(&event) {
+                        pending = true;
+                    }
+                }
+                Ok(Err(e)) => {
+                    eprintln!("{} Watch error: {}", emoji::ERROR, e);
+                }
+                Err(RecvTimeoutError::Timeout) => {
+                    if pending {
+                        pending = false;
+                        println!(
+                            "\n{} Changes detected, republishing {}...",
+                            emoji::PUBLISH,
+                            package.json.name.cyan()
+                        );
+
+                        if let Err(e) = publish(
+                            registry,
+                            path.clone(),
+                            push,
+                            None, // no nested watch
+                            non_interactive,
+                            no_hooks,
+                            no_workspace_resolve,
+                        ) {
+                            eprintln!("{} Publish error: {}", emoji::ERROR, e);
+                        }
+
+                        println!(
+                            "{} Watching for changes... (Ctrl+C to stop)",
+                            emoji::WAITING
+                        );
+                    }
+                }
+                Err(RecvTimeoutError::Disconnected) => break,
+            }
+        }
+    }
+
     Ok(())
+}
+
+fn is_relevant_event(event: &Event) -> bool {
+    let relevant_kind = matches!(
+        event.kind,
+        EventKind::Create(_)
+            | EventKind::Remove(_)
+            | EventKind::Modify(
+                notify::event::ModifyKind::Data(_)
+                    | notify::event::ModifyKind::Any
+                    | notify::event::ModifyKind::Name(_)
+            )
+    );
+
+    if !relevant_kind {
+        return false;
+    }
+
+    event.paths.iter().any(|p| {
+        !p.components().any(|c| {
+            let s = c.as_os_str().to_string_lossy();
+            s == "node_modules" || s == ".git" || s == ".kley"
+        })
+    })
 }
 
 #[cfg(test)]
@@ -273,7 +369,6 @@ mod tests {
 
     #[test]
     fn test_publish_filtering_logic() -> Result<()> {
-        let original_dir = std::env::current_dir()?;
         let tmp_home_dir = tempdir()?;
         let store_path = tmp_home_dir.path().join(".kley/packages/test-pkg");
 
@@ -291,8 +386,15 @@ mod tests {
             )?;
             fs::write(proj_path.join(".npmignore"), "secret.log")?;
 
-            std::env::set_current_dir(proj_path)?;
-            publish(&mut registry, false, false, false, false)?;
+            publish(
+                &mut registry,
+                proj_path.to_path_buf(),
+                false,
+                None,
+                false,
+                false,
+                false,
+            )?;
 
             // Assert: build artifact IS included, secret IS NOT, node_modules IS NOT
             assert!(
@@ -322,8 +424,15 @@ mod tests {
                 "dist\nsecret.log\nnode_modules",
             )?;
 
-            std::env::set_current_dir(proj_path)?;
-            publish(&mut registry, false, false, false, false)?;
+            publish(
+                &mut registry,
+                proj_path.to_path_buf(),
+                false,
+                None,
+                false,
+                false,
+                false,
+            )?;
 
             // Assert: build artifact IS NOT included, secret IS NOT, node_modules IS NOT
             assert!(
@@ -352,8 +461,15 @@ mod tests {
                 r#"{"name": "test-pkg", "version": "1.0.0", "files": ["./lib"]}"#,
             )?;
 
-            std::env::set_current_dir(proj_path)?;
-            publish(&mut registry, false, false, false, false)?;
+            publish(
+                &mut registry,
+                proj_path.to_path_buf(),
+                false,
+                None,
+                false,
+                false,
+                false,
+            )?;
 
             // The "./lib" prefix must be normalized so whitelisted build
             // output is actually copied into the store (regression for the
@@ -367,7 +483,6 @@ mod tests {
         }
 
         // --- Final Cleanup ---
-        std::env::set_current_dir(original_dir)?;
         if store_path.exists() {
             fs::remove_dir_all(&store_path)?;
         }

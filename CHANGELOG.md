@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **`publish [PATH]` monorepo support**: `kley publish` now accepts an optional path argument to publish a sub-project without changing into its directory. Example: `kley publish packages/my-lib`.
+- **`publish --watch`**: watch for file changes and republish. Optionally specify subdirectory to watch: `--watch=dist`. Combines naturally with path: `kley publish packages/sdk --watch=dist`.
+
+### Deprecated
+- **`kley watch`** is deprecated. Use `kley publish --watch` instead.
+
+### Changed
+- **Updated dependencies**: `dialoguer` 0.11 → 0.12, `dirs` 6.0.0 → 7.0.0, `criterion` 0.5 → 0.8. All updates are backward-compatible, no code changes required.
+
+---
+
 ## [0.16.1] - 2026-09-10
 
 ### Fixed

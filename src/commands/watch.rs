@@ -2,7 +2,7 @@ use anyhow::Result;
 use colored::*;
 use notify::event::ModifyKind;
 use notify::{Event, EventKind, RecursiveMode, Watcher, recommended_watcher};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::sync::mpsc::RecvTimeoutError;
 use std::time::Duration;
@@ -14,14 +14,14 @@ use crate::registry::Registry;
 
 const DEBOUNCE: Duration = Duration::from_millis(500);
 
-pub fn watch(registry: &mut Registry, watch_path: &Option<String>) -> Result<()> {
-    let package = Package::get(&std::env::current_dir()?)?;
+pub fn watch(registry: &mut Registry, path: PathBuf, watch_path: &Option<String>) -> Result<()> {
+    let package = Package::get(&path)?;
     let name = package.json.name.clone();
     let version = package.json.version.clone();
-    let watch_path = if let Some(path) = watch_path {
-        Path::new(path)
+    let watch_path = if let Some(wp) = watch_path {
+        Path::new(wp)
     } else {
-        Path::new(".")
+        &path
     };
 
     println!(
@@ -57,7 +57,8 @@ pub fn watch(registry: &mut Registry, watch_path: &Option<String>) -> Result<()>
                         name.cyan()
                     );
 
-                    if let Err(e) = publish(registry, true, true, false, false) {
+                    if let Err(e) = publish(registry, path.clone(), true, None, true, false, false)
+                    {
                         eprintln!("{} Publish error: {}", emoji::ERROR, e);
                     }
 
