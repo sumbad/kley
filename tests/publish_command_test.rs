@@ -98,7 +98,12 @@ fn test_publish_subproject() -> Result<()> {
         .as_str()
         .unwrap();
 
-    assert!(recorded.ends_with("packages/my-lib"));
+    let recorded_path = std::path::Path::new(recorded);
+    assert!(
+        recorded_path.ends_with("packages/my-lib"),
+        "sourcePath should end with packages/my-lib, got: {}",
+        recorded
+    );
 
     Ok(())
 }

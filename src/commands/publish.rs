@@ -295,10 +295,10 @@ pub fn publish(
                         if let Err(e) = publish(
                             registry,
                             path.clone(),
-                            true, // push on republish
+                            push,
                             None, // no nested watch
-                            true, // non_interactive
-                            false,
+                            non_interactive,
+                            no_hooks,
                             no_workspace_resolve,
                         ) {
                             eprintln!("{} Publish error: {}", emoji::ERROR, e);
