@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.17.0] - 2026-09-15
 
 ### Added
 - **`publish [PATH]` monorepo support**: `kley publish` now accepts an optional path argument to publish a sub-project without changing into its directory. Example: `kley publish packages/my-lib`.
