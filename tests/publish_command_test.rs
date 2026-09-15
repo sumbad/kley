@@ -91,8 +91,12 @@ fn test_publish_subproject() -> Result<()> {
     let store = env.kley_registry.join("packages/my-lib");
     assert!(store.join("index.js").exists());
 
-    let registry: Value = serde_json::from_str(&fs::read_to_string(env.kley_registry.join("registry.json"))?)?;
-    let recorded = registry["packages"]["my-lib"]["sourcePath"].as_str().unwrap();
+    let registry: Value = serde_json::from_str(&fs::read_to_string(
+        env.kley_registry.join("registry.json"),
+    )?)?;
+    let recorded = registry["packages"]["my-lib"]["sourcePath"]
+        .as_str()
+        .unwrap();
 
     assert!(recorded.ends_with("packages/my-lib"));
 

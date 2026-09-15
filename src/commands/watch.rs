@@ -57,7 +57,8 @@ pub fn watch(registry: &mut Registry, path: PathBuf, watch_path: &Option<String>
                         name.cyan()
                     );
 
-                    if let Err(e) = publish(registry, path.clone(), true, true, false, false) {
+                    if let Err(e) = publish(registry, path.clone(), true, None, true, false, false)
+                    {
                         eprintln!("{} Publish error: {}", emoji::ERROR, e);
                     }
 

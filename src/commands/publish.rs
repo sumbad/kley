@@ -2,9 +2,13 @@ use anyhow::Result;
 use colored::*;
 use ignore::WalkBuilder;
 use ignore::overrides::OverrideBuilder;
+use notify::{Event, EventKind, RecursiveMode, Watcher, recommended_watcher};
 use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::mpsc;
+use std::sync::mpsc::RecvTimeoutError;
+use std::time::Duration;
 use tracing;
 
 use crate::commands::update::run_update;
@@ -14,11 +18,14 @@ use crate::package::Package;
 use crate::registry::*;
 use crate::utils::{get_kley_home_dir, normalized_path};
 
+const WATCH_DEBOUNCE: Duration = Duration::from_millis(500);
+
 /// Publish logic
 pub fn publish(
     registry: &mut Registry,
     path: PathBuf,
     push: bool,
+    watch: Option<String>,
     non_interactive: bool,
     no_hooks: bool,
     no_workspace_resolve: bool,
@@ -244,7 +251,95 @@ pub fn publish(
     );
 
     tracing::info!("path - {}", path.to_string_lossy());
+
+    // Watch mode: start file watcher and republish on changes
+    if let Some(watch_dir) = &watch {
+        let watch_path = if watch_dir.is_empty() {
+            path.clone()
+        } else {
+            path.join(watch_dir)
+        };
+
+        println!(
+            "{} Watching {} for changes...",
+            emoji::WAITING,
+            watch_path.display().to_string().cyan()
+        );
+        println!("{}", "  Press Ctrl+C to stop.".bright_black().italic());
+
+        let (tx, rx) = mpsc::channel::<notify::Result<Event>>();
+        let mut watcher = recommended_watcher(tx)?;
+        watcher.watch(&watch_path, RecursiveMode::Recursive)?;
+
+        let mut pending = false;
+
+        loop {
+            match rx.recv_timeout(WATCH_DEBOUNCE) {
+                Ok(Ok(event)) => {
+                    if is_relevant_event(&event) {
+                        pending = true;
+                    }
+                }
+                Ok(Err(e)) => {
+                    eprintln!("{} Watch error: {}", emoji::ERROR, e);
+                }
+                Err(RecvTimeoutError::Timeout) => {
+                    if pending {
+                        pending = false;
+                        println!(
+                            "\n{} Changes detected, republishing {}...",
+                            emoji::PUBLISH,
+                            package.json.name.cyan()
+                        );
+
+                        if let Err(e) = publish(
+                            registry,
+                            path.clone(),
+                            true, // push on republish
+                            None, // no nested watch
+                            true, // non_interactive
+                            false,
+                            no_workspace_resolve,
+                        ) {
+                            eprintln!("{} Publish error: {}", emoji::ERROR, e);
+                        }
+
+                        println!(
+                            "{} Watching for changes... (Ctrl+C to stop)",
+                            emoji::WAITING
+                        );
+                    }
+                }
+                Err(RecvTimeoutError::Disconnected) => break,
+            }
+        }
+    }
+
     Ok(())
+}
+
+fn is_relevant_event(event: &Event) -> bool {
+    let relevant_kind = matches!(
+        event.kind,
+        EventKind::Create(_)
+            | EventKind::Remove(_)
+            | EventKind::Modify(
+                notify::event::ModifyKind::Data(_)
+                    | notify::event::ModifyKind::Any
+                    | notify::event::ModifyKind::Name(_)
+            )
+    );
+
+    if !relevant_kind {
+        return false;
+    }
+
+    event.paths.iter().any(|p| {
+        !p.components().any(|c| {
+            let s = c.as_os_str().to_string_lossy();
+            s == "node_modules" || s == ".git" || s == ".kley"
+        })
+    })
 }
 
 #[cfg(test)]
@@ -295,6 +390,7 @@ mod tests {
                 &mut registry,
                 proj_path.to_path_buf(),
                 false,
+                None,
                 false,
                 false,
                 false,
@@ -332,6 +428,7 @@ mod tests {
                 &mut registry,
                 proj_path.to_path_buf(),
                 false,
+                None,
                 false,
                 false,
                 false,
@@ -368,6 +465,7 @@ mod tests {
                 &mut registry,
                 proj_path.to_path_buf(),
                 false,
+                None,
                 false,
                 false,
                 false,

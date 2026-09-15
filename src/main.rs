@@ -1,3 +1,4 @@
+use colored::*;
 use std::path::Path;
 
 use anyhow::Result;
@@ -5,9 +6,9 @@ use clap::builder::styling::{AnsiColor, Styles};
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
-use kley::commands;
 use kley::package::PackageJson;
 use kley::registry::Registry;
+use kley::{commands, emoji};
 
 fn styles() -> Styles {
     Styles::styled()
@@ -49,6 +50,9 @@ enum Commands {
         path: Option<String>,
         #[arg(long)]
         push: bool,
+        /// Watch for file changes and republish. Optionally specify subdirectory to watch.
+        #[arg(long, num_args = 0..=1, default_missing_value = "")]
+        watch: Option<String>,
         /// Do not prompt for hooks configuration; pure file copy
         #[arg(short = 'y', long = "non-interactive")]
         non_interactive: bool,
@@ -115,6 +119,7 @@ enum Commands {
         #[arg(long)]
         push: bool,
     },
+    /// [Deprecated: use `kley publish --watch`]
     /// Watch for file changes and automatically publish --push
     Watch {
         /// Path to watch files. If omitted, watches all files from current directory
@@ -145,6 +150,7 @@ fn main() -> Result<()> {
         Commands::Publish {
             path,
             push,
+            watch,
             non_interactive,
             no_hooks,
             no_workspace_resolve,
@@ -165,6 +171,7 @@ fn main() -> Result<()> {
                 &mut registry,
                 path,
                 *push,
+                watch.clone(),
                 *non_interactive,
                 *no_hooks,
                 *no_workspace_resolve,
@@ -227,7 +234,11 @@ fn main() -> Result<()> {
             &project_dir,
             !*no_workspace_resolve,
         )?,
-        Commands::Watch { path } => commands::watch::watch(&mut registry, project_dir, path)?,
+        Commands::Watch { path } => {
+            println!("{}", format!("{} Warning: `kley watch` is deprecated. Use `kley publish --watch` instead", emoji::WARNING).yellow());
+
+            commands::watch::watch(&mut registry, project_dir, path)?
+        }
     }
 
     Ok(())

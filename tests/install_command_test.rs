@@ -1210,10 +1210,8 @@ fn test_install_all_restores_linked_symlink() -> Result<(), Box<dyn std::error::
 // that spec from the registry and overwrite the kley copy in node_modules.
 
 fn read_project_pkg_json(env: &TestEnv) -> serde_json::Value {
-    serde_json::from_str(
-        &fs::read_to_string(env.project_dir.join("package.json")).unwrap(),
-    )
-    .unwrap()
+    serde_json::from_str(&fs::read_to_string(env.project_dir.join("package.json")).unwrap())
+        .unwrap()
 }
 
 /// Case C regression: package.json holds a stale registry version instead of
@@ -1231,10 +1229,16 @@ fn test_fast_path_case_c_heals_stale_registry_version_spec() {
     env.setup_project_pm("npm");
 
     // 1. First install — slow path: PM writes the file: spec + node_modules copy
-    env.run_kley_command(&["install", pkg_name]).assert().success();
+    env.run_kley_command(&["install", pkg_name])
+        .assert()
+        .success();
 
     let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
-    assert_eq!(pm_log.lines().count(), 1, "First install should call PM once");
+    assert_eq!(
+        pm_log.lines().count(),
+        1,
+        "First install should call PM once"
+    );
     assert_eq!(
         read_project_pkg_json(&env)["dependencies"][pkg_name],
         format!("file:.kley/{}", pkg_name),
@@ -1273,8 +1277,13 @@ fn test_fast_path_case_c_heals_stale_registry_version_spec() {
         "Stale registry version spec should be healed to file:.kley/<pkg>"
     );
     assert_eq!(
-        fs::read_to_string(env.project_dir.join("node_modules").join(pkg_name).join("index.js"))
-            .unwrap(),
+        fs::read_to_string(
+            env.project_dir
+                .join("node_modules")
+                .join(pkg_name)
+                .join("index.js")
+        )
+        .unwrap(),
         "// v2 code",
         "Updated source should be copied to node_modules"
     );
@@ -1301,13 +1310,17 @@ fn test_fast_path_case_c_adds_missing_entry_after_no_save() {
 
     let pkg = read_project_pkg_json(&env);
     assert!(
-        pkg.get("dependencies").and_then(|d| d.get(pkg_name)).is_none(),
+        pkg.get("dependencies")
+            .and_then(|d| d.get(pkg_name))
+            .is_none(),
         "precondition: --no-save should not record the dependency. package.json:\n{}",
         serde_json::to_string_pretty(&pkg).unwrap()
     );
 
     // 2. Second regular install — Case C fast path should add the missing entry
-    env.run_kley_command(&["install", pkg_name]).assert().success();
+    env.run_kley_command(&["install", pkg_name])
+        .assert()
+        .success();
 
     let pm_log = fs::read_to_string(env.project_dir.join("pm.log")).unwrap();
     assert_eq!(
@@ -1337,7 +1350,9 @@ fn test_fast_path_case_c_no_save_keeps_stale_spec() {
     env.setup_project_pm("npm");
 
     // 1. First install — slow path
-    env.run_kley_command(&["install", pkg_name]).assert().success();
+    env.run_kley_command(&["install", pkg_name])
+        .assert()
+        .success();
 
     // 2. Revert the spec to a registry version
     let pkg_json_path = env.project_dir.join("package.json");
@@ -1378,13 +1393,17 @@ fn test_fast_path_case_c_correct_spec_not_rewritten() {
     env.setup_project_pm("npm");
 
     // 1. First install — slow path
-    env.run_kley_command(&["install", pkg_name]).assert().success();
+    env.run_kley_command(&["install", pkg_name])
+        .assert()
+        .success();
 
     let pkg_json_path = env.project_dir.join("package.json");
     let pkg_json_before = fs::read_to_string(&pkg_json_path).unwrap();
 
     // 2. Second install — fast path, already correct spec
-    env.run_kley_command(&["install", pkg_name]).assert().success();
+    env.run_kley_command(&["install", pkg_name])
+        .assert()
+        .success();
 
     let pkg_json_after = fs::read_to_string(&pkg_json_path).unwrap();
     assert_eq!(
